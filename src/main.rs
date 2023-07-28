@@ -1,3 +1,4 @@
+use fps_counter::FpsCounter;
 use std::num::NonZeroU32;
 use winit::platform::run_return::EventLoopExtRunReturn;
 use winit::{
@@ -6,14 +7,14 @@ use winit::{
     window::WindowBuilder,
 };
 
-const WINDOW_OUTPUT: bool = true;
-const WINDOW_WIDTH: u32 = 1600;
-const WINDOW_HEIGHT: u32 = 900;
-const RENDER_WIDTH: u32 = 400;
-const RENDER_HEIGHT: u32 = 225;
+pub mod fps_counter;
+pub mod render_thread;
+pub mod async_util;
+pub mod worker_thread;
+pub mod constants;
 
-const SCALE_FACTOR: f32 = 4.0;
-const UPDATE_INTERVAL: f32 = 1.0 / 10.0;
+use render_thread::*;
+use constants::*;
 
 fn main() {
     let mut event_loop = EventLoop::new();
@@ -48,20 +49,37 @@ fn main() {
         buffer.as_mut_ptr()
     };
 
+    let mut render_thread: RenderThreadHandle =
+        RenderThreadHandle::run(unsafe_buffer_ptr, RENDER_SIZE)
+            .expect("RenderThreadHandle cannot start");
+    let mut fps_counter = FpsCounter::new();
+    const TRY_INTERVAL_MAX: f32 = 1.0;
+    let mut try_interval: f32 = 0.0;
+
     event_loop.run_return(move |event, _, control_flow| {
         control_flow.set_poll();
 
         match event {
-            Event::RedrawRequested(window_id) if window_id == window.id() => {
-
-                let buffer = surface.buffer_mut().unwrap();
-                buffer.present().unwrap();
-            }
+            Event::RedrawRequested(window_id) if window_id == window.id() => {}
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 window_id,
             } if window_id == window.id() => {
+                render_thread.stop();
                 *control_flow = ControlFlow::Exit;
+            }
+            Event::MainEventsCleared => {
+                let frame_time = fps_counter.update();
+                try_interval -= frame_time.delta;
+                if try_interval <= 0.0 {
+                    try_interval += TRY_INTERVAL_MAX;
+
+                    // render_thread.check_finished();
+
+                }
+                
+                let buffer = surface.buffer_mut().unwrap();
+                buffer.present().unwrap();
             }
             _ => {}
         }

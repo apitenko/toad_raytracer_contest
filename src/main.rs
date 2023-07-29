@@ -1,5 +1,9 @@
+#![feature(try_blocks)]
+
 use fps_counter::FpsCounter;
+use std::cell::Cell;
 use std::num::NonZeroU32;
+use std::time::Duration;
 use winit::platform::run_return::EventLoopExtRunReturn;
 use winit::{
     event::{Event, WindowEvent},
@@ -7,14 +11,14 @@ use winit::{
     window::WindowBuilder,
 };
 
+pub mod async_util;
+pub mod constants;
 pub mod fps_counter;
 pub mod render_thread;
-pub mod async_util;
 pub mod worker_thread;
-pub mod constants;
 
-use render_thread::*;
 use constants::*;
+use render_thread::*;
 
 fn main() {
     let mut event_loop = EventLoop::new();
@@ -36,22 +40,23 @@ fn main() {
             )
             .unwrap();
         let mut buffer = surface.buffer_mut().unwrap();
-        for index in 0..(width * height) {
-            let y = index / width;
-            let x = index % width;
-            let red = x % 255;
-            let green = y % 255;
-            let blue = (x * y) % 255;
+        // for index in 0..(width * height) {
+        //     let y = index / width;
+        //     let x = index % width;
+        //     let red = x % 255;
+        //     let green = y % 255;
+        //     let blue = (x * y) % 255;
 
-            buffer[index as usize] = blue | (green << 8) | (red << 16);
-        }
+        //     buffer[index as usize] = blue | (green << 8) | (red << 16);
+        // }
 
         buffer.as_mut_ptr()
     };
 
-    let mut render_thread: RenderThreadHandle =
+    let mut render_thread: Cell<Option<RenderThreadHandle>> = Cell::new(Some(
         RenderThreadHandle::run(unsafe_buffer_ptr, RENDER_SIZE)
-            .expect("RenderThreadHandle cannot start");
+            .expect("RenderThreadHandle cannot start"),
+    ));
     let mut fps_counter = FpsCounter::new();
     const TRY_INTERVAL_MAX: f32 = 1.0;
     let mut try_interval: f32 = 0.0;
@@ -65,7 +70,7 @@ fn main() {
                 event: WindowEvent::CloseRequested,
                 window_id,
             } if window_id == window.id() => {
-                render_thread.stop();
+                //render_thread.stop();
                 *control_flow = ControlFlow::Exit;
             }
             Event::MainEventsCleared => {
@@ -73,11 +78,28 @@ fn main() {
                 try_interval -= frame_time.delta;
                 if try_interval <= 0.0 {
                     try_interval += TRY_INTERVAL_MAX;
+                    let rt = render_thread.replace(None);
+                    if let Some(rt) = rt {
+                        let result = rt.check_finished();
+                        match result {
+                            IsFinished::Continue(continued_render_thread) => {
+                                render_thread.replace(Some(continued_render_thread));
+                            },
+                            IsFinished::Finished(data) => {
+                                let duration = match data {
+                                    Err(e) => return (),
+                                    Ok(r) => match r {
+                                        Err(e) => return (),
+                                        Ok(duration) => duration,
+                                    }
+                                };
 
-                    // render_thread.check_finished();
-
+                                println!("Frame rendered in {:?}", duration);
+                            }
+                        }
+                    }
                 }
-                
+
                 let buffer = surface.buffer_mut().unwrap();
                 buffer.present().unwrap();
             }

@@ -1,14 +1,21 @@
 use std::{any::Any, num::NonZeroUsize, thread::JoinHandle, time::Duration};
 
-use crate::{async_util::poll, worker_thread::WorkerThreadHandle};
+use crate::{
+    async_util::poll,
+    worker_thread::{WorkerThreadHandle, Workload},
+};
 
 #[derive(Clone, Copy)]
-pub struct TotallySafeBufferMemoryWrapper {
-    pub memory: *mut u32,
-}
+pub struct TotallySafeBufferMemoryWrapper(*mut u32);
 
 unsafe impl Send for TotallySafeBufferMemoryWrapper {}
 unsafe impl Sync for TotallySafeBufferMemoryWrapper {}
+
+impl TotallySafeBufferMemoryWrapper {
+    pub fn memory(&self) -> *mut u32 {
+        return self.0;
+    }
+}
 
 /// Renders 1 frame into the given memory then exits.
 pub fn run_render_thread() {
@@ -33,7 +40,7 @@ pub struct RenderThreadHandle {
 
 impl RenderThreadHandle {
     pub fn run(memory: *mut u32, size: (u32, u32)) -> anyhow::Result<Self> {
-        let memory = TotallySafeBufferMemoryWrapper { memory };
+        let memory = TotallySafeBufferMemoryWrapper(memory);
         let thread = std::thread::spawn(move || {
             return Self::routine(memory, size);
         });
@@ -79,14 +86,17 @@ impl RenderThreadHandle {
                 std::thread::available_parallelism().unwrap_or(NonZeroUsize::new_unchecked(12))
             };
 
-            
-            let worker_thread_handles = Vec::new();
-            
+            let mut worker_thread_handles = Vec::new();
+
+            let pixels_per_thread = size.0 as usize * size.1 as usize / available_threads.get();
+
             for index in 0..available_threads.get() {
-                worker_thread_handles.push(WorkerThreadHandle::run());
+                let workload = Workload::new(
+                    (index * pixels_per_thread) as u32,
+                    ((index + 1) * pixels_per_thread) as u32,
+                );
+                worker_thread_handles.push(WorkerThreadHandle::run(memory.clone(), workload));
             }
-
-
         }
 
         let end_frame_time = std::time::Instant::now();

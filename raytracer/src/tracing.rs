@@ -1,4 +1,4 @@
-use toad_raytracer_contest_lib::generate_multisample_positions;
+use raytracer_lib::generate_multisample_positions;
 
 // ? づ｀･ω･)づ it's compile time o'clock
 

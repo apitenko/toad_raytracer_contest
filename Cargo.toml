@@ -1,15 +1,7 @@
-[package]
-name = "raytracing"
-version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-toad_raytracer_contest_lib = { path = "../toad_raytracer_contest_lib" }
-anyhow = "1.0.72"
-const-random = "0.1.15"
-futures = "0.3.28"
-rand = { version = "0.8.5", features = ["simd_support", "packed_simd"] }
-softbuffer = "0.3.0"
-winit = "0.28.6"
+[workspace]
+members = [
+    "raytracer",
+    "raytracer_lib",
+]
+resolver = "2"
+default-members = ["raytracer"]

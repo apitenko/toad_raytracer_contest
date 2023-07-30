@@ -16,9 +16,17 @@ pub mod constants;
 pub mod fps_counter;
 pub mod render_thread;
 pub mod worker_thread;
+pub mod math;
+pub mod primitives;
+pub mod scene;
+pub mod tracing;
+pub mod surface;
 
 use constants::*;
 use render_thread::*;
+
+use crate::scene::Scene;
+use crate::surface::TotallySafeSurfaceWrapper;
 
 fn main() {
     let mut event_loop = EventLoop::new();
@@ -30,31 +38,25 @@ fn main() {
     let context = unsafe { softbuffer::Context::new(&window) }.unwrap();
     let mut surface = unsafe { softbuffer::Surface::new(&context, &window) }.unwrap();
 
-    let (width, height) = (RENDER_WIDTH, RENDER_HEIGHT);
-
     let unsafe_buffer_ptr = {
         surface
             .resize(
-                NonZeroU32::new(width).unwrap(),
-                NonZeroU32::new(height).unwrap(),
+                NonZeroU32::new(WINDOW_WIDTH).unwrap(),
+                NonZeroU32::new(WINDOW_HEIGHT).unwrap(),
             )
             .unwrap();
         let mut buffer = surface.buffer_mut().unwrap();
-        // for index in 0..(width * height) {
-        //     let y = index / width;
-        //     let x = index % width;
-        //     let red = x % 255;
-        //     let green = y % 255;
-        //     let blue = (x * y) % 255;
-
-        //     buffer[index as usize] = blue | (green << 8) | (red << 16);
-        // }
-
         buffer.as_mut_ptr()
     };
 
+    let surface_wrapper = TotallySafeSurfaceWrapper::new(unsafe_buffer_ptr, RENDER_SIZE, SCALE_FACTOR);
+
+    let scene = Box::new(Scene::new());
+
+    let unsafe_scene_ptr: *const Scene = scene.as_ref();
+
     let mut render_thread: Cell<Option<RenderThreadHandle>> = Cell::new(Some(
-        RenderThreadHandle::run(unsafe_buffer_ptr, RENDER_SIZE)
+        RenderThreadHandle::run(surface_wrapper, RENDER_SIZE, unsafe_scene_ptr)
             .expect("RenderThreadHandle cannot start"),
     ));
     let mut fps_counter = FpsCounter::new();
@@ -70,7 +72,11 @@ fn main() {
                 event: WindowEvent::CloseRequested,
                 window_id,
             } if window_id == window.id() => {
-                //render_thread.stop();
+                
+                let rt = render_thread.replace(None);
+                if let Some(mut rt) = rt {
+                    rt.stop();
+                }
                 *control_flow = ControlFlow::Exit;
             }
             Event::MainEventsCleared => {

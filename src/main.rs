@@ -58,14 +58,15 @@ fn main() {
 
     // owning shapes container (Scene doesn't own shapes!)
     let mut shapes_list = Vec::<Box<Sphere>>::new();
-    let sphere = Box::new(Sphere::new(Vec3::new([0.0, 0.0, -1.0]), 0.5));
-    shapes_list.push(sphere);
+    shapes_list.push(Box::new(Sphere::new(Vec3::new([0.0, 0.0, -1.0]), 0.5)));
+    shapes_list.push(Box::new(Sphere::new(Vec3::new([0.0, -100.5, -1.0]), 100.0)));
 
     let mut scene = Box::new(Scene::new());
     for shape in &shapes_list {
         scene.push_shape(shape.as_ref() as *const dyn Shape);
     }
 
+    // notice the intentional lack of thread synchronization. for the moment.
     let unsafe_scene_ptr: *const Scene = scene.as_ref();
 
     let mut render_thread: Cell<Option<RenderThreadHandle>> = Cell::new(Some(

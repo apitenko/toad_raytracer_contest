@@ -27,6 +27,10 @@ impl Shape for Sphere {
             let distance_traversed = (-b - discriminant.sqrt()) / (2.0 * a);
             let intersection_point = ray.point_at_parameter(distance_traversed);
 
+            if distance_traversed < 0.0 {
+                return Some(CastResult::MISS);
+            }
+
             // TODO: Sample the color
             let color = {
                 let N = (intersection_point - Vec3::BACK).normalized();

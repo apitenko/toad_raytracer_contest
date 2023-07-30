@@ -26,10 +26,7 @@ impl WorkerThreadHandle {
 
                 let scene = unsafe { &(*scene.get()) };
 
-                let ray = Ray::new(
-                    scene.origin,
-                    scene.lower_left_corner + u * scene.width_in_units + v * scene.height_in_units,
-                );
+                let ray = scene.camera.ray(u, v);
 
                 let mut cast_iterator = scene.geometry.traverse(ray);
                 let cast_result = cast_iterator.next();

@@ -7,10 +7,6 @@ use super::svo::SVORoot;
 
 pub struct Scene {
     pub camera: Camera,
-    pub lower_left_corner: Vec3,
-    pub width_in_units: Vec3,
-    pub height_in_units: Vec3,
-    pub origin: Vec3,
 
     pub geometry: SVORoot,
 }
@@ -18,21 +14,13 @@ pub struct Scene {
 impl Scene {
     pub fn new() -> Self {
         Self {
-            camera: Camera::new(Vec3::ZERO),
-            lower_left_corner: Vec3::new([-2.0, -1.0, -1.0]),
-            width_in_units: Vec3::new([4.0, 0.0, 0.0]),
-            height_in_units: Vec3::new([0.0, 2.0, 0.0]),
-            origin: Vec3::ZERO,
+            camera: Camera::new(),
             geometry: SVORoot::empty(),
         }
     }
 
     pub fn push_shape(&mut self, shape: *const dyn Shape) {
         self.geometry.push_shape(shape);
-    }
-
-    pub fn get_object(&self) -> Sphere {
-        return Sphere::new(Vec3::new([0.0, 0.0, -1.0]), 0.5);
     }
 }
 

@@ -24,20 +24,27 @@ impl Vec3 {
         data: [0.5, 0.7, 1.0],
     };
 
+    #[inline]
     pub const fn new(data: [f32; 3]) -> Self {
         Self { data }
     }
 
+    #[inline]
     pub fn x(&self) -> f32 {
         return self.data[0];
     }
+
+    #[inline]
     pub fn y(&self) -> f32 {
         return self.data[1];
     }
+
+    #[inline]
     pub fn z(&self) -> f32 {
         return self.data[2];
     }
 
+    #[inline]
     pub fn add(left: Vec3, right: Vec3) -> Self {
         return Self::new([
             left.data[0] + right.data[0],
@@ -46,6 +53,7 @@ impl Vec3 {
         ]);
     }
 
+    #[inline]
     pub fn subtract(left: Vec3, right: Vec3) -> Self {
         return Self::new([
             left.data[0] - right.data[0],
@@ -54,6 +62,7 @@ impl Vec3 {
         ]);
     }
 
+    #[inline]
     pub fn multiply_components(left: Vec3, right: Vec3) -> Self {
         return Self::new([
             left.data[0] * right.data[0],
@@ -62,6 +71,7 @@ impl Vec3 {
         ]);
     }
 
+    #[inline]
     pub fn multiply_by_f32(left: Vec3, right: f32) -> Self {
         return Self::new([
             left.data[0] * right,
@@ -70,12 +80,23 @@ impl Vec3 {
         ]);
     }
 
+    #[inline]
+    pub fn divide_by_f32(left: Vec3, right: f32) -> Self {
+        return Self::new([
+            left.data[0] / right,
+            left.data[1] / right,
+            left.data[2] / right,
+        ]);
+    }
+
+    #[inline]
     pub fn dot(left: Vec3, right: Vec3) -> f32 {
         return (left.data[0] * right.data[0])
             + (left.data[1] * right.data[1])
             + (left.data[2] * right.data[2]);
     }
 
+    #[inline]
     pub fn cross(left: Vec3, right: Vec3) -> Self {
         return Self::new([
             left.data[1] * right.data[2] - left.data[2] * right.data[1],
@@ -84,6 +105,7 @@ impl Vec3 {
         ]);
     }
 
+    #[inline]
     pub fn length(&self) -> f32 {
         return (self.data[0] * self.data[0]
             + self.data[1] * self.data[1]
@@ -92,12 +114,14 @@ impl Vec3 {
     }
 
     // returns 1 / length
+    #[inline]
     pub fn inv_sqrt_len(&self) -> f32 {
         let len_squared =
             self.data[0] * self.data[0] + self.data[1] * self.data[1] + self.data[2] * self.data[2];
         return 1.0 / len_squared.sqrt();
     }
 
+    #[inline]
     pub fn normalized(&self) -> Self {
         return Vec3::multiply_by_f32(*self, self.inv_sqrt_len());
     }
@@ -107,6 +131,7 @@ impl Vec3 {
 impl std::ops::Add<Vec3> for Vec3 {
     type Output = Vec3;
 
+    #[inline]
     fn add(self, rhs: Vec3) -> Vec3 {
         Vec3::add(self, rhs)
     }
@@ -115,6 +140,7 @@ impl std::ops::Add<Vec3> for Vec3 {
 impl std::ops::Sub<Vec3> for Vec3 {
     type Output = Vec3;
 
+    #[inline]
     fn sub(self, rhs: Vec3) -> Self::Output {
         Vec3::subtract(self, rhs)
     }
@@ -122,6 +148,7 @@ impl std::ops::Sub<Vec3> for Vec3 {
 
 impl std::ops::Neg for Vec3 {
     type Output = Vec3;
+    #[inline]
     fn neg(self) -> Self::Output {
         Vec3::new([-self.data[0], -self.data[1], -self.data[2]])
     }
@@ -131,6 +158,7 @@ impl std::ops::Neg for Vec3 {
 impl std::ops::Mul<Vec3> for Vec3 {
     type Output = Vec3;
 
+    #[inline]
     fn mul(self, rhs: Vec3) -> Self::Output {
         Vec3::multiply_components(self, rhs)
     }
@@ -138,14 +166,24 @@ impl std::ops::Mul<Vec3> for Vec3 {
 
 impl std::ops::Mul<f32> for Vec3 {
     type Output = Vec3;
+    #[inline]
     fn mul(self, rhs: f32) -> Self::Output {
         Vec3::multiply_by_f32(self, rhs)
     }
 }
 impl std::ops::Mul<Vec3> for f32 {
     type Output = Vec3;
+    #[inline]
     fn mul(self, rhs: Vec3) -> Self::Output {
         Vec3::multiply_by_f32(rhs, self)
+    }
+}
+
+impl std::ops::Div<f32> for Vec3 {
+    type Output = Vec3;
+    #[inline]
+    fn div(self, rhs: f32) -> Self::Output {
+        return Vec3::divide_by_f32(self, rhs);
     }
 }
 

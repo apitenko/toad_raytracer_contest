@@ -1,10 +1,9 @@
 #![feature(try_blocks)]
+#![feature(const_for)]
 
 use fps_counter::FpsCounter;
 use std::cell::Cell;
 use std::num::NonZeroU32;
-use std::pin::Pin;
-use std::time::Duration;
 use winit::platform::run_return::EventLoopExtRunReturn;
 use winit::{
     event::{Event, WindowEvent},

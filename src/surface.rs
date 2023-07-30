@@ -1,4 +1,4 @@
-use crate::{math::Vec3, constants::MISS_COLOR};
+use crate::{constants::{MISS_COLOR, RENDER_HEIGHT, WINDOW_HEIGHT}, math::Vec3};
 
 unsafe impl Send for TotallySafeSurfaceWrapper {}
 unsafe impl Sync for TotallySafeSurfaceWrapper {}
@@ -22,18 +22,19 @@ impl TotallySafeSurfaceWrapper {
     }
 
     pub fn write(&mut self, unscaled_position: (u32, u32), data: u32) {
-
         let render_scale = self.render_scale;
 
         let scaled_position = (
             unscaled_position.0 * self.render_scale,
             unscaled_position.1 * self.render_scale,
         );
-        
+
         for i in 0..render_scale {
             for j in 0..render_scale {
                 unsafe {
-                    let index = (scaled_position.1 + j) * self.surface_size.0 + (scaled_position.0 + i);
+                    let y = WINDOW_HEIGHT - (scaled_position.1 + j) - 1;
+                    let x = (scaled_position.0 + i);
+                    let index = y * self.surface_size.0 + x;
                     *(self.memory).add(index as usize) = data;
                 }
             }

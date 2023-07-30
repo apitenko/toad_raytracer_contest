@@ -1,10 +1,13 @@
 use std::{any::Any, num::NonZeroUsize, thread::JoinHandle, time::Duration};
 
 use crate::{
-    async_util::poll,
-    worker_thread::{WorkerThreadHandle}, scene::{Scene, TotallySafeSceneWrapper, workload::Workload}, surface::TotallySafeSurfaceWrapper,
+    scene::{
+        scene::{Scene, TotallySafeSceneWrapper},
+        workload::Workload,
+    },
+    surface::TotallySafeSurfaceWrapper,
+    worker_thread::WorkerThreadHandle,
 };
-
 
 /// Renders 1 frame into the given memory then exits.
 pub fn run_render_thread() {
@@ -28,7 +31,11 @@ pub struct RenderThreadHandle {
 }
 
 impl RenderThreadHandle {
-    pub fn run(surface_wrapper: TotallySafeSurfaceWrapper, size: (u32, u32), scene: *const Scene) -> anyhow::Result<Self> {
+    pub fn run(
+        surface_wrapper: TotallySafeSurfaceWrapper,
+        size: (u32, u32),
+        scene: *const Scene,
+    ) -> anyhow::Result<Self> {
         let scene = TotallySafeSceneWrapper::new(scene);
         let thread = std::thread::spawn(move || {
             return Self::routine(surface_wrapper.clone(), size, scene);
@@ -65,7 +72,7 @@ impl RenderThreadHandle {
     pub fn routine(
         memory: TotallySafeSurfaceWrapper,
         size: (u32, u32),
-        scene: TotallySafeSceneWrapper
+        scene: TotallySafeSceneWrapper,
     ) -> anyhow::Result<Duration> {
         let start_frame_time = std::time::Instant::now();
 
@@ -89,15 +96,20 @@ impl RenderThreadHandle {
                     (index * pixels_per_thread) as u32,
                     ((index + 1) * pixels_per_thread) as u32,
                 );
-                worker_thread_handles.push(WorkerThreadHandle::run(memory.clone(), workload, scene.clone()));
+                worker_thread_handles.push(WorkerThreadHandle::run(
+                    memory.clone(),
+                    workload,
+                    scene.clone(),
+                ));
             }
             {
                 let index = available_threads_minus_one;
-                let workload = Workload::new(
-                    (index * pixels_per_thread) as u32,
-                    total_pixels,
-                );
-                worker_thread_handles.push(WorkerThreadHandle::run(memory.clone(), workload, scene.clone()));
+                let workload = Workload::new((index * pixels_per_thread) as u32, total_pixels);
+                worker_thread_handles.push(WorkerThreadHandle::run(
+                    memory.clone(),
+                    workload,
+                    scene.clone(),
+                ));
             }
         }
 

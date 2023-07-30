@@ -3,6 +3,7 @@
 use fps_counter::FpsCounter;
 use std::cell::Cell;
 use std::num::NonZeroU32;
+use std::pin::Pin;
 use std::time::Duration;
 use winit::platform::run_return::EventLoopExtRunReturn;
 use winit::{
@@ -14,18 +15,21 @@ use winit::{
 pub mod async_util;
 pub mod constants;
 pub mod fps_counter;
-pub mod render_thread;
-pub mod worker_thread;
 pub mod math;
 pub mod primitives;
+pub mod render_thread;
 pub mod scene;
-pub mod tracing;
 pub mod surface;
+pub mod tracing;
+pub mod worker_thread;
 
 use constants::*;
 use render_thread::*;
 
-use crate::scene::Scene;
+use crate::math::Vec3;
+use crate::primitives::shape::Shape;
+use crate::primitives::sphere::Sphere;
+use crate::scene::scene::Scene;
 use crate::surface::TotallySafeSurfaceWrapper;
 
 fn main() {
@@ -49,9 +53,18 @@ fn main() {
         buffer.as_mut_ptr()
     };
 
-    let surface_wrapper = TotallySafeSurfaceWrapper::new(unsafe_buffer_ptr, RENDER_SIZE, SCALE_FACTOR);
+    let surface_wrapper =
+        TotallySafeSurfaceWrapper::new(unsafe_buffer_ptr, RENDER_SIZE, SCALE_FACTOR);
 
-    let scene = Box::new(Scene::new());
+    // owning shapes container (Scene doesn't own shapes!)
+    let mut shapes_list = Vec::<Box<Sphere>>::new();
+    let sphere = Box::new(Sphere::new(Vec3::new([0.0, 0.0, -1.0]), 0.5));
+    shapes_list.push(sphere);
+
+    let mut scene = Box::new(Scene::new());
+    for shape in &shapes_list {
+        scene.push_shape(shape.as_ref() as *const dyn Shape);
+    }
 
     let unsafe_scene_ptr: *const Scene = scene.as_ref();
 
@@ -72,7 +85,6 @@ fn main() {
                 event: WindowEvent::CloseRequested,
                 window_id,
             } if window_id == window.id() => {
-                
                 let rt = render_thread.replace(None);
                 if let Some(mut rt) = rt {
                     rt.stop();
@@ -90,14 +102,14 @@ fn main() {
                         match result {
                             IsFinished::Continue(continued_render_thread) => {
                                 render_thread.replace(Some(continued_render_thread));
-                            },
+                            }
                             IsFinished::Finished(data) => {
                                 let duration = match data {
                                     Err(e) => return (),
                                     Ok(r) => match r {
                                         Err(e) => return (),
                                         Ok(duration) => duration,
-                                    }
+                                    },
                                 };
 
                                 println!("Frame rendered in {:?}", duration);

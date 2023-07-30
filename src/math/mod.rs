@@ -10,17 +10,21 @@ impl Vec3 {
 
     pub const ONE: Self = Self {
         data: [1.0, 1.0, 1.0],
-    };    
+    };
 
     pub const UP: Self = Self {
         data: [0.0, 1.0, 0.0],
     };
-    
+
+    pub const BACK: Self = Self {
+        data: [0.0, 0.0, -1.0],
+    };
+
     pub const COLOR_CALL_PARAMETERS: Vec3 = Vec3 {
         data: [0.5, 0.7, 1.0],
     };
 
-    pub fn new(data: [f32; 3]) -> Self {
+    pub const fn new(data: [f32; 3]) -> Self {
         Self { data }
     }
 
@@ -152,6 +156,10 @@ pub struct Ray {
 }
 
 impl Ray {
+    pub fn new(origin: Vec3, direction: Vec3) -> Self {
+        Self { direction, origin }
+    }
+
     pub fn origin(&self) -> Vec3 {
         return self.origin;
     }

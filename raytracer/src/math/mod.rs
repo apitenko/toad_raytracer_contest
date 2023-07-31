@@ -1,31 +1,51 @@
+use core::arch::x86_64::*;
+use std::{mem::MaybeUninit, u128};
+
 pub mod random;
+
+const unsafe fn make_m128(a: f32, b: f32, c: f32, d: f32) -> __m128 {
+    unsafe {
+        let a: u128 = std::mem::transmute::<f32, u32>(a) as u128;
+        let b: u128 = std::mem::transmute::<f32, u32>(b) as u128;
+        let c: u128 = std::mem::transmute::<f32, u32>(c) as u128;
+        let d: u128 = std::mem::transmute::<f32, u32>(d) as u128;
+
+        let output: u128 = a << 0 | b << 32 | c << 64 | d << 96;
+        let output: __m128 = std::mem::transmute(output);
+        return output;
+    }
+}
 
 #[derive(Clone, Copy, Debug)]
 pub struct Vec3 {
-    data: [f32; 3],
+    data: [f32; 4],
+    #[cfg(target_feature = "avx")]
+    data_vectorized: __m128,
 }
 
 impl Vec3 {
-    pub const ZERO: Self = Self {
-        data: [0.0, 0.0, 0.0],
-    };
-
-    pub const ONE: Self = Self {
-        data: [1.0, 1.0, 1.0],
-    };
-
-    // pub const UP: Self = Self {
-    //     data: [0.0, 1.0, 0.0],
-    // };
-
-    pub const BACK: Self = Self {
-        data: [0.0, 0.0, -1.0],
-    };
+    pub const ZERO: Self = Vec3::new([0.0, 0.0, 0.0]);
+    pub const ONE: Self = Vec3::new([1.0, 1.0, 1.0]);
+    pub const BACK: Self = Vec3::new([0.0, 0.0, -1.0]);
 
     #[inline]
     #[must_use]
     pub const fn new(data: [f32; 3]) -> Self {
-        Self { data }
+        let data = [data[0], data[1], data[2], 0.0];
+
+        #[cfg(target_feature = "avx")]
+        unsafe {
+            let data_vectorized: __m128 = make_m128(data[0], data[1], data[2], data[3]);
+
+            Self {
+                data,
+                data_vectorized,
+            }
+        }
+        #[cfg(not(target_feature = "avx"))]
+        {
+            Self { data }
+        }
     }
 
     #[inline]
@@ -47,13 +67,42 @@ impl Vec3 {
     }
 
     #[inline]
+    fn uninit() -> Self {
+        return unsafe { MaybeUninit::<Vec3>::uninit().assume_init() };
+    }
+
+    fn extract(packed: __m128) -> [f32; 4] {
+        unsafe {
+            [
+                f32::from_bits(_mm_extract_ps::<0>(packed) as u32),
+                f32::from_bits(_mm_extract_ps::<1>(packed) as u32),
+                f32::from_bits(_mm_extract_ps::<2>(packed) as u32),
+                f32::from_bits(_mm_extract_ps::<3>(packed) as u32),
+            ]
+        }
+    }
+
+    #[inline]
     #[must_use]
     pub fn add(left: Vec3, right: Vec3) -> Self {
-        return Self::new([
-            left.data[0] + right.data[0],
-            left.data[1] + right.data[1],
-            left.data[2] + right.data[2],
-        ]);
+        #[cfg(target_feature = "avx")]
+        unsafe {
+            let data_vectorized = _mm_add_ps(left.data_vectorized, right.data_vectorized);
+
+            return Self {
+                data_vectorized: _mm_add_ps(left.data_vectorized, right.data_vectorized),
+                data: Self::extract(data_vectorized),
+            };
+        }
+
+        #[cfg(not(target_feature = "avx"))]
+        {
+            return Self::new([
+                left.data[0] + right.data[0],
+                left.data[1] + right.data[1],
+                left.data[2] + right.data[2],
+            ]);
+        }
     }
 
     #[inline]
@@ -150,9 +199,8 @@ impl Vec3 {
             self.data[0].clamp(min, max),
             self.data[1].clamp(min, max),
             self.data[2].clamp(min, max),
-        ])
+        ]);
     }
-
 
     /// Gamma 2.0 -> pow(x, 1.0 / 2.0) -> sqrt(x)
     #[inline]
@@ -162,10 +210,9 @@ impl Vec3 {
             self.data[0].sqrt(),
             self.data[1].sqrt(),
             self.data[2].sqrt(),
-        ])
+        ]);
     }
 }
-
 
 // overloaded operators
 impl std::ops::Add<Vec3> for Vec3 {
@@ -236,7 +283,11 @@ pub struct Ray {
 
 impl Ray {
     pub fn new(origin: Vec3, direction: Vec3, max_distance: f32) -> Self {
-        Self { direction, origin, max_distance }
+        Self {
+            direction,
+            origin,
+            max_distance,
+        }
     }
 
     pub fn origin(&self) -> Vec3 {

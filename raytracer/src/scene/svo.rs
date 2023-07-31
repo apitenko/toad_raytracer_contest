@@ -1,8 +1,9 @@
 use rand::Rng;
 
 use crate::{
-    math::{Ray, Vec3, random::random_in_unit_sphere},
-    primitives::{cast_result::CastResult, shape::Shape, sphere::Sphere}, constants::MAX_BOUNCES,
+    constants::MAX_BOUNCES,
+    math::{random::random_in_unit_sphere, Ray, Vec3},
+    primitives::{cast_result::CastResult, shape::Shape, sphere::Sphere},
 };
 
 pub struct SVONode {
@@ -30,7 +31,7 @@ impl SVORoot {
             current_ray: ray,
             root: self as *const SVORoot,
             remaining_bounces: MAX_BOUNCES,
-            reflectivity: 1.0
+            reflectivity: 1.0,
         };
     }
 
@@ -43,7 +44,9 @@ impl SVORoot {
             .iter()
             .filter_map(|item| unsafe { (**item).intersect(ray) })
             .fold(CastResult::MISS, |acc, item| {
-                if acc.distance_traversed > item.distance_traversed {
+                if acc.distance_traversed > item.distance_traversed
+                    && item.distance_traversed > 0.001
+                {
                     return item;
                 } else {
                     return acc;
@@ -74,12 +77,15 @@ impl Iterator for SVOIterator {
                 self.remaining_bounces = 0;
             }
 
-            let rnd = random_in_unit_sphere() * 0.1;
+            let rnd = random_in_unit_sphere() * 0.003;
 
             cast_result.color = cast_result.color * self.reflectivity;
             self.reflectivity *= 0.75;
 
-            self.current_ray = Ray::new(cast_result.intersection_point + rnd, cast_result.normal + rnd);
+            self.current_ray = Ray::new(
+                cast_result.intersection_point + rnd,
+                cast_result.normal + rnd,
+            );
 
             return Some(cast_result);
         }

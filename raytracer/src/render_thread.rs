@@ -6,7 +6,7 @@ use crate::{
         workload::Workload,
     },
     surface::TotallySafeSurfaceWrapper,
-    worker_thread::WorkerThreadHandle,
+    worker_thread::WorkerThreadHandle, util::queue::Queue,
 };
 
 /// Renders 1 frame into the given memory then exits.
@@ -77,39 +77,42 @@ impl RenderThreadHandle {
         let start_frame_time = std::time::Instant::now();
 
         {
-            // let context = RenderThreadContext::new();
-
             let available_threads = unsafe {
                 std::thread::available_parallelism().unwrap_or(NonZeroUsize::new_unchecked(12))
             };
 
-            let mut worker_thread_handles = Vec::new();
+            let mut task_queue = Queue::new();
 
             let total_pixels = size.0 * size.1;
-            let pixels_per_thread = total_pixels as f32 / available_threads.get() as f32;
-            let pixels_per_thread = pixels_per_thread.ceil() as usize;
+            let total_tasks = available_threads.get() * 10;
+            let pixels_per_task: usize = (total_pixels as f32 / total_tasks as f32).ceil() as usize;
 
-            let available_threads_minus_one = available_threads.get() - 1;
 
-            for index in 0..available_threads_minus_one {
+            for index in 0..(total_tasks-1) {
                 let workload = Workload::new(
-                    (index * pixels_per_thread) as u32,
-                    ((index + 1) * pixels_per_thread) as u32,
+                    (index * pixels_per_task) as u32,
+                    ((index + 1) * pixels_per_task) as u32,
                 );
+                task_queue.get().push(workload).unwrap();
+            }
+            {
+                let index = total_tasks-1;
+                let workload = Workload::new((index * pixels_per_task) as u32, total_pixels);
+                task_queue.get().push(workload).unwrap();
+            }
+
+            let mut worker_thread_handles = Vec::new();
+
+            for _ in 0..available_threads.get() {
                 worker_thread_handles.push(WorkerThreadHandle::run(
                     memory.clone(),
-                    workload,
+                    task_queue.clone(),
                     scene.clone(),
                 ));
             }
-            {
-                let index = available_threads_minus_one;
-                let workload = Workload::new((index * pixels_per_thread) as u32, total_pixels);
-                worker_thread_handles.push(WorkerThreadHandle::run(
-                    memory.clone(),
-                    workload,
-                    scene.clone(),
-                ));
+
+            for item in worker_thread_handles {
+                item.thread.join().unwrap();
             }
         }
 

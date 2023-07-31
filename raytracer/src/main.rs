@@ -23,6 +23,7 @@ pub mod scene;
 pub mod surface;
 pub mod tracing;
 pub mod worker_thread;
+pub mod util;
 
 use constants::*;
 use render_thread::*;

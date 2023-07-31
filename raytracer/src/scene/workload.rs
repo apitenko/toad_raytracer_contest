@@ -1,5 +1,6 @@
 use crate::constants::RENDER_WIDTH;
 
+#[derive(Clone, Debug)]
 pub struct Workload {
     pub current_pixel: u32,
     pub start_pixel: u32,

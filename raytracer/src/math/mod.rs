@@ -23,26 +23,31 @@ impl Vec3 {
     };
 
     #[inline]
+    #[must_use]
     pub const fn new(data: [f32; 3]) -> Self {
         Self { data }
     }
 
     #[inline]
+    #[must_use]
     pub fn x(&self) -> f32 {
         return self.data[0];
     }
 
     #[inline]
+    #[must_use]
     pub fn y(&self) -> f32 {
         return self.data[1];
     }
 
     #[inline]
+    #[must_use]
     pub fn z(&self) -> f32 {
         return self.data[2];
     }
 
     #[inline]
+    #[must_use]
     pub fn add(left: Vec3, right: Vec3) -> Self {
         return Self::new([
             left.data[0] + right.data[0],
@@ -52,6 +57,7 @@ impl Vec3 {
     }
 
     #[inline]
+    #[must_use]
     pub fn subtract(left: Vec3, right: Vec3) -> Self {
         return Self::new([
             left.data[0] - right.data[0],
@@ -61,6 +67,7 @@ impl Vec3 {
     }
 
     #[inline]
+    #[must_use]
     pub fn multiply_components(left: Vec3, right: Vec3) -> Self {
         return Self::new([
             left.data[0] * right.data[0],
@@ -70,6 +77,7 @@ impl Vec3 {
     }
 
     #[inline]
+    #[must_use]
     pub fn multiply_by_f32(left: Vec3, right: f32) -> Self {
         return Self::new([
             left.data[0] * right,
@@ -79,6 +87,7 @@ impl Vec3 {
     }
 
     #[inline]
+    #[must_use]
     pub fn divide_by_f32(left: Vec3, right: f32) -> Self {
         return Self::new([
             left.data[0] / right,
@@ -88,6 +97,7 @@ impl Vec3 {
     }
 
     #[inline]
+    #[must_use]
     pub fn dot(left: Vec3, right: Vec3) -> f32 {
         return (left.data[0] * right.data[0])
             + (left.data[1] * right.data[1])
@@ -95,6 +105,7 @@ impl Vec3 {
     }
 
     #[inline]
+    #[must_use]
     pub fn cross(left: Vec3, right: Vec3) -> Self {
         return Self::new([
             left.data[1] * right.data[2] - left.data[2] * right.data[1],
@@ -104,11 +115,13 @@ impl Vec3 {
     }
 
     #[inline]
+    #[must_use]
     pub fn length(&self) -> f32 {
         return self.squared_length().sqrt();
     }
 
     #[inline]
+    #[must_use]
     pub fn squared_length(&self) -> f32 {
         return (self.data[0] * self.data[0]
             + self.data[1] * self.data[1]
@@ -117,6 +130,7 @@ impl Vec3 {
 
     // returns 1 / length
     #[inline]
+    #[must_use]
     pub fn inv_sqrt_len(&self) -> f32 {
         let len_squared =
             self.data[0] * self.data[0] + self.data[1] * self.data[1] + self.data[2] * self.data[2];
@@ -124,10 +138,34 @@ impl Vec3 {
     }
 
     #[inline]
+    #[must_use]
     pub fn normalized(&self) -> Self {
         return Vec3::multiply_by_f32(*self, self.inv_sqrt_len());
     }
+
+    #[inline]
+    #[must_use]
+    pub fn clamp(&self, min: f32, max: f32) -> Self {
+        return Vec3::new([
+            self.data[0].clamp(min, max),
+            self.data[1].clamp(min, max),
+            self.data[2].clamp(min, max),
+        ])
+    }
+
+
+    /// Gamma 2.0 -> pow(x, 1.0 / 2.0) -> sqrt(x)
+    #[inline]
+    #[must_use]
+    pub fn gamma_correct_2(&self) -> Self {
+        return Vec3::new([
+            self.data[0].sqrt(),
+            self.data[1].sqrt(),
+            self.data[2].sqrt(),
+        ])
+    }
 }
+
 
 // overloaded operators
 impl std::ops::Add<Vec3> for Vec3 {

@@ -1,4 +1,4 @@
 pub mod scene;
 pub mod svo;
 pub mod workload;
-pub mod light;
+pub mod lights;

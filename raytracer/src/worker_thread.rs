@@ -44,11 +44,11 @@ impl WorkerThreadHandle {
                                 // scene lighting
                                 for light_source in &scene.lights {
 
-                                    let normal_into_light = light_source.position - cast_result.intersection_point;
+                                    let (distance_to_light, normal_into_light) = light_source.normal_from(cast_result.intersection_point);
                                     
-                                    let light_cast_result = scene.geometry.single_cast(Ray::new(cast_result.intersection_point, normal_into_light.normalized(), normal_into_light.length()));
+                                    let light_cast_result = scene.geometry.single_cast(Ray::new(cast_result.intersection_point, normal_into_light, distance_to_light));
                                     if light_cast_result.is_missed() {
-                                        let light_color = light_source.get_emission(&cast_result);
+                                        let light_color = light_source.get_emission(cast_result.intersection_point);
                                         ray_color = ray_color + light_color * cast_result.color;
                                     }
 
@@ -70,6 +70,10 @@ impl WorkerThreadHandle {
                         }
 
                         pixel_color = pixel_color / MULTISAMPLE_SIZE as f32;
+
+                        // gamma correct
+                        pixel_color = pixel_color.gamma_correct_2();
+                        // pixel_color = pixel_color.clamp(0.0, 1.0);
 
                         let red: u32 = (255.99 * pixel_color.x()) as u32;
                         let green: u32 = (255.99 * pixel_color.y()) as u32;

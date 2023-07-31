@@ -3,12 +3,12 @@ use crate::{
     primitives::{camera::Camera, shape::Shape, sphere::Sphere},
 };
 
-use super::{svo::SVORoot, light::PointLight};
+use super::{svo::SVORoot, lights::light::Light};
 
 pub struct Scene {
     pub camera: Camera,
     pub geometry: SVORoot,
-    pub lights: Vec<PointLight>
+    pub lights: Vec<Box<dyn Light>>
 }
 
 impl Scene {

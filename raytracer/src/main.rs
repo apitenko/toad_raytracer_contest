@@ -6,6 +6,7 @@
 use fps_counter::FpsCounter;
 use std::cell::Cell;
 use std::num::NonZeroU32;
+use std::sync::Arc;
 use winit::platform::run_return::EventLoopExtRunReturn;
 use winit::{
     event::{Event, WindowEvent},
@@ -33,6 +34,7 @@ use crate::primitives::shape::Shape;
 use crate::primitives::sphere::Sphere;
 use crate::scene::lights::directional::DirectionalLight;
 use crate::scene::lights::point::PointLight;
+use crate::scene::material::{Lambertian, Material, MaterialShared, Metal};
 use crate::scene::scene::Scene;
 use crate::surface::TotallySafeSurfaceWrapper;
 
@@ -60,27 +62,69 @@ fn main() {
     let surface_wrapper =
         TotallySafeSurfaceWrapper::new(unsafe_buffer_ptr, RENDER_SIZE, SCALE_FACTOR);
 
+    let mut materials_list = Vec::<Box<dyn Material>>::new();
+
+    let lambertian_white = {
+        let mat = Box::new(Lambertian::new(Vec3::new([1.0, 1.0, 1.0])));
+        let mat_ptr = mat.as_ref() as *const dyn Material;
+        let mat_shared = MaterialShared::new(mat_ptr);
+        materials_list.push(mat);
+        mat_shared
+    };
+
+    let lambertian_red = {
+        let mat = Box::new(Lambertian::new(Vec3::new([1.0, 0.0, 0.0])));
+        let mat_ptr = mat.as_ref() as *const dyn Material;
+        let mat_shared = MaterialShared::new(mat_ptr);
+        materials_list.push(mat);
+        mat_shared
+    };
+
+    let lambertian_green = {
+        let mat = Box::new(Lambertian::new(Vec3::new([0.0, 1.0, 0.0])));
+        let mat_ptr = mat.as_ref() as *const dyn Material;
+        let mat_shared = MaterialShared::new(mat_ptr);
+        materials_list.push(mat);
+        mat_shared
+    };
+
+    let lambertian_blue = {
+        let mat = Box::new(Lambertian::new(Vec3::new([0.0, 0.0, 1.0])));
+        let mat_ptr = mat.as_ref() as *const dyn Material;
+        let mat_shared = MaterialShared::new(mat_ptr);
+        materials_list.push(mat);
+        mat_shared
+    };
+
+    let metal_white = {
+        let mat = Box::new(Metal::new(Vec3::new([1.0, 1.0, 1.0])));
+        let mat_ptr = mat.as_ref() as *const dyn Material;
+        let mat_shared = MaterialShared::new(mat_ptr);
+        materials_list.push(mat);
+        mat_shared
+    };
+
     // owning shapes container (Scene doesn't own shapes!)
     let mut shapes_list = Vec::<Box<Sphere>>::new();
     shapes_list.push(Box::new(Sphere::new(
         Vec3::new([-0.2, 0.0, -1.0]),
         0.5,
-        COLOR_RED,
+        lambertian_red.clone(),
     )));
     shapes_list.push(Box::new(Sphere::new(
         Vec3::new([0.0, -100.5, -1.0]),
         100.0,
-        COLOR_GREEN,
+        lambertian_green.clone(),
     )));
     shapes_list.push(Box::new(Sphere::new(
         Vec3::new([0.6, -0.2, -1.0]),
         0.3,
-        COLOR_BLUE,
+        metal_white.clone(),
     )));
     shapes_list.push(Box::new(Sphere::new(
         Vec3::new([-3.0, 0.9, -3.0]),
         1.4,
-        COLOR_BLUE_SCUFF,
+        lambertian_blue.clone(),
     )));
 
     let mut scene = Box::new(Scene::new());

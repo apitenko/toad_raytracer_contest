@@ -306,3 +306,7 @@ impl Ray {
         return Vec3::add(self.origin, Vec3::multiply_by_f32(self.direction, t));
     }
 }
+
+pub fn reflect(vector: Vec3, normal: Vec3) -> Vec3 {
+    return vector - 2.0 * Vec3::dot(vector, normal) * normal;
+}

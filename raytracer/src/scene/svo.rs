@@ -26,14 +26,14 @@ impl SVORoot {
         self.root.shapes.push(shape);
     }
 
-    pub fn traverse(&self, ray: Ray) -> SVOIterator {
-        return SVOIterator {
-            current_ray: ray,
-            root: self as *const SVORoot,
-            remaining_bounces: MAX_BOUNCES,
-            reflectivity: 1.0,
-        };
-    }
+    // pub fn traverse(&self, ray: Ray) -> SVOIterator {
+    //     return SVOIterator {
+    //         current_ray: ray,
+    //         root: self as *const SVORoot,
+    //         remaining_bounces: MAX_BOUNCES,
+    //         reflectivity: 1.0,
+    //     };
+    // }
 
     pub fn single_cast(&self, ray: Ray) -> CastResult {
         // TODO: Scene traversal logic w/ SVOIterator
@@ -71,21 +71,16 @@ impl Iterator for SVOIterator {
         if self.remaining_bounces <= 0 {
             return None;
         } else {
-            let mut cast_result = unsafe { (*self.root).single_cast(self.current_ray) };
+            let cast_result = unsafe { (*self.root).single_cast(self.current_ray) };
 
             self.remaining_bounces -= 1;
             if cast_result.distance_traversed == f32::INFINITY {
                 self.remaining_bounces = 0;
             }
 
-            let rnd = random_in_unit_sphere().normalized() * 0.01;
-
-            cast_result.color = cast_result.color * self.reflectivity;
-            self.reflectivity *= 0.5;
-
             self.current_ray = Ray::new(
                 cast_result.intersection_point,
-                cast_result.normal + rnd,
+                cast_result.normal,
                 f32::MAX,
             );
 

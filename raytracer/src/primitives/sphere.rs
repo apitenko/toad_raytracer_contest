@@ -1,16 +1,16 @@
-use crate::math::Vec3;
+use crate::{math::Vec3, scene::material::MaterialShared};
 
 use super::{cast_result::CastResult, shape::Shape};
 
 pub struct Sphere {
     pub position: Vec3,
     pub radius: f32,
-    pub color: Vec3,
+    pub material: MaterialShared,
 }
 
 impl Sphere {
-    pub fn new(position: Vec3, radius: f32, color: Vec3) -> Self {
-        Self { position, radius, color }
+    pub fn new(position: Vec3, radius: f32, material: MaterialShared) -> Self {
+        Self { position, radius,  material }
     }
 }
 
@@ -32,21 +32,18 @@ impl Shape for Sphere {
                 return Some(CastResult::MISS);
             }
 
-            // TODO: Sample the color
-            // let color = {
-            //     let N = (intersection_point - Vec3::BACK).normalized();
-            //     0.5 * (N + Vec3::ONE)
-            // };
-            let color = self.color;
-
             let normal = (intersection_point - self.position).normalized();
 
             return Some(CastResult {
                 distance_traversed,
                 intersection_point,
                 normal,
-                color,
+                material: self.material.clone(),
             });
         }
+    }
+
+    fn material(&self) -> &dyn crate::scene::material::Material {
+        return self.material.get();
     }
 }

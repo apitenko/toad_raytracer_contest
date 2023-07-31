@@ -33,3 +33,6 @@ pub const COLOR_GREEN_SCUFF: Vec3 = Vec3::new([0.3, 0.9, 0.3]);
 pub const COLOR_BLUE_SCUFF: Vec3 = Vec3::new([0.3, 0.3, 0.9]);
 
 pub const COLOR_CALL_PARAMETERS: Vec3 = Vec3::new([0.5, 0.7, 1.0]);
+
+// to be replaced by 1.0 eventually
+pub const TEMP_SCATTERING_MOD: f32 = 0.011;

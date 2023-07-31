@@ -1,18 +1,18 @@
-use crate::{math::{Vec3, Ray}, constants::{MISS_COLOR_VEC3, COLOR_CALL_PARAMETERS}};
+use crate::{math::{Vec3, Ray}, constants::{MISS_COLOR_VEC3, COLOR_CALL_PARAMETERS}, scene::material::MaterialShared};
 
 pub struct CastResult {
     pub distance_traversed: f32,
     pub intersection_point: Vec3,
     pub normal: Vec3,
-    pub color: Vec3,
+    pub material: MaterialShared,
 }
 
 impl CastResult {
     pub const MISS: Self = Self {
-        color: Vec3::ZERO,
         intersection_point: Vec3::ZERO,
         normal: Vec3::ZERO,
         distance_traversed: f32::INFINITY,
+        material: MaterialShared::DEFAULT_MAT,
     };
 
     pub fn is_missed(&self) -> bool {

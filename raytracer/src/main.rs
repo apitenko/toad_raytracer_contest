@@ -22,8 +22,8 @@ pub mod render_thread;
 pub mod scene;
 pub mod surface;
 pub mod tracing;
-pub mod worker_thread;
 pub mod util;
+pub mod worker_thread;
 
 use constants::*;
 use render_thread::*;
@@ -31,6 +31,7 @@ use render_thread::*;
 use crate::math::Vec3;
 use crate::primitives::shape::Shape;
 use crate::primitives::sphere::Sphere;
+use crate::scene::light::PointLight;
 use crate::scene::scene::Scene;
 use crate::surface::TotallySafeSurfaceWrapper;
 
@@ -85,6 +86,20 @@ fn main() {
     for shape in &shapes_list {
         scene.push_shape(shape.as_ref() as *const dyn Shape);
     }
+
+    scene.lights.push(PointLight::new(
+        Vec3::new([0.0, 10.0, -1.0]),
+        25.0,
+        1.0,
+        COLOR_WHITE,
+    ));
+
+    scene.lights.push(PointLight::new(
+        Vec3::new([10.0, 10.0, -1.0]),
+        25.0,
+        1.0,
+        COLOR_WHITE,
+    ));
 
     // notice the intentional lack of thread synchronization. for the moment.
     let unsafe_scene_ptr: *const Scene = scene.as_ref();

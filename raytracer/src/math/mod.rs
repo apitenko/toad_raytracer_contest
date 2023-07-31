@@ -193,11 +193,12 @@ impl std::ops::Div<f32> for Vec3 {
 pub struct Ray {
     origin: Vec3,
     direction: Vec3,
+    max_distance: f32,
 }
 
 impl Ray {
-    pub fn new(origin: Vec3, direction: Vec3) -> Self {
-        Self { direction, origin }
+    pub fn new(origin: Vec3, direction: Vec3, max_distance: f32) -> Self {
+        Self { direction, origin, max_distance }
     }
 
     pub fn origin(&self) -> Vec3 {
@@ -206,6 +207,10 @@ impl Ray {
 
     pub fn direction(&self) -> Vec3 {
         return self.direction;
+    }
+
+    pub fn max_distance(&self) -> f32 {
+        return self.max_distance;
     }
 
     pub fn point_at_parameter(&self, t: f32) -> Vec3 {

@@ -21,6 +21,7 @@ impl Camera {
         let ray = Ray::new(
             self.origin,
             self.lower_left_corner + u * self.width_in_units + v * self.height_in_units,
+            f32::MAX,
         );
         return ray;
     }

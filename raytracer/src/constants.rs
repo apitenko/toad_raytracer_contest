@@ -21,6 +21,8 @@ pub const MISS_COLOR: u32 = 224 | (185 << 8) | (144 << 16);
 
 pub const MAX_BOUNCES: u32 = 50;
 
+pub const COLOR_WHITE: Vec3 = Vec3::new([1.0, 1.0, 1.0]);
+
 pub const COLOR_RED: Vec3 = Vec3::new([1.0, 0.0, 0.0]);
 pub const COLOR_GREEN: Vec3 = Vec3::new([0.0, 1.0, 0.0]);
 pub const COLOR_BLUE: Vec3 = Vec3::new([0.0, 0.0, 1.0]);

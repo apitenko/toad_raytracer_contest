@@ -14,6 +14,10 @@ impl CastResult {
         normal: Vec3::ZERO,
         distance_traversed: f32::INFINITY,
     };
+
+    pub fn is_missed(&self) -> bool {
+        return self.distance_traversed == f32::INFINITY;
+    }
 }
 
 #[deprecated]

@@ -60,7 +60,7 @@ fn main() {
     // owning shapes container (Scene doesn't own shapes!)
     let mut shapes_list = Vec::<Box<Sphere>>::new();
     shapes_list.push(Box::new(Sphere::new(
-        Vec3::new([0.0, 0.0, -1.0]),
+        Vec3::new([-0.2, 0.0, -1.0]),
         0.5,
         COLOR_RED,
     )));
@@ -68,6 +68,16 @@ fn main() {
         Vec3::new([0.0, -100.5, -1.0]),
         100.0,
         COLOR_GREEN,
+    )));
+    shapes_list.push(Box::new(Sphere::new(
+        Vec3::new([0.6, -0.2, -1.0]),
+        0.3,
+        COLOR_BLUE,
+    )));
+    shapes_list.push(Box::new(Sphere::new(
+        Vec3::new([-3.0, 0.9, -3.0]),
+        1.4,
+        COLOR_BLUE_SCUFF,
     )));
 
     let mut scene = Box::new(Scene::new());

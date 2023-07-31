@@ -29,7 +29,8 @@ impl SVORoot {
         return SVOIterator {
             current_ray: ray,
             root: self as *const SVORoot,
-            remaining_bounces: MAX_BOUNCES
+            remaining_bounces: MAX_BOUNCES,
+            reflectivity: 1.0
         };
     }
 
@@ -57,6 +58,7 @@ pub struct SVOIterator {
     remaining_bounces: u32,
     current_ray: Ray,
     root: *const SVORoot,
+    reflectivity: f32,
 }
 
 impl Iterator for SVOIterator {
@@ -65,14 +67,17 @@ impl Iterator for SVOIterator {
         if self.remaining_bounces <= 0 {
             return None;
         } else {
-            let cast_result = unsafe { (*self.root).single_cast(self.current_ray) };
+            let mut cast_result = unsafe { (*self.root).single_cast(self.current_ray) };
 
             self.remaining_bounces -= 1;
             if cast_result.distance_traversed == f32::INFINITY {
                 self.remaining_bounces = 0;
             }
 
-            let rnd = random_in_unit_sphere();
+            let rnd = random_in_unit_sphere() * 0.1;
+
+            cast_result.color = cast_result.color * self.reflectivity;
+            self.reflectivity *= 0.75;
 
             self.current_ray = Ray::new(cast_result.intersection_point + rnd, cast_result.normal + rnd);
 

@@ -39,7 +39,7 @@ impl Shape for Sphere {
             // };
             let color = self.color;
 
-            let normal = (self.position - intersection_point).normalized();
+            let normal = (intersection_point - self.position).normalized();
 
             return Some(CastResult {
                 distance_traversed,

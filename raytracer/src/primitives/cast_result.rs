@@ -1,4 +1,4 @@
-use crate::{math::{Vec3, Ray}, constants::MISS_COLOR_VEC3};
+use crate::{math::{Vec3, Ray}, constants::{MISS_COLOR_VEC3, COLOR_CALL_PARAMETERS}};
 
 pub struct CastResult {
     pub distance_traversed: f32,
@@ -21,5 +21,5 @@ fn skybox_color(ray: &Ray) {
     // "skybox"
     let ray_normalized = ray.direction().normalized();
     let t = 0.5 * (ray_normalized.y() + 1.0);
-    (1.0 - t) * Vec3::ONE + t * Vec3::COLOR_CALL_PARAMETERS;
+    (1.0 - t) * Vec3::ONE + t * COLOR_CALL_PARAMETERS;
 }

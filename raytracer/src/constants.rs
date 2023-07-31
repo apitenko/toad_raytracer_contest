@@ -23,3 +23,10 @@ pub const MAX_BOUNCES: u32 = 50;
 
 pub const COLOR_RED: Vec3 = Vec3::new([1.0, 0.0, 0.0]);
 pub const COLOR_GREEN: Vec3 = Vec3::new([0.0, 1.0, 0.0]);
+pub const COLOR_BLUE: Vec3 = Vec3::new([0.0, 0.0, 1.0]);
+
+pub const COLOR_RED_SCUFF: Vec3 = Vec3::new([0.9, 0.3, 0.3]);
+pub const COLOR_GREEN_SCUFF: Vec3 = Vec3::new([0.3, 0.9, 0.3]);
+pub const COLOR_BLUE_SCUFF: Vec3 = Vec3::new([0.3, 0.3, 0.9]);
+
+pub const COLOR_CALL_PARAMETERS: Vec3 = Vec3::new([0.5, 0.7, 1.0]);

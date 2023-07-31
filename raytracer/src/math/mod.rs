@@ -14,16 +14,12 @@ impl Vec3 {
         data: [1.0, 1.0, 1.0],
     };
 
-    pub const UP: Self = Self {
-        data: [0.0, 1.0, 0.0],
-    };
+    // pub const UP: Self = Self {
+    //     data: [0.0, 1.0, 0.0],
+    // };
 
     pub const BACK: Self = Self {
         data: [0.0, 0.0, -1.0],
-    };
-
-    pub const COLOR_CALL_PARAMETERS: Vec3 = Vec3 {
-        data: [0.5, 0.7, 1.0],
     };
 
     #[inline]

@@ -77,14 +77,14 @@ impl Iterator for SVOIterator {
                 self.remaining_bounces = 0;
             }
 
-            let rnd = random_in_unit_sphere() * 0.003;
+            let rnd = random_in_unit_sphere() * 0.02;            
 
             cast_result.color = cast_result.color * self.reflectivity;
             self.reflectivity *= 0.75;
 
             self.current_ray = Ray::new(
                 cast_result.intersection_point + rnd,
-                cast_result.normal + rnd,
+                cast_result.normal,
             );
 
             return Some(cast_result);

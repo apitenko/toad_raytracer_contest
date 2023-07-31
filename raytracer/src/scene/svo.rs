@@ -46,7 +46,7 @@ impl SVORoot {
             .fold(CastResult::MISS, |acc, item| {
                 if acc.distance_traversed > item.distance_traversed
                     && item.distance_traversed > 0.001
-                    && item.distance_traversed < ray.max_distance()
+                    && item.distance_traversed <= ray.max_distance()
                 {
                     return item;
                 } else {
@@ -78,14 +78,14 @@ impl Iterator for SVOIterator {
                 self.remaining_bounces = 0;
             }
 
-            let rnd = random_in_unit_sphere().normalized() * 0.04;
+            let rnd = random_in_unit_sphere().normalized() * 0.01;
 
             cast_result.color = cast_result.color * self.reflectivity;
-            self.reflectivity *= 0.75;
+            self.reflectivity *= 0.5;
 
             self.current_ray = Ray::new(
-                cast_result.intersection_point + rnd,
-                cast_result.normal,
+                cast_result.intersection_point,
+                cast_result.normal + rnd,
                 f32::MAX,
             );
 

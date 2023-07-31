@@ -89,6 +89,13 @@ fn main() {
     }
 
     scene.lights.push(Box::new(PointLight::new(
+        Vec3::new([0.0, 1.1, -1.0]),
+        0.3,
+        1.0,
+        Vec3::new([0.5, 0.5, 1.0]),
+    )));
+
+    scene.lights.push(Box::new(PointLight::new(
         Vec3::new([0.0, 10.0, -1.0]),
         25.0,
         0.5,
@@ -129,7 +136,7 @@ fn main() {
                 window_id,
             } if window_id == window.id() => {
                 let rt = render_thread.replace(None);
-                if let Some(mut rt) = rt {
+                if let Some(rt) = rt {
                     rt.stop();
                 }
                 *control_flow = ControlFlow::Exit;

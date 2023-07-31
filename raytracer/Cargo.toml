@@ -14,3 +14,4 @@ rand = { version = "0.8.5", features = ["simd_support", "packed_simd"] }
 softbuffer = "0.3.0"
 winit = "0.28.6"
 concurrent-queue = "2.2.0"
+stop-thread = "0.2.0"

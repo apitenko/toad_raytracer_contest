@@ -6,7 +6,8 @@ use crate::{
         workload::Workload,
     },
     surface::TotallySafeSurfaceWrapper,
-    worker_thread::WorkerThreadHandle, util::queue::Queue,
+    util::queue::Queue,
+    worker_thread::WorkerThreadHandle,
 };
 
 /// Renders 1 frame into the given memory then exits.
@@ -28,6 +29,7 @@ pub enum IsFinished<T> {
 
 pub struct RenderThreadHandle {
     thread: JoinHandleType,
+    exit_handle_sender: std::sync::mpsc::Sender<bool>,
 }
 
 impl RenderThreadHandle {
@@ -37,14 +39,20 @@ impl RenderThreadHandle {
         scene: *const Scene,
     ) -> anyhow::Result<Self> {
         let scene = TotallySafeSceneWrapper::new(scene);
+        let (exit_handle_sender, exit_handle) = std::sync::mpsc::channel();
         let thread = std::thread::spawn(move || {
-            return Self::routine(surface_wrapper.clone(), size, scene);
+            return Self::routine(surface_wrapper.clone(), size, scene, exit_handle);
         });
-        let rt = Self { thread };
+        let rt = Self {
+            thread,
+            exit_handle_sender,
+        };
         Ok(rt)
     }
 
-    pub fn stop(&mut self) {
+    pub fn stop(self) {
+        self.exit_handle_sender.send(true);
+        self.thread.join();
         // THERE IS NO STOPPING US
         /*
                       .a'---'a.
@@ -73,6 +81,7 @@ impl RenderThreadHandle {
         memory: TotallySafeSurfaceWrapper,
         size: (u32, u32),
         scene: TotallySafeSceneWrapper,
+        exit_handle: std::sync::mpsc::Receiver<bool>,
     ) -> anyhow::Result<Duration> {
         let start_frame_time = std::time::Instant::now();
 
@@ -87,8 +96,7 @@ impl RenderThreadHandle {
             let total_tasks = available_threads.get() * 10;
             let pixels_per_task: usize = (total_pixels as f32 / total_tasks as f32).ceil() as usize;
 
-
-            for index in 0..(total_tasks-1) {
+            for index in 0..(total_tasks - 1) {
                 let workload = Workload::new(
                     (index * pixels_per_task) as u32,
                     ((index + 1) * pixels_per_task) as u32,
@@ -96,7 +104,7 @@ impl RenderThreadHandle {
                 task_queue.get().push(workload).unwrap();
             }
             {
-                let index = total_tasks-1;
+                let index = total_tasks - 1;
                 let workload = Workload::new((index * pixels_per_task) as u32, total_pixels);
                 task_queue.get().push(workload).unwrap();
             }
@@ -109,6 +117,25 @@ impl RenderThreadHandle {
                     task_queue.clone(),
                     scene.clone(),
                 ));
+            }
+
+            // wait for comlpetion
+            if cfg!(debug_assertions) {
+                loop {
+                    std::thread::sleep(Duration::from_millis(200));
+                    if task_queue.get().is_empty() {
+                        break;
+                    }
+                    if let Ok(d) = exit_handle.try_recv() {
+                        // nuke threads
+                        for item in worker_thread_handles {
+                            unsafe {
+                                stop_thread::kill_thread_forcibly_exit_code(item.thread, 0);
+                            }
+                        }
+                        return Ok(Duration::from_secs(123456789));
+                    }
+                }
             }
 
             for item in worker_thread_handles {

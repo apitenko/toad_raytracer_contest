@@ -4,10 +4,11 @@ pub const WINDOW_OUTPUT_ENABLED: bool = true;
 
 // pub const RENDER_WIDTH: u32 = 1600;
 // pub const RENDER_HEIGHT: u32 = 900;
+// pub const SCALE_FACTOR: u32 = 1;
 pub const RENDER_WIDTH: u32 = 600;
 pub const RENDER_HEIGHT: u32 = 300;
-
 pub const SCALE_FACTOR: u32 = 2;
+
 
 pub const WINDOW_WIDTH: u32 = RENDER_WIDTH * SCALE_FACTOR;
 pub const WINDOW_HEIGHT: u32 = RENDER_HEIGHT * SCALE_FACTOR;

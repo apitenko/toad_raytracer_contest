@@ -78,7 +78,7 @@ impl Iterator for SVOIterator {
                 self.remaining_bounces = 0;
             }
 
-            let rnd = random_in_unit_sphere().normalized() * 0.1;
+            let rnd = random_in_unit_sphere().normalized() * 0.04;
 
             cast_result.color = cast_result.color * self.reflectivity;
             self.reflectivity *= 0.75;

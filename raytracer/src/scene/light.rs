@@ -1,6 +1,13 @@
 use crate::{math::Vec3, primitives::cast_result::CastResult};
 
-// Linear falloff
+const ATTENUATION_PARAMETERS: (f32, f32, f32) = (0.0, 0.1, 0.1);
+
+fn attenuation_fn(input: f32) -> f32 {
+    return (ATTENUATION_PARAMETERS.0
+        + ATTENUATION_PARAMETERS.1 / input
+        + ATTENUATION_PARAMETERS.2 / (input * input)).clamp(0.0, 1.0);
+}
+
 pub struct PointLight {
     pub position: Vec3,
     pub radius: f32,
@@ -21,7 +28,8 @@ impl PointLight {
     // returns color
     pub fn get_emission(&self, cast_result: &CastResult) -> Vec3 {
         let distance = (self.position - cast_result.intersection_point).length();
-        let strength = ((self.radius - distance) / self.radius).clamp(0.0, 1.0) * self.strength;
-        return self.color * strength;
+        let distance_in_radius = ((self.radius - distance) / self.radius).clamp(0.0, 1.0);
+        let attenuation = attenuation_fn(distance_in_radius);
+        return self.color * attenuation * self.strength;
     }
 }

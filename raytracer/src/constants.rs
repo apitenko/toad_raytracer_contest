@@ -18,3 +18,8 @@ pub const UPDATE_INTERVAL: f32 = 1.0 / 10.0;
 
 pub const MISS_COLOR_VEC3: Vec3 = Vec3::new([144.0 / 256.0, 185.0 / 256.0, 224.0 / 256.0]);
 pub const MISS_COLOR: u32 = 224 | (185 << 8) | (144 << 16);
+
+pub const MAX_BOUNCES: u32 = 50;
+
+pub const COLOR_RED: Vec3 = Vec3::new([1.0, 0.0, 0.0]);
+pub const COLOR_GREEN: Vec3 = Vec3::new([0.0, 1.0, 0.0]);

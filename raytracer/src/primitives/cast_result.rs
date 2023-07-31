@@ -9,7 +9,7 @@ pub struct CastResult {
 
 impl CastResult {
     pub const MISS: Self = Self {
-        color: MISS_COLOR_VEC3,
+        color: Vec3::ZERO,
         intersection_point: Vec3::ZERO,
         normal: Vec3::ZERO,
         distance_traversed: f32::INFINITY,

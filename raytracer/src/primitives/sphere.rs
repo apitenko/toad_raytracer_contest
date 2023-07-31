@@ -5,11 +5,12 @@ use super::{cast_result::CastResult, shape::Shape};
 pub struct Sphere {
     pub position: Vec3,
     pub radius: f32,
+    pub color: Vec3,
 }
 
 impl Sphere {
-    pub fn new(position: Vec3, radius: f32) -> Self {
-        Self { position, radius }
+    pub fn new(position: Vec3, radius: f32, color: Vec3) -> Self {
+        Self { position, radius, color }
     }
 }
 
@@ -32,15 +33,18 @@ impl Shape for Sphere {
             }
 
             // TODO: Sample the color
-            let color = {
-                let N = (intersection_point - Vec3::BACK).normalized();
-                0.5 * (N + Vec3::ONE)
-            };
+            // let color = {
+            //     let N = (intersection_point - Vec3::BACK).normalized();
+            //     0.5 * (N + Vec3::ONE)
+            // };
+            let color = self.color;
+
+            let normal = (self.position - intersection_point).normalized();
 
             return Some(CastResult {
                 distance_traversed,
                 intersection_point,
-                normal: Vec3::ZERO,
+                normal,
                 color,
             });
         }

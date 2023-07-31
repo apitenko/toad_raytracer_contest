@@ -1,3 +1,5 @@
+pub mod random;
+
 #[derive(Clone, Copy, Debug)]
 pub struct Vec3 {
     data: [f32; 3],
@@ -107,10 +109,14 @@ impl Vec3 {
 
     #[inline]
     pub fn length(&self) -> f32 {
+        return self.squared_length().sqrt();
+    }
+
+    #[inline]
+    pub fn squared_length(&self) -> f32 {
         return (self.data[0] * self.data[0]
             + self.data[1] * self.data[1]
-            + self.data[2] * self.data[2])
-            .sqrt();
+            + self.data[2] * self.data[2]);
     }
 
     // returns 1 / length

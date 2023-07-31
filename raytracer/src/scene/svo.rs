@@ -1,6 +1,8 @@
+use rand::Rng;
+
 use crate::{
-    math::{Ray, Vec3},
-    primitives::{cast_result::CastResult, shape::Shape, sphere::Sphere},
+    math::{Ray, Vec3, random::random_in_unit_sphere},
+    primitives::{cast_result::CastResult, shape::Shape, sphere::Sphere}, constants::MAX_BOUNCES,
 };
 
 pub struct SVONode {
@@ -27,6 +29,7 @@ impl SVORoot {
         return SVOIterator {
             current_ray: ray,
             root: self as *const SVORoot,
+            remaining_bounces: MAX_BOUNCES
         };
     }
 
@@ -51,6 +54,7 @@ impl SVORoot {
 }
 
 pub struct SVOIterator {
+    remaining_bounces: u32,
     current_ray: Ray,
     root: *const SVORoot,
 }
@@ -58,9 +62,21 @@ pub struct SVOIterator {
 impl Iterator for SVOIterator {
     type Item = CastResult;
     fn next(&mut self) -> Option<Self::Item> {
+        if self.remaining_bounces <= 0 {
+            return None;
+        } else {
+            let cast_result = unsafe { (*self.root).single_cast(self.current_ray) };
 
-        // TODO: actually iterate
-        let cast_result = unsafe { (*self.root).single_cast(self.current_ray) };
-        return Some(cast_result);
+            self.remaining_bounces -= 1;
+            if cast_result.distance_traversed == f32::INFINITY {
+                self.remaining_bounces = 0;
+            }
+
+            let rnd = random_in_unit_sphere();
+
+            self.current_ray = Ray::new(cast_result.intersection_point + rnd, cast_result.normal + rnd);
+
+            return Some(cast_result);
+        }
     }
 }

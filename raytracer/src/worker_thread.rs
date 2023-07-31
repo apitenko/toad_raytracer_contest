@@ -22,7 +22,7 @@ impl WorkerThreadHandle {
             for (x, y, _) in workload {
                 let scene = unsafe { &(*scene.get()) };
 
-                let mut color = Vec3::ZERO;
+                let mut pixel_color = Vec3::ZERO;
 
                 for offset in MULTISAMPLE_OFFSETS {
                     // Render a pixel
@@ -32,22 +32,27 @@ impl WorkerThreadHandle {
                     let ray = scene.camera.ray(u, v);
 
                     let mut cast_iterator = scene.geometry.traverse(ray);
-                    let cast_result = cast_iterator.next();
-
-                    if let Some(cast_result) = cast_result {
-                        color = color + cast_result.color;
-                    } else {
-                        // skybox has already been hit on the previous step
-                        // no object to hit, skip
-                        color = color + MISS_COLOR_VEC3;
+                    let mut ray_color = Vec3::ZERO;
+                    let mut bounces = 0;
+                    for cast_result in cast_iterator {
+                        bounces += 1;
+                        ray_color = ray_color + cast_result.color;
                     }
+
+                    if bounces == 1 {
+                        ray_color = MISS_COLOR_VEC3;
+                    } else {
+                        ray_color = ray_color / bounces as f32;
+                    }
+
+                    pixel_color = pixel_color + ray_color;
                 }
 
-                color = color / MULTISAMPLE_SIZE as f32;
+                pixel_color = pixel_color / MULTISAMPLE_SIZE as f32;
 
-                let red: u32 = (255.99 * color.x()) as u32;
-                let green: u32 = (255.99 * color.y()) as u32;
-                let blue: u32 = (255.99 * color.z()) as u32;
+                let red: u32 = (255.99 * pixel_color.x()) as u32;
+                let green: u32 = (255.99 * pixel_color.y()) as u32;
+                let blue: u32 = (255.99 * pixel_color.z()) as u32;
 
                 let output = blue | (green << 8) | (red << 16);
                 surface.write((x, y), output);

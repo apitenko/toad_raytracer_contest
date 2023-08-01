@@ -35,7 +35,7 @@ use crate::primitives::shape::Shape;
 use crate::primitives::sphere::Sphere;
 use crate::scene::lights::directional::DirectionalLight;
 use crate::scene::lights::point::PointLight;
-use crate::scene::material::{Lambertian, Material, MaterialShared, Metal};
+use crate::scene::material::{Lambertian, Material, MaterialShared, Metal, RefractiveGlass};
 use crate::scene::scene::Scene;
 use crate::surface::TotallySafeSurfaceWrapper;
 
@@ -65,57 +65,37 @@ fn main() {
 
     let mut materials_list = Vec::<Box<dyn Material>>::new();
 
-    let lambertian_white = {
-        let mat = Box::new(Lambertian::new(Vec3::new([1.0, 1.0, 1.0])));
+    let mut capture_material = |mat: Box<dyn Material>| {
         let mat_ptr = mat.as_ref() as *const dyn Material;
         let mat_shared = MaterialShared::new(mat_ptr);
         materials_list.push(mat);
         mat_shared
     };
 
-    let lambertian_red = {
-        let mat = Box::new(Lambertian::new(Vec3::new([1.0, 0.0, 0.0])));
-        let mat_ptr = mat.as_ref() as *const dyn Material;
-        let mat_shared = MaterialShared::new(mat_ptr);
-        materials_list.push(mat);
-        mat_shared
-    };
-
-    let lambertian_green = {
-        let mat = Box::new(Lambertian::new(Vec3::new([0.0, 1.0, 0.0])));
-        let mat_ptr = mat.as_ref() as *const dyn Material;
-        let mat_shared = MaterialShared::new(mat_ptr);
-        materials_list.push(mat);
-        mat_shared
-    };
-
-    let lambertian_blue = {
-        let mat = Box::new(Lambertian::new(Vec3::new([0.0, 0.0, 1.0])));
-        let mat_ptr = mat.as_ref() as *const dyn Material;
-        let mat_shared = MaterialShared::new(mat_ptr);
-        materials_list.push(mat);
-        mat_shared
-    };
-
-    let metal_white = {
-        let mat = Box::new(Metal::new(Vec3::new([1.0, 1.0, 1.0])));
-        let mat_ptr = mat.as_ref() as *const dyn Material;
-        let mat_shared = MaterialShared::new(mat_ptr);
-        materials_list.push(mat);
-        mat_shared
-    };
+    let glass_white = capture_material(Box::new(RefractiveGlass::new(
+        Vec3::new([1.0, 1.0, 1.0]),
+        0.9,
+    )));
+    let lambertian_white = capture_material(Box::new(Lambertian::new(Vec3::new([1.0, 1.0, 1.0]))));
+    let lambertian_red = capture_material(Box::new(Lambertian::new(Vec3::new([1.0, 0.0, 0.0]))));
+    let lambertian_green = capture_material(Box::new(Lambertian::new(Vec3::new([0.0, 1.0, 0.0]))));
+    let lambertian_blue = capture_material(Box::new(Lambertian::new(Vec3::new([0.0, 0.0, 1.0]))));
+    let metal_white = capture_material(Box::new(Metal::new(Vec3::new([1.0, 1.0, 1.0]))));
+    let metal_blue = capture_material(Box::new(Metal::new(Vec3::new([0.2, 0.2, 1.0]))));
+    let metal_red = capture_material(Box::new(Metal::new(Vec3::new([1.0, 0.0, 0.0]))));
+    let metal_green = capture_material(Box::new(Metal::new(Vec3::new([0.0, 1.0, 0.0]))));
 
     // owning shapes container (Scene doesn't own shapes!)
     let mut shapes_list = Vec::<Box<Sphere>>::new();
     shapes_list.push(Box::new(Sphere::new(
         Vec3::new([-0.2, 0.0, -1.0]),
         0.5,
-        lambertian_red.clone(),
+        metal_red.clone(),
     )));
     shapes_list.push(Box::new(Sphere::new(
         Vec3::new([0.0, -100.5, -1.0]),
         100.0,
-        lambertian_green.clone(),
+        metal_green.clone(),
     )));
     shapes_list.push(Box::new(Sphere::new(
         Vec3::new([0.6, -0.2, -1.0]),
@@ -125,7 +105,7 @@ fn main() {
     shapes_list.push(Box::new(Sphere::new(
         Vec3::new([-3.0, 0.9, -3.0]),
         1.4,
-        lambertian_blue.clone(),
+        metal_blue.clone(),
     )));
 
     let mut scene = Box::new(Scene::new());

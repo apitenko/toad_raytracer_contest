@@ -15,6 +15,7 @@ impl CastResult {
         material: MaterialShared::DEFAULT_MAT,
     };
 
+    #[inline]
     pub fn is_missed(&self) -> bool {
         return self.distance_traversed == f32::INFINITY;
     }

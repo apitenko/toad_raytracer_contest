@@ -5,6 +5,35 @@ use crate::{
     primitives::cast_result::CastResult,
 };
 
+pub struct RefractiveGlass {
+    albedo: Vec3,
+    reflectivity: f32,
+}
+
+impl RefractiveGlass {
+    pub fn new(albedo: Vec3, reflectivity: f32) -> Self {
+        Self {
+            albedo,
+            reflectivity,
+        }
+    }
+}
+
+impl Material for RefractiveGlass {
+    fn scatter(&self, ray_in: &Ray, cast_result: &CastResult) -> MaterialScatterResult {
+        let reflected_normal = reflect(ray_in.direction().normalized(), cast_result.normal);
+        let scattered_ray = Ray::new(cast_result.intersection_point, reflected_normal, f32::MAX);
+        let attenuation = self.albedo;
+        let is_valid = Vec3::dot(scattered_ray.direction(), cast_result.normal) > 0.0;
+
+        return MaterialScatterResult {
+            reflected: scattered_ray,
+            refracted: None,
+            is_valid: true,
+            attenuation,
+        };
+    }
+}
 
 // TODO: Sample the color
 // let color = {
@@ -23,7 +52,7 @@ impl Lambertian {
 }
 
 impl Material for Lambertian {
-    fn scatter(&self, ray_in: &Ray, cast_result: &CastResult) -> (Ray, Vec3, bool) {
+    fn scatter(&self, ray_in: &Ray, cast_result: &CastResult) -> MaterialScatterResult {
         let rnd = random_in_unit_sphere().normalized();
         let scattered = Ray::new(
             cast_result.intersection_point,
@@ -31,8 +60,12 @@ impl Material for Lambertian {
             f32::MAX,
         );
         let attenuation = self.albedo;
-        let is_hit = true;
-        return (scattered, attenuation, is_hit);
+        return MaterialScatterResult {
+            reflected: scattered,
+            refracted: None,
+            is_valid: true,
+            attenuation,
+        };
     }
 }
 
@@ -47,17 +80,30 @@ impl Metal {
 }
 
 impl Material for Metal {
-    fn scatter(&self, ray_in: &Ray, cast_result: &CastResult) -> (Ray, Vec3, bool) {
-        let reflected = reflect(ray_in.direction().normalized(), cast_result.normal);
-        let scattered = Ray::new(cast_result.intersection_point, reflected, f32::MAX);
+    fn scatter(&self, ray_in: &Ray, cast_result: &CastResult) -> MaterialScatterResult {
+        let reflected_normal = reflect(ray_in.direction().normalized(), cast_result.normal);
+        let scattered_ray = Ray::new(cast_result.intersection_point, reflected_normal, f32::MAX);
         let attenuation = self.albedo;
-        let is_hit = Vec3::dot(scattered.direction(), cast_result.normal) > 0.0;
-        return (scattered, attenuation, is_hit);
+        let is_valid = Vec3::dot(scattered_ray.direction(), cast_result.normal) > 0.0;
+
+        return MaterialScatterResult {
+            reflected: scattered_ray,
+            refracted: None,
+            is_valid: true,
+            attenuation,
+        };
     }
 }
 
+pub struct MaterialScatterResult {
+    pub reflected: Ray,
+    pub refracted: Option<Ray>,
+    pub attenuation: Vec3,
+    pub is_valid: bool,
+}
+
 pub trait Material {
-    fn scatter(&self, ray_in: &Ray, cast_result: &CastResult) -> (Ray, Vec3, bool);
+    fn scatter(&self, ray_in: &Ray, cast_result: &CastResult) -> MaterialScatterResult;
 }
 
 fn reflect(vector: Vec3, normal: Vec3) -> Vec3 {

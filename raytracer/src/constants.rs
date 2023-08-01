@@ -5,6 +5,9 @@ pub const WINDOW_OUTPUT_ENABLED: bool = true;
 // pub const RENDER_WIDTH: u32 = 1600;
 // pub const RENDER_HEIGHT: u32 = 900;
 // pub const SCALE_FACTOR: u32 = 1;
+// pub const RENDER_WIDTH: u32 = 600;
+// pub const RENDER_HEIGHT: u32 = 300;
+// pub const SCALE_FACTOR: u32 = 2;
 pub const RENDER_WIDTH: u32 = 300;
 pub const RENDER_HEIGHT: u32 = 150;
 pub const SCALE_FACTOR: u32 = 4;
@@ -19,8 +22,6 @@ pub const UPDATE_INTERVAL: f32 = 1.0 / 10.0;
 
 pub const MISS_COLOR_VEC3: Vec3 = Vec3::new([144.0 / 256.0, 185.0 / 256.0, 224.0 / 256.0]);
 pub const MISS_COLOR: u32 = 224 | (185 << 8) | (144 << 16);
-
-pub const MAX_BOUNCES: u32 = 50;
 
 pub const COLOR_WHITE: Vec3 = Vec3::new([1.0, 1.0, 1.0]);
 

@@ -1,6 +1,8 @@
 use core::arch::x86_64::*;
 use std::{mem::MaybeUninit, u128};
 
+use crate::tracing::MAX_BOUNCES;
+
 pub mod random;
 
 const unsafe fn make_m128(x: f32, y: f32, z: f32, w: f32) -> __m128 {
@@ -341,6 +343,12 @@ impl std::ops::Add<Vec3> for Vec3 {
     }
 }
 
+impl std::ops::AddAssign<Vec3> for Vec3 {
+    fn add_assign(&mut self, rhs: Vec3) {
+        *self = Vec3::add(*self, rhs)
+    }
+}
+
 impl std::ops::Sub<Vec3> for Vec3 {
     type Output = Vec3;
 
@@ -426,4 +434,26 @@ impl Ray {
 
 pub fn reflect(vector: Vec3, normal: Vec3) -> Vec3 {
     return vector - 2.0 * Vec3::dot(vector, normal) * normal;
+}
+
+pub struct RayBounce {
+    pub ray: Ray,
+    pub bounces: i32,
+    pub energy: f32,
+}
+
+impl RayBounce {
+    pub fn new(ray: Ray) -> Self {
+        Self {
+            ray,
+            bounces: MAX_BOUNCES,
+            energy: 1.0,
+        }
+    }
+}
+
+impl Into<RayBounce> for Ray {
+    fn into(self) -> RayBounce {
+        RayBounce::new(self)
+    }
 }

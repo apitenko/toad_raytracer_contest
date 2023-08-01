@@ -1,7 +1,6 @@
 use rand::Rng;
 
 use crate::{
-    constants::MAX_BOUNCES,
     math::{random::random_in_unit_sphere, Ray, Vec3},
     primitives::{cast_result::CastResult, shape::Shape, sphere::Sphere},
 };

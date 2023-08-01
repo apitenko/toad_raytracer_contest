@@ -5,9 +5,9 @@ pub const WINDOW_OUTPUT_ENABLED: bool = true;
 // pub const RENDER_WIDTH: u32 = 1600;
 // pub const RENDER_HEIGHT: u32 = 900;
 // pub const SCALE_FACTOR: u32 = 1;
-pub const RENDER_WIDTH: u32 = 600;
-pub const RENDER_HEIGHT: u32 = 300;
-pub const SCALE_FACTOR: u32 = 2;
+pub const RENDER_WIDTH: u32 = 300;
+pub const RENDER_HEIGHT: u32 = 150;
+pub const SCALE_FACTOR: u32 = 4;
 
 
 pub const WINDOW_WIDTH: u32 = RENDER_WIDTH * SCALE_FACTOR;
@@ -33,6 +33,3 @@ pub const COLOR_GREEN_SCUFF: Vec3 = Vec3::new([0.3, 0.9, 0.3]);
 pub const COLOR_BLUE_SCUFF: Vec3 = Vec3::new([0.3, 0.3, 0.9]);
 
 pub const COLOR_CALL_PARAMETERS: Vec3 = Vec3::new([0.5, 0.7, 1.0]);
-
-// to be replaced by 1.0 eventually
-pub const TEMP_SCATTERING_MOD: f32 = 0.011;

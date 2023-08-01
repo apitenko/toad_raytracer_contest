@@ -2,6 +2,7 @@
 #![feature(const_for)]
 #![feature(const_trait_impl)]
 #![feature(const_mut_refs)]
+#![feature(stdarch)]
 
 use fps_counter::FpsCounter;
 use std::cell::Cell;

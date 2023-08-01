@@ -3,14 +3,14 @@ use std::{mem::MaybeUninit, u128};
 
 pub mod random;
 
-const unsafe fn make_m128(a: f32, b: f32, c: f32, d: f32) -> __m128 {
+const unsafe fn make_m128(x: f32, y: f32, z: f32, w: f32) -> __m128 {
     unsafe {
-        let a: u128 = std::mem::transmute::<f32, u32>(a) as u128;
-        let b: u128 = std::mem::transmute::<f32, u32>(b) as u128;
-        let c: u128 = std::mem::transmute::<f32, u32>(c) as u128;
-        let d: u128 = std::mem::transmute::<f32, u32>(d) as u128;
+        let x: u128 = std::mem::transmute::<f32, u32>(x) as u128;
+        let y: u128 = std::mem::transmute::<f32, u32>(y) as u128;
+        let z: u128 = std::mem::transmute::<f32, u32>(z) as u128;
+        let w: u128 = std::mem::transmute::<f32, u32>(w) as u128;
 
-        let output: u128 = a << 0 | b << 32 | c << 64 | d << 96;
+        let output: u128 = x << 0 | y << 32 | z << 64 | w << 96;
         let output: __m128 = std::mem::transmute(output);
         return output;
     }
@@ -18,8 +18,9 @@ const unsafe fn make_m128(a: f32, b: f32, c: f32, d: f32) -> __m128 {
 
 #[derive(Clone, Copy, Debug)]
 pub struct Vec3 {
+    #[cfg(not(target_feature = "sse"))]
     data: [f32; 4],
-    #[cfg(target_feature = "avx")]
+    #[cfg(target_feature = "sse")]
     data_vectorized: __m128,
 }
 
@@ -33,16 +34,13 @@ impl Vec3 {
     pub const fn new(data: [f32; 3]) -> Self {
         let data = [data[0], data[1], data[2], 0.0];
 
-        #[cfg(target_feature = "avx")]
+        #[cfg(target_feature = "sse")]
         unsafe {
             let data_vectorized: __m128 = make_m128(data[0], data[1], data[2], data[3]);
 
-            Self {
-                data,
-                data_vectorized,
-            }
+            Self { data_vectorized }
         }
-        #[cfg(not(target_feature = "avx"))]
+        #[cfg(not(target_feature = "sse"))]
         {
             Self { data }
         }
@@ -50,20 +48,46 @@ impl Vec3 {
 
     #[inline]
     #[must_use]
-    pub fn x(&self) -> f32 {
-        return self.data[0];
+    pub const fn x(&self) -> f32 {
+        #[cfg(target_feature = "sse")]
+        unsafe {
+            let ptr = (&self.data_vectorized) as *const __m128 as *const f32;
+            return *ptr.add(0);
+        }
+        #[cfg(not(target_feature = "sse"))]
+        {
+            data[0]
+        }
     }
 
     #[inline]
     #[must_use]
-    pub fn y(&self) -> f32 {
-        return self.data[1];
+    pub const fn y(&self) -> f32 {
+        #[cfg(target_feature = "sse")]
+        unsafe {
+            let ptr = (&self.data_vectorized) as *const __m128 as *const f32;
+            let ptr = ptr.add(1);
+            return *ptr;
+        }
+        #[cfg(not(target_feature = "sse"))]
+        {
+            data[1]
+        }
     }
 
     #[inline]
     #[must_use]
-    pub fn z(&self) -> f32 {
-        return self.data[2];
+    pub const fn z(&self) -> f32 {
+        #[cfg(target_feature = "sse")]
+        unsafe {
+            let ptr = (&self.data_vectorized) as *const __m128 as *const f32;
+            let ptr = ptr.add(2);
+            return *ptr;
+        }
+        #[cfg(not(target_feature = "sse"))]
+        {
+            data[2]
+        }
     }
 
     #[inline]
@@ -85,22 +109,19 @@ impl Vec3 {
     #[inline]
     #[must_use]
     pub fn add(left: Vec3, right: Vec3) -> Self {
-        #[cfg(target_feature = "avx")]
+        #[cfg(target_feature = "sse")]
         unsafe {
-            let data_vectorized = _mm_add_ps(left.data_vectorized, right.data_vectorized);
-
             return Self {
                 data_vectorized: _mm_add_ps(left.data_vectorized, right.data_vectorized),
-                data: Self::extract(data_vectorized),
             };
         }
 
-        #[cfg(not(target_feature = "avx"))]
+        #[cfg(not(target_feature = "sse"))]
         {
             return Self::new([
-                left.data[0] + right.data[0],
-                left.data[1] + right.data[1],
-                left.data[2] + right.data[2],
+                left.x() + right.x(),
+                left.y() + right.y(),
+                left.z() + right.z(),
             ]);
         }
     }
@@ -108,97 +129,187 @@ impl Vec3 {
     #[inline]
     #[must_use]
     pub fn subtract(left: Vec3, right: Vec3) -> Self {
-        return Self::new([
-            left.data[0] - right.data[0],
-            left.data[1] - right.data[1],
-            left.data[2] - right.data[2],
-        ]);
+        #[cfg(target_feature = "sse")]
+        unsafe {
+            return Self {
+                data_vectorized: _mm_sub_ps(left.data_vectorized, right.data_vectorized),
+            };
+        }
+        #[cfg(not(target_feature = "sse"))]
+        {
+            return Self::new([
+                left.x() - right.x(),
+                left.y() - right.y(),
+                left.z() - right.z(),
+            ]);
+        }
     }
 
     #[inline]
     #[must_use]
     pub fn multiply_components(left: Vec3, right: Vec3) -> Self {
-        return Self::new([
-            left.data[0] * right.data[0],
-            left.data[1] * right.data[1],
-            left.data[2] * right.data[2],
-        ]);
+        #[cfg(target_feature = "sse")]
+        unsafe {
+            return Self {
+                data_vectorized: _mm_mul_ps(left.data_vectorized, right.data_vectorized),
+            };
+        }
+        #[cfg(not(target_feature = "sse"))]
+        {
+            return Self::new([
+                left.x() * right.x(),
+                left.y() * right.y(),
+                left.z() * right.z(),
+            ]);
+        }
     }
 
     #[inline]
     #[must_use]
     pub fn multiply_by_f32(left: Vec3, right: f32) -> Self {
-        return Self::new([
-            left.data[0] * right,
-            left.data[1] * right,
-            left.data[2] * right,
-        ]);
+        #[cfg(target_feature = "sse")]
+        unsafe {
+            let right = _mm_set1_ps(right);
+            return Self {
+                data_vectorized: _mm_mul_ps(left.data_vectorized, right),
+            };
+        }
+        #[cfg(not(target_feature = "sse"))]
+        {
+            return Self::new([left.x() * right, left.y() * right, left.z() * right]);
+        }
     }
 
     #[inline]
     #[must_use]
     pub fn divide_by_f32(left: Vec3, right: f32) -> Self {
-        return Self::new([
-            left.data[0] / right,
-            left.data[1] / right,
-            left.data[2] / right,
-        ]);
+        #[cfg(target_feature = "sse")]
+        unsafe {
+            let right = _mm_set1_ps(right);
+            return Self {
+                data_vectorized: _mm_div_ps(left.data_vectorized, right),
+            };
+        }
+        #[cfg(not(target_feature = "sse"))]
+        {
+            return Self::new([left.x() / right, left.y() / right, left.z() / right]);
+        }
+    }
+
+    const IMM8: i32 = 1 << 0 | 1 << 1 | 1 << 2 | 0 << 3 | 1 << 4 | 1 << 5 | 1 << 6 | 0 << 7;
+
+    #[inline]
+    #[must_use]
+    #[cfg(target_feature = "sse")]
+    fn m128_dot(left: __m128, right: __m128) -> f32 {
+        unsafe {
+            let dp = _mm_dp_ps::<{ Self::IMM8 }>(left, right);
+            return _mm_cvtss_f32(dp);
+        }
     }
 
     #[inline]
     #[must_use]
     pub fn dot(left: Vec3, right: Vec3) -> f32 {
-        return (left.data[0] * right.data[0])
-            + (left.data[1] * right.data[1])
-            + (left.data[2] * right.data[2]);
+        #[cfg(target_feature = "sse")]
+        unsafe {
+            return Self::m128_dot(left.data_vectorized, right.data_vectorized);
+        }
+        #[cfg(not(target_feature = "sse"))]
+        {
+            return (left.x() * right.x()) + (left.y() * right.y()) + (left.z() * right.z());
+        }
     }
 
     #[inline]
     #[must_use]
     pub fn cross(left: Vec3, right: Vec3) -> Self {
-        return Self::new([
-            left.data[1] * right.data[2] - left.data[2] * right.data[1],
-            -(left.data[0] * right.data[2] - left.data[2] * right.data[0]),
-            left.data[0] * right.data[1] - left.data[1] * right.data[0],
-        ]);
+        #[cfg(target_feature = "sse")]
+        unsafe {
+            let a = left.data_vectorized;
+            let b = right.data_vectorized;
+            let a_yzx: __m128 = _mm_shuffle_ps(a, a, _MM_SHUFFLE(3, 0, 2, 1));
+            let a_zxy: __m128 = _mm_shuffle_ps(a, a, _MM_SHUFFLE(3, 1, 0, 2));
+            let b_zxy: __m128 = _mm_shuffle_ps(b, b, _MM_SHUFFLE(3, 1, 0, 1));
+            let b_yzx: __m128 = _mm_shuffle_ps(b, b, _MM_SHUFFLE(3, 0, 2, 1));
+
+            return Self {
+                data_vectorized: _mm_sub_ps(_mm_mul_ps(a_yzx, b_zxy), _mm_mul_ps(a_zxy, b_yzx)),
+            };
+        }
+        #[cfg(not(target_feature = "sse"))]
+        {
+            return Self::new([
+                left.y() * right.z() - left.z() * right.y(),
+                -(left.x() * right.z() - left.z() * right.x()),
+                left.x() * right.y() - left.y() * right.x(),
+            ]);
+        }
     }
 
     #[inline]
     #[must_use]
     pub fn length(&self) -> f32 {
-        return self.squared_length().sqrt();
+        #[cfg(target_feature = "sse")]
+        unsafe {
+            let squared_length =
+                _mm_dp_ps::<{ Self::IMM8 }>(self.data_vectorized, self.data_vectorized);
+            let one = _mm_set1_ps(1.0);
+            let inverted_length = _mm_rsqrt_ss(squared_length);
+            let length = _mm_div_ss(one, inverted_length);
+            return _mm_cvtss_f32(length);
+        }
+        #[cfg(not(target_feature = "sse"))]
+        {
+            return self.squared_length().sqrt();
+        }
     }
 
     #[inline]
     #[must_use]
     pub fn squared_length(&self) -> f32 {
-        return (self.data[0] * self.data[0]
-            + self.data[1] * self.data[1]
-            + self.data[2] * self.data[2]);
-    }
-
-    // returns 1 / length
-    #[inline]
-    #[must_use]
-    pub fn inv_sqrt_len(&self) -> f32 {
-        let len_squared =
-            self.data[0] * self.data[0] + self.data[1] * self.data[1] + self.data[2] * self.data[2];
-        return 1.0 / len_squared.sqrt();
+        #[cfg(target_feature = "sse")]
+        unsafe {
+            return Self::m128_dot(self.data_vectorized, self.data_vectorized);
+        }
+        #[cfg(not(target_feature = "sse"))]
+        {
+            return (self.x() * self.x()
+                + self.y() * self.y()
+                + self.z() * self.z());
+        }
     }
 
     #[inline]
     #[must_use]
     pub fn normalized(&self) -> Self {
-        return Vec3::multiply_by_f32(*self, self.inv_sqrt_len());
+        #[cfg(target_feature = "sse")]
+        unsafe {
+            let squared_length =
+                _mm_dp_ps::<{ Self::IMM8 }>(self.data_vectorized, self.data_vectorized);
+            let packed_length = _mm_rsqrt_ss(squared_length);
+            let all_length: __m128 =
+                _mm_shuffle_ps(packed_length, packed_length, _MM_SHUFFLE(0, 0, 0, 0));
+            let normalized = _mm_mul_ps(self.data_vectorized, all_length);
+            let result = Self {
+                data_vectorized: normalized,
+            };
+            return result;
+        }
+        #[cfg(not(target_feature = "sse"))]
+        {
+            let result = Vec3::divide_by_f32(*self, self.length());
+            return result;
+        }
     }
 
     #[inline]
     #[must_use]
     pub fn clamp(&self, min: f32, max: f32) -> Self {
         return Vec3::new([
-            self.data[0].clamp(min, max),
-            self.data[1].clamp(min, max),
-            self.data[2].clamp(min, max),
+            self.x().clamp(min, max),
+            self.y().clamp(min, max),
+            self.z().clamp(min, max),
         ]);
     }
 
@@ -206,11 +317,16 @@ impl Vec3 {
     #[inline]
     #[must_use]
     pub fn gamma_correct_2(&self) -> Self {
-        return Vec3::new([
-            self.data[0].sqrt(),
-            self.data[1].sqrt(),
-            self.data[2].sqrt(),
-        ]);
+        #[cfg(target_feature = "sse")]
+        unsafe {
+            Self {
+                data_vectorized: _mm_sqrt_ps(self.data_vectorized)
+            }
+        }
+        #[cfg(not(target_feature = "sse"))]
+        {
+            return Vec3::new([self.x().sqrt(), self.y().sqrt(), self.z().sqrt()]);
+        }
     }
 }
 
@@ -237,7 +353,7 @@ impl std::ops::Neg for Vec3 {
     type Output = Vec3;
     #[inline]
     fn neg(self) -> Self::Output {
-        Vec3::new([-self.data[0], -self.data[1], -self.data[2]])
+        Vec3::new([-self.x(), -self.y(), -self.z()])
     }
 }
 

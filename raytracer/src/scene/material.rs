@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use crate::{
-    constants::TEMP_SCATTERING_MOD,
     math::{random::random_in_unit_sphere, Ray, Vec3},
     primitives::cast_result::CastResult,
 };

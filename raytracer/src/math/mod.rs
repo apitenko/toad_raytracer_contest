@@ -228,14 +228,15 @@ impl Vec3 {
         unsafe {
             let a = left.data_vectorized;
             let b = right.data_vectorized;
+            
             let a_yzx: __m128 = _mm_shuffle_ps(a, a, _MM_SHUFFLE(3, 0, 2, 1));
-            let a_zxy: __m128 = _mm_shuffle_ps(a, a, _MM_SHUFFLE(3, 1, 0, 2));
-            let b_zxy: __m128 = _mm_shuffle_ps(b, b, _MM_SHUFFLE(3, 1, 0, 1));
             let b_yzx: __m128 = _mm_shuffle_ps(b, b, _MM_SHUFFLE(3, 0, 2, 1));
-
+            let c: __m128 = _mm_sub_ps(_mm_mul_ps(a, b_yzx), _mm_mul_ps(a_yzx, b));
+            let data_vectorized = _mm_shuffle_ps(c, c, _MM_SHUFFLE(3, 0, 2, 1));
             return Self {
-                data_vectorized: _mm_sub_ps(_mm_mul_ps(a_yzx, b_zxy), _mm_mul_ps(a_zxy, b_yzx)),
+                data_vectorized
             };
+            
         }
         #[cfg(not(target_feature = "sse"))]
         {

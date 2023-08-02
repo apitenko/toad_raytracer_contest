@@ -5,6 +5,7 @@
 #![feature(stdarch)]
 #![feature(const_fn_floating_point_arithmetic)]
 #![feature(const_maybe_uninit_zeroed)]
+#![feature(const_try)]
 
 use fps_counter::FpsCounter;
 use std::cell::Cell;
@@ -39,7 +40,7 @@ use crate::scene::lights::directional::DirectionalLight;
 use crate::scene::lights::point::PointLight;
 use crate::scene::material::{Material, MaterialShared};
 use crate::scene::scene::Scene;
-use crate::scene::texture::{make_checkerboard_texture, Texture, TextureShared};
+use crate::scene::texture::{Texture, TextureShared};
 use crate::surface::TotallySafeSurfaceWrapper;
 
 fn main() {
@@ -74,8 +75,7 @@ fn main() {
         textures_list.push(texture);
         mat_shared
     };
-    let default_texture = TextureShared::make_default_texture();
-    let texture_checkerboard = capture_texture(Box::new(make_checkerboard_texture()));
+    let default_texture = capture_texture(Box::new(Texture::make_default_texture()));
 
     // ! MATERIALS //////////////////////////////////////
 
@@ -91,7 +91,7 @@ fn main() {
     let checkerboard_white = capture_material(Box::new(Material::new(
         Vec3::new([1.0, 1.0, 1.0]),
         0.1,
-        texture_checkerboard.clone(),
+        default_texture.clone(),
     )));
 
     let diffuse_white = capture_material(Box::new(Material::new(
@@ -116,7 +116,7 @@ fn main() {
         0.95,
         default_texture.clone(),
     )));
-    
+
     let smol = capture_material(Box::new(Material::new(
         Vec3::from_rgb(255, 0, 255),
         0.4,
@@ -126,7 +126,7 @@ fn main() {
     // ! SHAPES //////////////////////////////////////
     // owning shapes container (Scene doesn't own shapes!)
     let mut shapes_list = Vec::<Box<Sphere>>::new();
-    
+
     // shapes_list.push(Box::new(Sphere::new(
     //     // "veryvery smol"
     //     Vec3::new([0.33, -0.45, -0.8]),

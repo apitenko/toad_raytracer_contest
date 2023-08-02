@@ -32,11 +32,14 @@ impl Vec3 {
     pub const BACK: Self = Vec3::new([0.0, 0.0, -1.0]);
     pub const UP: Self = Vec3::new([0.0, 1.0, 0.0]);
 
-    #[inline]
-    #[must_use]
     pub const fn new(data: [f32; 3]) -> Self {
         let data = [data[0], data[1], data[2], 0.0];
+        Self::from_f32(data)
+    }
 
+    #[inline]
+    #[must_use]
+    pub const fn from_f32(data: [f32; 4]) -> Self {
         #[cfg(target_feature = "sse")]
         unsafe {
             let data_vectorized: __m128 = make_m128(data[0], data[1], data[2], data[3]);

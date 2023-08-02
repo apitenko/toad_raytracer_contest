@@ -30,6 +30,7 @@ impl Vec3 {
     pub const ZERO: Self = Vec3::new([0.0, 0.0, 0.0]);
     pub const ONE: Self = Vec3::new([1.0, 1.0, 1.0]);
     pub const BACK: Self = Vec3::new([0.0, 0.0, -1.0]);
+    pub const UP: Self = Vec3::new([0.0, 1.0, 0.0]);
 
     #[inline]
     #[must_use]
@@ -230,15 +231,12 @@ impl Vec3 {
         unsafe {
             let a = left.data_vectorized;
             let b = right.data_vectorized;
-            
+
             let a_yzx: __m128 = _mm_shuffle_ps(a, a, _MM_SHUFFLE(3, 0, 2, 1));
             let b_yzx: __m128 = _mm_shuffle_ps(b, b, _MM_SHUFFLE(3, 0, 2, 1));
             let c: __m128 = _mm_sub_ps(_mm_mul_ps(a, b_yzx), _mm_mul_ps(a_yzx, b));
             let data_vectorized = _mm_shuffle_ps(c, c, _MM_SHUFFLE(3, 0, 2, 1));
-            return Self {
-                data_vectorized
-            };
-            
+            return Self { data_vectorized };
         }
         #[cfg(not(target_feature = "sse"))]
         {
@@ -277,9 +275,7 @@ impl Vec3 {
         }
         #[cfg(not(target_feature = "sse"))]
         {
-            return (self.x() * self.x()
-                + self.y() * self.y()
-                + self.z() * self.z());
+            return (self.x() * self.x() + self.y() * self.y() + self.z() * self.z());
         }
     }
 
@@ -323,13 +319,48 @@ impl Vec3 {
         #[cfg(target_feature = "sse")]
         unsafe {
             Self {
-                data_vectorized: _mm_sqrt_ps(self.data_vectorized)
+                data_vectorized: _mm_sqrt_ps(self.data_vectorized),
             }
         }
         #[cfg(not(target_feature = "sse"))]
         {
             return Vec3::new([self.x().sqrt(), self.y().sqrt(), self.z().sqrt()]);
         }
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn lerp(left: Vec3, right: Vec3, t: f32) -> Self {
+        // #[cfg(target_feature = "sse")]
+        // unsafe {
+        //     let t = t.clamp(0.0, 1.0);
+
+        //     let t = _mm_set1_ps(t);
+
+        //     let diff = _mm_sub_ps(left.data_vectorized, right.data_vectorized);
+        //     let diff_scaled = _mm_mul_ps(diff, t);
+        //     let result = _mm_add_ps(left.data_vectorized, diff_scaled);
+        //     Self {
+        //         data_vectorized: result,
+        //     }
+        // }
+        // #[cfg(not(target_feature = "sse"))]
+        {
+            let result = Vec3::new([
+                left.x() + (right.x() - left.x()) * t,
+                left.y() + (right.y() - left.y()) * t,
+                left.z() + (right.z() - left.z()) * t,
+            ]);
+            return result;
+        }
+    }
+
+    pub const fn from_rgb(r: u8, g: u8, b: u8) -> Self {
+        Self::new([
+            r as f32 / 256.0,
+            g as f32 / 256.0,
+            b as f32 / 256.0,
+        ])
     }
 }
 
@@ -436,10 +467,25 @@ pub fn reflect(vector: Vec3, normal: Vec3) -> Vec3 {
     return vector - 2.0 * Vec3::dot(vector, normal) * normal;
 }
 
+pub fn refract(incident: Vec3, surface_normal: Vec3, refractiveness_ratio: f32) -> Vec3 {
+    let n = surface_normal;
+    let i = incident;
+    let eta = refractiveness_ratio;
+
+    let dot = Vec3::dot(n, i);
+    let dot_squared = dot * dot;
+    let k = 1.0 - eta * eta * (1.0 - dot_squared);
+    if k < 0.0 {
+        return Vec3::ZERO;
+    } else {
+        return eta * i - (eta * dot + k.sqrt()) * n;
+    }
+}
+
 pub struct RayBounce {
     pub ray: Ray,
     pub bounces: i32,
-    pub energy: f32,
+    pub multiplier: f32,
 }
 
 impl RayBounce {
@@ -447,7 +493,7 @@ impl RayBounce {
         Self {
             ray,
             bounces: MAX_BOUNCES,
-            energy: 1.0,
+            multiplier: 1.0,
         }
     }
 }

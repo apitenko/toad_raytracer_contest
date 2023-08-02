@@ -56,34 +56,3 @@ impl SVORoot {
         return cast_result;
     }
 }
-
-pub struct SVOIterator {
-    remaining_bounces: u32,
-    current_ray: Ray,
-    root: *const SVORoot,
-    reflectivity: f32,
-}
-
-impl Iterator for SVOIterator {
-    type Item = CastResult;
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.remaining_bounces <= 0 {
-            return None;
-        } else {
-            let cast_result = unsafe { (*self.root).single_cast(self.current_ray) };
-
-            self.remaining_bounces -= 1;
-            if cast_result.distance_traversed == f32::INFINITY {
-                self.remaining_bounces = 0;
-            }
-
-            self.current_ray = Ray::new(
-                cast_result.intersection_point,
-                cast_result.normal,
-                f32::MAX,
-            );
-
-            return Some(cast_result);
-        }
-    }
-}

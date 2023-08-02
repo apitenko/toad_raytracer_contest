@@ -3,6 +3,7 @@
 #![feature(const_trait_impl)]
 #![feature(const_mut_refs)]
 #![feature(stdarch)]
+#![feature(const_fn_floating_point_arithmetic)]
 
 use fps_counter::FpsCounter;
 use std::cell::Cell;
@@ -35,7 +36,7 @@ use crate::primitives::shape::Shape;
 use crate::primitives::sphere::Sphere;
 use crate::scene::lights::directional::DirectionalLight;
 use crate::scene::lights::point::PointLight;
-use crate::scene::material::{Lambertian, Material, MaterialShared, Metal, RefractiveGlass};
+use crate::scene::material::{Material, MaterialShared};
 use crate::scene::scene::Scene;
 use crate::surface::TotallySafeSurfaceWrapper;
 
@@ -63,49 +64,50 @@ fn main() {
     let surface_wrapper =
         TotallySafeSurfaceWrapper::new(unsafe_buffer_ptr, RENDER_SIZE, SCALE_FACTOR);
 
-    let mut materials_list = Vec::<Box<dyn Material>>::new();
+    // ! MATERIALS //////////////////////////////////////
 
-    let mut capture_material = |mat: Box<dyn Material>| {
-        let mat_ptr = mat.as_ref() as *const dyn Material;
+    let mut materials_list = Vec::<Box<Material>>::new();
+
+    let mut capture_material = |mat: Box<Material>| {
+        let mat_ptr = mat.as_ref() as *const Material;
         let mat_shared = MaterialShared::new(mat_ptr);
         materials_list.push(mat);
         mat_shared
     };
 
-    let glass_white = capture_material(Box::new(RefractiveGlass::new(
-        Vec3::new([1.0, 1.0, 1.0]),
-        0.9,
-    )));
-    let lambertian_white = capture_material(Box::new(Lambertian::new(Vec3::new([1.0, 1.0, 1.0]))));
-    let lambertian_red = capture_material(Box::new(Lambertian::new(Vec3::new([1.0, 0.0, 0.0]))));
-    let lambertian_green = capture_material(Box::new(Lambertian::new(Vec3::new([0.0, 1.0, 0.0]))));
-    let lambertian_blue = capture_material(Box::new(Lambertian::new(Vec3::new([0.0, 0.0, 1.0]))));
-    let metal_white = capture_material(Box::new(Metal::new(Vec3::new([1.0, 1.0, 1.0]))));
-    let metal_blue = capture_material(Box::new(Metal::new(Vec3::new([0.2, 0.2, 1.0]))));
-    let metal_red = capture_material(Box::new(Metal::new(Vec3::new([1.0, 0.0, 0.0]))));
-    let metal_green = capture_material(Box::new(Metal::new(Vec3::new([0.0, 1.0, 0.0]))));
+    let diffuse_white = capture_material(Box::new(Material::new(Vec3::new([1.0, 1.0, 1.0]), 0.1)));
+    let diffuse_green = capture_material(Box::new(Material::new(Vec3::from_rgb(10, 255, 10), 0.95)));
+    // let glass_white = capture_material(Box::new(Material::new(Vec3::new([1.0, 1.0, 1.0]), 0.99)));
+    let glass_blue = capture_material(Box::new(Material::new(COLOR_BLUE_SCUFF, 0.98)));
+    // let middle_white = capture_material(Box::new(Material::new(Vec3::new([1.0, 1.0, 1.0]), 0.7)));
+    let middle_red = capture_material(Box::new(Material::new(COLOR_RED_SCUFF, 0.95)));
 
+    // ! SHAPES //////////////////////////////////////
     // owning shapes container (Scene doesn't own shapes!)
     let mut shapes_list = Vec::<Box<Sphere>>::new();
     shapes_list.push(Box::new(Sphere::new(
+        // "RED"
         Vec3::new([-0.2, 0.0, -1.0]),
         0.5,
-        metal_red.clone(),
+        middle_red.clone(),
     )));
     shapes_list.push(Box::new(Sphere::new(
+        // "FLOOR"
         Vec3::new([0.0, -100.5, -1.0]),
         100.0,
-        metal_green.clone(),
+        diffuse_white.clone(),
     )));
     shapes_list.push(Box::new(Sphere::new(
+        // "GREEN"
         Vec3::new([0.6, -0.2, -1.0]),
         0.3,
-        metal_white.clone(),
+        diffuse_green.clone(),
     )));
     shapes_list.push(Box::new(Sphere::new(
+        // "BIG BLUE"
         Vec3::new([-3.0, 0.9, -3.0]),
         1.4,
-        metal_blue.clone(),
+        glass_blue.clone(),
     )));
 
     let mut scene = Box::new(Scene::new());
@@ -113,13 +115,7 @@ fn main() {
         scene.push_shape(shape.as_ref() as *const dyn Shape);
     }
 
-    scene.lights.push(Box::new(PointLight::new(
-        Vec3::new([0.0, 1.1, -1.0]),
-        0.3,
-        1.0,
-        Vec3::new([0.5, 0.5, 1.0]),
-    )));
-
+    // ! LIGHTS //////////////////////////////////////
     scene.lights.push(Box::new(PointLight::new(
         Vec3::new([0.0, 10.0, -1.0]),
         25.0,
@@ -136,7 +132,7 @@ fn main() {
 
     scene.lights.push(Box::new(DirectionalLight::new(
         Vec3::new([1.0, -1.0, 0.0]),
-        0.1,
+        0.4,
         COLOR_WHITE,
     )));
 
@@ -160,6 +156,8 @@ fn main() {
                 event: WindowEvent::CloseRequested,
                 window_id,
             } if window_id == window.id() => {
+                std::process::exit(0);
+
                 let rt = render_thread.replace(None);
                 if let Some(rt) = rt {
                     rt.stop();

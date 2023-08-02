@@ -43,7 +43,7 @@ impl Shape for Sphere {
         }
     }
 
-    fn material(&self) -> &dyn crate::scene::material::Material {
+    fn material(&self) -> &crate::scene::material::Material {
         return self.material.get();
     }
 }

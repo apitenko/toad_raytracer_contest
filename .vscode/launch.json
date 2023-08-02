@@ -12,7 +12,8 @@
                 "args": [
                     "build",
                     "--bin=raytracing",
-                    "--package=raytracing"
+                    "--package=raytracing",
+                    "--release"
                 ],
                 "filter": {
                     "name": "raytracing",

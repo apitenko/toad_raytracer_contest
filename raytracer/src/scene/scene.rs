@@ -1,22 +1,24 @@
 use crate::{
     math::Vec3,
-    primitives::{camera::Camera, shape::Shape, sphere::Sphere},
+    primitives::{camera::Camera, shape::Shape, sphere::Sphere, skybox::Skybox},
 };
 
-use super::{svo::SVORoot, lights::light::Light};
+use super::{svo::SVORoot, lights::light::Light, texture::TextureShared};
 
 pub struct Scene {
     pub camera: Camera,
     pub geometry: SVORoot,
-    pub lights: Vec<Box<dyn Light>>
+    pub lights: Vec<Box<dyn Light>>,
+    pub skybox: Skybox,
 }
 
 impl Scene {
-    pub fn new() -> Self {
+    pub fn new(skybox_texture: TextureShared) -> Self {
         Self {
             camera: Camera::new(),
             geometry: SVORoot::empty(),
             lights: Vec::new(),
+            skybox: Skybox::new(skybox_texture),
         }
     }
 

@@ -10,6 +10,7 @@
 use fps_counter::FpsCounter;
 use std::cell::Cell;
 use std::num::NonZeroU32;
+use std::path::Path;
 use std::sync::Arc;
 use winit::platform::run_return::EventLoopExtRunReturn;
 use winit::{
@@ -43,7 +44,7 @@ use crate::scene::scene::Scene;
 use crate::scene::texture::{Texture, TextureShared};
 use crate::surface::TotallySafeSurfaceWrapper;
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     let mut event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_inner_size(winit::dpi::PhysicalSize::new(WINDOW_WIDTH, WINDOW_HEIGHT))
@@ -75,7 +76,8 @@ fn main() {
         textures_list.push(texture);
         mat_shared
     };
-    let default_texture = capture_texture(Box::new(Texture::make_default_texture()));
+    let texture_default = capture_texture(Box::new(Texture::make_default_texture()));
+    let texture_skybox = capture_texture(Box::new(Texture::new_from_file(&Path::new("./res/skybox.png"))?));
 
     // ! MATERIALS //////////////////////////////////////
 
@@ -88,40 +90,31 @@ fn main() {
         mat_shared
     };
 
-    let checkerboard_white = capture_material(Box::new(Material::new(
-        Vec3::new([1.0, 1.0, 1.0]),
-        0.1,
-        default_texture.clone(),
-    )));
-
-    let diffuse_white = capture_material(Box::new(Material::new(
-        Vec3::new([1.0, 1.0, 1.0]),
-        0.1,
-        default_texture.clone(),
-    )));
-    let diffuse_green = capture_material(Box::new(Material::new(
-        Vec3::from_rgb(10, 255, 10),
-        0.85,
-        default_texture.clone(),
-    )));
-    // let glass_white = capture_material(Box::new(Material::new(Vec3::new([1.0, 1.0, 1.0]), 0.99, default_texture.clone())));
-    let glass_blue = capture_material(Box::new(Material::new(
-        COLOR_BLUE_SCUFF,
-        0.99,
-        default_texture.clone(),
-    )));
-    // let middle_white = capture_material(Box::new(Material::new(Vec3::new([1.0, 1.0, 1.0]), 0.7, default_texture.clone())));
-    let middle_red = capture_material(Box::new(Material::new(
-        COLOR_RED_SCUFF,
-        0.95,
-        default_texture.clone(),
-    )));
-
-    let smol = capture_material(Box::new(Material::new(
-        Vec3::from_rgb(255, 0, 255),
-        0.4,
-        default_texture.clone(),
-    )));
+    let checkerboard_white = capture_material(Box::new(Material {
+        color_tint: Vec3::new([1.0, 1.0, 1.0]),
+        specular: 0.1,
+        albedo: texture_default.clone(),
+    }));
+    let diffuse_white = capture_material(Box::new(Material {
+        color_tint: Vec3::new([1.0, 1.0, 1.0]),
+        specular: 0.1,
+        albedo: texture_default.clone(),
+    }));
+    let diffuse_green = capture_material(Box::new(Material {
+        color_tint: Vec3::from_rgb(10, 255, 10),
+        specular: 0.85,
+        albedo: texture_default.clone(),
+    }));
+    let glass_blue = capture_material(Box::new(Material {
+        color_tint: COLOR_BLUE_SCUFF,
+        specular: 0.99,
+        albedo: texture_default.clone(),
+    }));
+    let middle_red =  capture_material(Box::new(Material {
+        color_tint: COLOR_RED_SCUFF,
+        specular: 0.95,
+        albedo: texture_default.clone(),
+    }));
 
     // ! SHAPES //////////////////////////////////////
     // owning shapes container (Scene doesn't own shapes!)
@@ -158,7 +151,7 @@ fn main() {
         glass_blue.clone(),
     )));
 
-    let mut scene = Box::new(Scene::new());
+    let mut scene = Box::new(Scene::new(texture_skybox.clone()));
     for shape in &shapes_list {
         scene.push_shape(shape.as_ref() as *const dyn Shape);
     }
@@ -251,4 +244,6 @@ fn main() {
             _ => {}
         }
     });
+
+    Ok(())
 }

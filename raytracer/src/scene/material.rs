@@ -11,20 +11,21 @@ use crate::{
 use super::texture::TextureShared;
 
 pub struct Material {
-    pub color: Vec3,
-    pub specular_power: f32,
-    pub texture: TextureShared,
+    pub color_tint: Vec3, // non-PBR parameter; use Vec3::ONE to disable it
+    // pub subsurface: f32,
+    // pub metallic: f32,
+    pub specular: f32,
+    // pub specular_tint: f32,
+    // pub roughness: f32,
+    // pub anisotropic: f32,
+    // pub sheen: f32,
+    // pub sheen_tint: f32,
+    // pub clearcoat: f32,
+    // pub clearcoat_gloss: f32,
+    pub albedo: TextureShared,
 }
 
-impl Material {
-    pub const fn new(color: Vec3, specular_power: f32, texture: TextureShared) -> Self {
-        Self {
-            color,
-            specular_power,
-            texture,
-        }
-    }
-}
+impl Material {}
 
 #[derive(Clone)]
 pub struct MaterialShared {
@@ -55,3 +56,10 @@ impl MaterialShared {
 
     pub const INVALID_MAT: Self = Self::invalid_mat();
 }
+
+
+// pub struct DefaultMaterialsMap {
+
+// }
+
+// pub fn default_materials_map() {}

@@ -59,21 +59,24 @@ pub fn outside_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
 
     let cast_result = scene.geometry.single_cast(current_bounce.ray);
     if cast_result.is_missed() {
-        return Vec3::ZERO;
+        // every miss is a skybox hit
+        let unit_direction = current_bounce.ray.direction().normalized();
+        let skybox_color = scene.skybox.sample_from_direction(unit_direction);
+        return skybox_color * current_bounce.multiplier;
     }
 
     let mut direct_lighting = Vec3::ZERO;
 
     // TODO: microfacets?
     // indirect lighting: reflection
-    let specular_power = cast_result.material.get().specular_power; // TODO: sample from material
+    let material_specular = cast_result.material.get().specular; // TODO: sample from material
 
     let reflected_normal = reflect(
         current_bounce.ray.direction().normalized(),
         cast_result.normal,
     );
     let rnd = random_in_unit_sphere().normalized();
-    let reflection_normal = Vec3::lerp(rnd, reflected_normal, specular_power);
+    let reflection_normal = Vec3::lerp(rnd, reflected_normal, material_specular);
 
     let reflect_multiplier = fresnel_reflect_amount(
         REFRACTIVE_INDEX_INSIDE,  // TODO: sample from material
@@ -95,10 +98,11 @@ pub fn outside_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
 
     // direct lighting
     // TODO: microfacets
-    
-    let material_tint = cast_result.material.get().color;
-    let (u,v) = cast_result.uv;
-    let material_albedo = material_tint * cast_result.material.get().texture.get().sample(u,v);
+
+    let material_color_tint = cast_result.material.get().color_tint;
+
+    let (u, v) = cast_result.uv;
+    let material_albedo = material_color_tint * cast_result.material.get().albedo.get().sample(u, v);
 
     for light_source in &scene.lights {
         let (distance_to_light, normal_into_light) =
@@ -121,8 +125,9 @@ pub fn outside_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
     }
 
     // TODO: Subsurface Scattering
-    let indirect_lighting = direct_lighting * (1.0 - specular_power) + specular_indirect_lighting * material_albedo;
-    indirect_lighting
+    let indirect_lighting =
+        direct_lighting * (1.0 - material_specular) * refract_multiplier + specular_indirect_lighting * material_albedo;
+    indirect_lighting * current_bounce.multiplier
 }
 
 // cast inside object (refractive)

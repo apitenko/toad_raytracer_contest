@@ -1,8 +1,7 @@
-use std::{fs::File, path::Path};
+use std::path::Path;
 
-use image::GenericImageView;
-use lazy_static::lazy_static;
 use base64::Engine;
+use image::GenericImageView;
 
 use crate::math::Vec3;
 
@@ -13,23 +12,13 @@ pub struct Texture {
 }
 
 impl Texture {
-    // pub const fn new(width: usize, height: usize, data: Vec<u32>) -> Self {
-    //     Self {
-    //         width,
-    //         height,
-    //         data,
-    //     }
-    // }
-
     pub fn sample(&self, u: f32, v: f32) -> Vec3 {
         let x: usize = (u * self.width as f32) as usize;
         let y: usize = (v * self.height as f32) as usize;
         let index = (y * self.height + x);
         let index = index.clamp(0, self.width * self.height - 1);
-        
-        let sample = unsafe {            
-            self.image.unsafe_get_pixel(x as u32, y as u32)
-        };   
+
+        let sample = unsafe { self.image.unsafe_get_pixel(x as u32, y as u32) };
 
         return Vec3::from_f32(sample.0);
     }
@@ -80,12 +69,12 @@ impl Texture {
         return Self::new_from_image(img_data);
     }
 
-    pub  fn new_from_file(filepath: &Path) -> anyhow::Result<Self> {
+    pub fn new_from_file(filepath: &Path) -> anyhow::Result<Self> {
         // let filepath = "./resources/uuu.jpg";
         let texture_file = std::fs::read(filepath)?;
         return Self::new_from_raw_bytes(&texture_file);
     }
-        
+
     pub fn make_default_texture() -> Texture {
         // https://shoonia.github.io/1x1/#ffffffff
         const WHITE_PIXEL_PNG_BASE64: &[u8] = b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAA1JREFUGFdj+P///38ACfsD/QVDRcoAAAAASUVORK5CYII=";
@@ -99,4 +88,3 @@ impl Texture {
         return texture;
     }
 }
-

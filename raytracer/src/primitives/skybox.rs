@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use crate::{math::Vec3, scene::texture::TextureShared};
+use crate::{math::Vec3, scene::texture::TextureShared, constants::MISS_COLOR_VEC3};
 
 const SKYBOX_EMISSION_INTENSITY: f32 = 0.1;
 pub struct Skybox {
@@ -20,6 +20,7 @@ impl Skybox {
     }
 
     pub fn sample_from_direction(&self, direction: Vec3) -> Vec3 {
+        return MISS_COLOR_VEC3;
         let (u,v) = Self::uv(direction);
         self.sample(u, v) * SKYBOX_EMISSION_INTENSITY
     }

@@ -75,16 +75,20 @@ impl Texture {
         return Self::new_from_raw_bytes(&texture_file);
     }
 
-    pub fn make_default_texture() -> Texture {
+    pub fn new_from_base64(base64: &[u8]) -> anyhow::Result<Texture> {
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(base64)
+            .unwrap();
+
+        let texture = Texture::new_from_raw_bytes(&bytes)?;
+        return Ok(texture);
+    }
+
+    pub fn make_default_texture() -> anyhow::Result<Texture> {
         // https://shoonia.github.io/1x1/#ffffffff
         const WHITE_PIXEL_PNG_BASE64: &[u8] = b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAA1JREFUGFdj+P///38ACfsD/QVDRcoAAAAASUVORK5CYII=";
         // const MAGENTA_PIXEL_PNG_BASE64: &[u8] = b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAAEnQAABJ0Ad5mH3gAAAAMSURBVBhXY/jP8B8ABAAB/4jQ/cwAAAAASUVORK5CYII=";
 
-        let bytes = base64::engine::general_purpose::STANDARD
-            .decode(WHITE_PIXEL_PNG_BASE64)
-            .unwrap();
-
-        let texture = Texture::new_from_raw_bytes(&bytes).expect("create_default_texture failure");
-        return texture;
+        return Self::new_from_base64(WHITE_PIXEL_PNG_BASE64);
     }
 }

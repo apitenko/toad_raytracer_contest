@@ -1,5 +1,5 @@
 use core::arch::x86_64::*;
-use std::{mem::MaybeUninit, u128};
+use std::{mem::MaybeUninit, u128, intrinsics::fabsf32};
 
 use crate::tracing::MAX_BOUNCES;
 
@@ -251,6 +251,10 @@ impl Vec3 {
         }
     }
 
+    pub fn cross2d_z(left: Vec3, right: Vec3) -> f32 {
+        Self::cross(left, right).z()
+    }
+
     #[inline]
     #[must_use]
     pub fn length(&self) -> f32 {
@@ -369,6 +373,31 @@ impl Vec3 {
             let b = (packed >> 16) & 0x000000FF;
             let a = (packed >> 24) & 0x000000FF;
             Self::from_rgb(r as u8, g as u8, b as u8)
+        }
+    }
+
+    #[inline]
+    pub fn abs(&self) -> Self {
+        unsafe 
+        {
+            return Self::new([
+                self.x().abs(),
+                self.y().abs(),
+                self.z().abs()
+            ])
+        }
+    }
+
+    #[inline]
+    pub fn index_unchecked(&self, index: usize) -> f32 {
+        // unoptimized
+        match index {
+            0 => self.x(),
+            1 => self.y(),
+            2 => self.z(),
+            _ => {
+                panic!("index_unchecked pee pee poo poo")
+            },
         }
     }
 }

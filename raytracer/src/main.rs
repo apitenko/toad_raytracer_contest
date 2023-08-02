@@ -6,6 +6,7 @@
 #![feature(const_fn_floating_point_arithmetic)]
 #![feature(const_maybe_uninit_zeroed)]
 #![feature(const_try)]
+#![feature(core_intrinsics)]
 
 use fps_counter::FpsCounter;
 use std::cell::Cell;
@@ -35,6 +36,7 @@ use constants::*;
 use render_thread::*;
 
 use crate::math::Vec3;
+use crate::primitives::quad::Quad;
 use crate::primitives::shape::Shape;
 use crate::primitives::sphere::Sphere;
 use crate::scene::lights::directional::DirectionalLight;
@@ -76,8 +78,14 @@ fn main() -> anyhow::Result<()> {
         textures_list.push(texture);
         mat_shared
     };
-    let texture_default = capture_texture(Box::new(Texture::make_default_texture()));
+
+
+    const TEXTURE_WHITE_1X1_BASE64: &[u8] = b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAA1JREFUGFdj+P///38ACfsD/QVDRcoAAAAASUVORK5CYII=";
+    let texture_default = capture_texture(Box::new(Texture::new_from_base64(TEXTURE_WHITE_1X1_BASE64)?));
+    const TEXTURE_1X1_MAGENTA_BASE64: &[u8] = b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAAEnQAABJ0Ad5mH3gAAAAMSURBVBhXY/jP8B8ABAAB/4jQ/cwAAAAASUVORK5CYII=";
+    let texture_1x1_magenta = capture_texture(Box::new(Texture::new_from_base64(TEXTURE_1X1_MAGENTA_BASE64)?));
     let texture_skybox = capture_texture(Box::new(Texture::new_from_file(&Path::new("./res/skybox.png"))?));
+    let texture_checkerboard = capture_texture(Box::new(Texture::new_from_file(&Path::new("./res/checkerboard.png"))?));
 
     // ! MATERIALS //////////////////////////////////////
 
@@ -90,11 +98,12 @@ fn main() -> anyhow::Result<()> {
         mat_shared
     };
 
-    let checkerboard_white = capture_material(Box::new(Material {
+    let floor_checkerboard = capture_material(Box::new(Material {
         color_tint: Vec3::new([1.0, 1.0, 1.0]),
         specular: 0.1,
-        albedo: texture_default.clone(),
+        albedo: texture_checkerboard.clone(),
     }));
+
     let diffuse_white = capture_material(Box::new(Material {
         color_tint: Vec3::new([1.0, 1.0, 1.0]),
         specular: 0.1,
@@ -118,7 +127,7 @@ fn main() -> anyhow::Result<()> {
 
     // ! SHAPES //////////////////////////////////////
     // owning shapes container (Scene doesn't own shapes!)
-    let mut shapes_list = Vec::<Box<Sphere>>::new();
+    let mut shapes_list = Vec::<Box<dyn Shape>>::new();
 
     // shapes_list.push(Box::new(Sphere::new(
     //     // "veryvery smol"
@@ -126,31 +135,30 @@ fn main() -> anyhow::Result<()> {
     //     0.02,
     //     smol.clone(),
     // )));
-    shapes_list.push(Box::new(Sphere::new(
-        // "RED"
-        Vec3::new([-0.2, 0.0, -1.0]),
-        0.5,
-        middle_red.clone(),
-    )));
-    shapes_list.push(Box::new(Sphere::new(
-        // "FLOOR"
-        Vec3::new([0.0, -100.5, -1.0]),
-        100.0,
-        checkerboard_white.clone(),
-    )));
-    shapes_list.push(Box::new(Sphere::new(
-        // "GREEN"
-        Vec3::new([0.6, -0.2, -1.0]),
-        0.3,
-        diffuse_green.clone(),
-    )));
-    shapes_list.push(Box::new(Sphere::new(
-        // "BIG BLUE"
-        Vec3::new([-3.0, 0.9, -3.0]),
-        1.4,
-        glass_blue.clone(),
-    )));
+    // shapes_list.push(Box::new(Sphere::new(
+    //     // "RED"
+    //     Vec3::new([-0.2, 0.0, -1.0]),
+    //     0.5,
+    //     middle_red.clone(),
+    // )));
+    // shapes_list.push(Box::new(Sphere::new(
+    //     // "GREEN"
+    //     Vec3::new([0.6, -0.2, -1.0]),
+    //     0.3,
+    //     diffuse_green.clone(),
+    // )));
+    // shapes_list.push(Box::new(Sphere::new(
+    //     // "BIG BLUE"
+    //     Vec3::new([-3.0, 0.9, -3.0]),
+    //     1.4,
+    //     glass_blue.clone(),
+    // )));
 
+    shapes_list.push(Box::new(Quad::new(
+        // "FLOOR"
+        floor_checkerboard.clone(),
+    )));
+    
     let mut scene = Box::new(Scene::new(texture_skybox.clone()));
     for shape in &shapes_list {
         scene.push_shape(shape.as_ref() as *const dyn Shape);

@@ -4,6 +4,7 @@
 #![feature(const_mut_refs)]
 #![feature(stdarch)]
 #![feature(const_fn_floating_point_arithmetic)]
+#![feature(const_maybe_uninit_zeroed)]
 
 use fps_counter::FpsCounter;
 use std::cell::Cell;
@@ -38,6 +39,7 @@ use crate::scene::lights::directional::DirectionalLight;
 use crate::scene::lights::point::PointLight;
 use crate::scene::material::{Material, MaterialShared};
 use crate::scene::scene::Scene;
+use crate::scene::texture::{make_checkerboard_texture, Texture, TextureShared};
 use crate::surface::TotallySafeSurfaceWrapper;
 
 fn main() {
@@ -64,6 +66,17 @@ fn main() {
     let surface_wrapper =
         TotallySafeSurfaceWrapper::new(unsafe_buffer_ptr, RENDER_SIZE, SCALE_FACTOR);
 
+    // ! TEXTURES //////////////////////////////////////////
+    let mut textures_list = Vec::<Box<Texture>>::new();
+    let mut capture_texture = |texture: Box<Texture>| {
+        let mat_ptr = texture.as_ref() as *const Texture;
+        let mat_shared = TextureShared::new(mat_ptr);
+        textures_list.push(texture);
+        mat_shared
+    };
+    let default_texture = TextureShared::make_default_texture();
+    let texture_checkerboard = capture_texture(Box::new(make_checkerboard_texture()));
+
     // ! MATERIALS //////////////////////////////////////
 
     let mut materials_list = Vec::<Box<Material>>::new();
@@ -75,16 +88,51 @@ fn main() {
         mat_shared
     };
 
-    let diffuse_white = capture_material(Box::new(Material::new(Vec3::new([1.0, 1.0, 1.0]), 0.1)));
-    let diffuse_green = capture_material(Box::new(Material::new(Vec3::from_rgb(10, 255, 10), 0.95)));
-    // let glass_white = capture_material(Box::new(Material::new(Vec3::new([1.0, 1.0, 1.0]), 0.99)));
-    let glass_blue = capture_material(Box::new(Material::new(COLOR_BLUE_SCUFF, 0.98)));
-    // let middle_white = capture_material(Box::new(Material::new(Vec3::new([1.0, 1.0, 1.0]), 0.7)));
-    let middle_red = capture_material(Box::new(Material::new(COLOR_RED_SCUFF, 0.95)));
+    let checkerboard_white = capture_material(Box::new(Material::new(
+        Vec3::new([1.0, 1.0, 1.0]),
+        0.1,
+        texture_checkerboard.clone(),
+    )));
+
+    let diffuse_white = capture_material(Box::new(Material::new(
+        Vec3::new([1.0, 1.0, 1.0]),
+        0.1,
+        default_texture.clone(),
+    )));
+    let diffuse_green = capture_material(Box::new(Material::new(
+        Vec3::from_rgb(10, 255, 10),
+        0.85,
+        default_texture.clone(),
+    )));
+    // let glass_white = capture_material(Box::new(Material::new(Vec3::new([1.0, 1.0, 1.0]), 0.99, default_texture.clone())));
+    let glass_blue = capture_material(Box::new(Material::new(
+        COLOR_BLUE_SCUFF,
+        0.99,
+        default_texture.clone(),
+    )));
+    // let middle_white = capture_material(Box::new(Material::new(Vec3::new([1.0, 1.0, 1.0]), 0.7, default_texture.clone())));
+    let middle_red = capture_material(Box::new(Material::new(
+        COLOR_RED_SCUFF,
+        0.95,
+        default_texture.clone(),
+    )));
+    
+    let smol = capture_material(Box::new(Material::new(
+        Vec3::from_rgb(255, 0, 255),
+        0.4,
+        default_texture.clone(),
+    )));
 
     // ! SHAPES //////////////////////////////////////
     // owning shapes container (Scene doesn't own shapes!)
     let mut shapes_list = Vec::<Box<Sphere>>::new();
+    
+    // shapes_list.push(Box::new(Sphere::new(
+    //     // "veryvery smol"
+    //     Vec3::new([0.33, -0.45, -0.8]),
+    //     0.02,
+    //     smol.clone(),
+    // )));
     shapes_list.push(Box::new(Sphere::new(
         // "RED"
         Vec3::new([-0.2, 0.0, -1.0]),
@@ -95,7 +143,7 @@ fn main() {
         // "FLOOR"
         Vec3::new([0.0, -100.5, -1.0]),
         100.0,
-        diffuse_white.clone(),
+        checkerboard_white.clone(),
     )));
     shapes_list.push(Box::new(Sphere::new(
         // "GREEN"
@@ -116,6 +164,12 @@ fn main() {
     }
 
     // ! LIGHTS //////////////////////////////////////
+    // scene.lights.push(Box::new(PointLight::new(
+    //     Vec3::new([2.5, 0.2, -0.8]),
+    //     55.0,
+    //     2.4,
+    //     Vec3::from_rgb(255, 0, 255),
+    // )));
     scene.lights.push(Box::new(PointLight::new(
         Vec3::new([0.0, 10.0, -1.0]),
         25.0,

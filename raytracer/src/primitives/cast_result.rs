@@ -5,6 +5,7 @@ pub struct CastResult {
     pub intersection_point: Vec3,
     pub normal: Vec3,
     pub material: MaterialShared,
+    pub uv: (f32, f32),
 }
 
 impl CastResult {
@@ -12,7 +13,8 @@ impl CastResult {
         intersection_point: Vec3::ZERO,
         normal: Vec3::ZERO,
         distance_traversed: f32::INFINITY,
-        material: MaterialShared::DEFAULT_MAT,
+        material: MaterialShared::INVALID_MAT,
+        uv: (0.0, 0.0)
     };
 
     #[inline]

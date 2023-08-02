@@ -98,13 +98,13 @@ impl Vec3 {
         return unsafe { MaybeUninit::<Vec3>::uninit().assume_init() };
     }
 
-    fn extract(packed: __m128) -> [f32; 4] {
+    pub fn extract(&self) -> [f32; 4] {
         unsafe {
             [
-                f32::from_bits(_mm_extract_ps::<0>(packed) as u32),
-                f32::from_bits(_mm_extract_ps::<1>(packed) as u32),
-                f32::from_bits(_mm_extract_ps::<2>(packed) as u32),
-                f32::from_bits(_mm_extract_ps::<3>(packed) as u32),
+                f32::from_bits(_mm_extract_ps::<0>(self.data_vectorized) as u32),
+                f32::from_bits(_mm_extract_ps::<1>(self.data_vectorized) as u32),
+                f32::from_bits(_mm_extract_ps::<2>(self.data_vectorized) as u32),
+                f32::from_bits(_mm_extract_ps::<3>(self.data_vectorized) as u32),
             ]
         }
     }
@@ -356,11 +356,17 @@ impl Vec3 {
     }
 
     pub const fn from_rgb(r: u8, g: u8, b: u8) -> Self {
-        Self::new([
-            r as f32 / 256.0,
-            g as f32 / 256.0,
-            b as f32 / 256.0,
-        ])
+        Self::new([r as f32 / 256.0, g as f32 / 256.0, b as f32 / 256.0])
+    }
+
+    pub const fn from_packed_u32_rgb(packed: u32) -> Self {
+        unsafe {
+            let r = (packed >> 0) & 0x000000FF;
+            let g = (packed >> 8) & 0x000000FF;
+            let b = (packed >> 16) & 0x000000FF;
+            let a = (packed >> 24) & 0x000000FF;
+            Self::from_rgb(r as u8, g as u8, b as u8)
+        }
     }
 }
 

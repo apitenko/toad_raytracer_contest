@@ -1,18 +1,28 @@
-use std::sync::Arc;
+use std::{
+    mem::{zeroed, MaybeUninit},
+    sync::Arc,
+};
 
 use crate::{
     math::{random::random_in_unit_sphere, refract, Ray, Vec3},
     primitives::cast_result::CastResult,
 };
 
+use super::texture::TextureShared;
+
 pub struct Material {
     pub color: Vec3,
     pub specular_power: f32,
+    pub texture: TextureShared,
 }
 
 impl Material {
-    pub const fn new(color: Vec3, specular_power: f32) -> Self {
-        Self { color, specular_power }
+    pub const fn new(color: Vec3, specular_power: f32, texture: TextureShared) -> Self {
+        Self {
+            color,
+            specular_power,
+            texture,
+        }
     }
 }
 
@@ -35,8 +45,13 @@ impl MaterialShared {
         }
     }
 
-    const DEFAULT_MAT_IMPL: Material = Material::new(Vec3::ONE, 0.5);
-    pub const DEFAULT_MAT: Self = Self {
-        mat: &Self::DEFAULT_MAT_IMPL,
-    };
+    const fn invalid_mat() -> Self {
+        unsafe {
+            Self {
+                mat: MaybeUninit::zeroed().assume_init(),
+            }
+        }
+    }
+
+    pub const INVALID_MAT: Self = Self::invalid_mat();
 }

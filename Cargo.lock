@@ -1927,6 +1927,7 @@ dependencies = [
  "concurrent-queue",
  "const-random",
  "futures",
+ "lazy_static",
  "rand",
  "raytracer_lib",
  "softbuffer",

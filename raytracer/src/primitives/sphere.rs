@@ -1,3 +1,5 @@
+use std::f32::consts::{PI, TAU};
+
 use crate::{math::Vec3, scene::material::MaterialShared};
 
 use super::{cast_result::CastResult, shape::Shape};
@@ -39,6 +41,7 @@ impl Shape for Sphere {
                 intersection_point,
                 normal,
                 material: self.material.clone(),
+                uv: self.uv(intersection_point)
             });
         }
     }
@@ -46,4 +49,31 @@ impl Shape for Sphere {
     fn material(&self) -> &crate::scene::material::Material {
         return self.material.get();
     }
+
+    fn uv(&self, intersection_point: Vec3) -> (f32, f32) {
+        let point = (intersection_point - self.position) / self.radius;
+        let [dx, dy, dz, ..] = point.extract();
+        let u = 0.5 + f32::atan2(dz, dx) / TAU;
+        let v = 0.5 - f32::asin(dy) / PI;
+        return (u,v);
+    }
 }
+
+
+/*
+
+        let point = intersection_point - self.position;
+        let [dx, dy, dz, ..] = point.extract();
+        
+        let theta = f32::atan2(dx, dz);
+        let radius = intersection_point.length();
+        let phi = f32::acos(dy / radius);
+      
+        let raw_u = theta / (2.0 * PI);
+      
+        let u = 1.0 - (raw_u + 0.5);
+      
+        let v = 1.0 - phi / PI;
+      
+        return (u,v);
+*/

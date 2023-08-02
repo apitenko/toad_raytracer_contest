@@ -7,9 +7,9 @@ use crate::{
 
 // ? づ｀･ω･)づ it's compile time o'clock
 
-generate_multisample_positions!(30);
+generate_multisample_positions!(400);
 
-pub const MULTISAMPLE_OFFSETS: [(f32, f32); 30] = generated_samples();
+pub const MULTISAMPLE_OFFSETS: [(f32, f32); 400] = generated_samples();
 pub const MULTISAMPLE_SIZE: usize = MULTISAMPLE_OFFSETS.len();
 
 pub const MAX_BOUNCES: i32 = 50;
@@ -95,7 +95,11 @@ pub fn outside_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
 
     // direct lighting
     // TODO: microfacets
-    let material_albedo = cast_result.material.get().color;
+    
+    let material_tint = cast_result.material.get().color;
+    let (u,v) = cast_result.uv;
+    let material_albedo = material_tint * cast_result.material.get().texture.get().sample(u,v);
+
     for light_source in &scene.lights {
         let (distance_to_light, normal_into_light) =
             light_source.normal_from(cast_result.intersection_point);

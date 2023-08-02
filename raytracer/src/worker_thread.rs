@@ -63,7 +63,7 @@ impl WorkerThreadHandle {
                         pixel_color = pixel_color / MULTISAMPLE_SIZE as f32;
 
                         //scale??
-                        pixel_color = pixel_color * 0.4;
+                        // pixel_color = pixel_color * 0.4;
                         // gamma correct
                         // pixel_color = pixel_color.clamp(0.0, 1.0);
                         pixel_color = pixel_color.gamma_correct_2();

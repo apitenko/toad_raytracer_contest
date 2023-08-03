@@ -1,8 +1,10 @@
 use raytracer_lib::generate_multisample_positions;
 
 use crate::{
-    math::{random::random_in_unit_sphere, reflect, Ray, RayBounce, Vec3},
+    constants::MISS_COLOR_VEC3,
+    math::{random::random_in_unit_sphere, reflect, Ray, RayBounce, RayRefractionState, Vec3},
     scene::scene::Scene,
+    util::fresnel_constants::FresnelConstants,
 };
 
 // ? づ｀･ω･)づ it's compile time o'clock
@@ -12,9 +14,9 @@ generate_multisample_positions!(4);
 pub const MULTISAMPLE_OFFSETS: [(f32, f32); 4] = generated_samples();
 pub const MULTISAMPLE_SIZE: usize = MULTISAMPLE_OFFSETS.len();
 
-pub const MAX_BOUNCES: i32 = 50;
+pub const MAX_BOUNCES: i32 = 5;
 
-const OBJECT_REFLECTIVITY: f32 = 0.01;
+// const OBJECT_REFLECTIVITY: f32 = 0.01;
 fn fresnel_reflect_amount(n1: f32, n2: f32, normal: Vec3, incident: Vec3) -> f32 {
     // #if DO_FRESNEL
     // Schlick aproximation
@@ -34,17 +36,16 @@ fn fresnel_reflect_amount(n1: f32, n2: f32, normal: Vec3, incident: Vec3) -> f32
     let mut ret: f32 = r0 + (1.0 - r0) * x * x * x * x * x;
 
     // adjust reflect multiplier for object reflectivity
-    ret = (OBJECT_REFLECTIVITY + (1.0 - OBJECT_REFLECTIVITY) * ret);
+    // ret = (OBJECT_REFLECTIVITY + (1.0 - OBJECT_REFLECTIVITY) * ret);
     return ret;
     // #else
     // 	return OBJECT_REFLECTIVITY;
     // #endif
 }
 
-// refractive index of some common materials:
-// http://hyperphysics.phy-astr.gsu.edu/hbase/Tables/indrf.html
-const REFRACTIVE_INDEX_OUTSIDE: f32 = 1.00029;
-const REFRACTIVE_INDEX_INSIDE: f32 = 1.125;
+// fn FresnelSchlick(F0: f32, cosTheta: f32) -> f32 {
+//     return F0 + (1.0 - F0) * pow(1.0 - saturate(cosTheta), 5.0);
+// }
 
 // regular cast
 // RETURNS indirect_lighting
@@ -53,16 +54,18 @@ pub fn outside_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
         // stop recursion by limit
         return Vec3::ZERO;
     }
-    if current_bounce.multiplier < 0.001 {
+    if current_bounce.multiplier < f32::EPSILON {
+        // optional
         return Vec3::ZERO;
     }
 
     let cast_result = scene.geometry.single_cast(current_bounce.ray);
     if cast_result.is_missed() {
         // every miss is a skybox hit
-        let unit_direction = current_bounce.ray.direction().normalized();
-        let skybox_color = scene.skybox.sample_from_direction(unit_direction);
-        return skybox_color * current_bounce.multiplier;
+        return MISS_COLOR_VEC3;
+        // let unit_direction = current_bounce.ray.direction().normalized();
+        // let skybox_color = scene.skybox.sample_from_direction(unit_direction);
+        // return skybox_color * current_bounce.multiplier;
     }
 
     let mut direct_lighting = Vec3::ZERO;
@@ -78,12 +81,27 @@ pub fn outside_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
     let rnd = random_in_unit_sphere().normalized();
     let reflection_normal = Vec3::lerp(rnd, reflected_normal, material_specular);
 
-    let reflect_multiplier = fresnel_reflect_amount(
-        REFRACTIVE_INDEX_INSIDE,  // TODO: sample from material
-        REFRACTIVE_INDEX_OUTSIDE, // TODO: sample from material
-        current_bounce.ray.direction().normalized(),
-        cast_result.normal,
-    );
+    let reflect_multiplier = if let RayRefractionState::InsideMaterial {
+        current_outside_fresnel_coefficient,
+    } = current_bounce.refraction_state
+    {
+        // ray is currently refracted inside a solid object
+        fresnel_reflect_amount(
+            FresnelConstants::Air,
+            current_outside_fresnel_coefficient,
+            current_bounce.ray.direction().normalized(),
+            cast_result.normal,
+        )
+    } else {
+        // ::TraversingAir
+        fresnel_reflect_amount(
+            cast_result.material.get().fresnel_coefficient,
+            FresnelConstants::Air,
+            current_bounce.ray.direction().normalized(),
+            cast_result.normal,
+        )
+    };
+
     let refract_multiplier = 1.0 - reflect_multiplier;
 
     let specular_indirect_lighting = outside_cast(
@@ -91,6 +109,7 @@ pub fn outside_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
             ray: Ray::new(cast_result.intersection_point, reflection_normal, f32::MAX),
             bounces: current_bounce.bounces - 1,
             multiplier: reflect_multiplier,
+            refraction_state: RayRefractionState::TraversingAir,
         },
         scene,
     );
@@ -102,7 +121,8 @@ pub fn outside_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
     let material_color_tint = cast_result.material.get().color_tint;
 
     let (u, v) = cast_result.uv;
-    let material_albedo = material_color_tint * cast_result.material.get().albedo.get().sample(u, v);
+    let material_albedo =
+        material_color_tint * cast_result.material.get().albedo.get().sample(u, v);
 
     for light_source in &scene.lights {
         let (distance_to_light, normal_into_light) =

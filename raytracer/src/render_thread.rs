@@ -93,7 +93,7 @@ impl RenderThreadHandle {
             let mut task_queue = Queue::new();
 
             let total_pixels = size.0 * size.1;
-            let total_tasks = (available_threads.get() * 10).min(total_pixels as usize);
+            let total_tasks = (available_threads.get() * 20).min(total_pixels as usize);
             let pixels_per_task: usize = (total_pixels as f32 / total_tasks as f32).ceil() as usize;
 
             for index in 0..(total_tasks - 1) {

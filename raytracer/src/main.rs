@@ -45,6 +45,7 @@ use crate::scene::material::{Material, MaterialShared};
 use crate::scene::scene::Scene;
 use crate::scene::texture::{Texture, TextureShared};
 use crate::surface::TotallySafeSurfaceWrapper;
+use crate::util::fresnel_constants::FresnelConstants;
 
 fn main() -> anyhow::Result<()> {
     let mut event_loop = EventLoop::new();
@@ -79,13 +80,20 @@ fn main() -> anyhow::Result<()> {
         mat_shared
     };
 
-
     const TEXTURE_WHITE_1X1_BASE64: &[u8] = b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAA1JREFUGFdj+P///38ACfsD/QVDRcoAAAAASUVORK5CYII=";
-    let texture_default = capture_texture(Box::new(Texture::new_from_base64(TEXTURE_WHITE_1X1_BASE64)?));
+    let texture_default = capture_texture(Box::new(Texture::new_from_base64(
+        TEXTURE_WHITE_1X1_BASE64,
+    )?));
     const TEXTURE_1X1_MAGENTA_BASE64: &[u8] = b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAAEnQAABJ0Ad5mH3gAAAAMSURBVBhXY/jP8B8ABAAB/4jQ/cwAAAAASUVORK5CYII=";
-    let texture_1x1_magenta = capture_texture(Box::new(Texture::new_from_base64(TEXTURE_1X1_MAGENTA_BASE64)?));
-    let texture_skybox = capture_texture(Box::new(Texture::new_from_file(&Path::new("./res/skybox.png"))?));
-    let texture_checkerboard = capture_texture(Box::new(Texture::new_from_file(&Path::new("./res/checkerboard.png"))?));
+    let texture_1x1_magenta = capture_texture(Box::new(Texture::new_from_base64(
+        TEXTURE_1X1_MAGENTA_BASE64,
+    )?));
+    let texture_skybox = capture_texture(Box::new(Texture::new_from_file(&Path::new(
+        "./res/skybox.png",
+    ))?));
+    let texture_checkerboard = capture_texture(Box::new(Texture::new_from_file(&Path::new(
+        "./res/checkerboard.png",
+    ))?));
 
     // ! MATERIALS //////////////////////////////////////
 
@@ -100,29 +108,34 @@ fn main() -> anyhow::Result<()> {
 
     let floor_checkerboard = capture_material(Box::new(Material {
         color_tint: Vec3::new([1.0, 1.0, 1.0]),
-        specular: 0.1,
+        specular: 0.8,
         albedo: texture_checkerboard.clone(),
+        fresnel_coefficient: 1.2,
     }));
 
     let diffuse_white = capture_material(Box::new(Material {
         color_tint: Vec3::new([1.0, 1.0, 1.0]),
         specular: 0.1,
         albedo: texture_default.clone(),
+        fresnel_coefficient: FresnelConstants::Diamond,
     }));
     let diffuse_green = capture_material(Box::new(Material {
         color_tint: Vec3::from_rgb(10, 255, 10),
         specular: 0.85,
         albedo: texture_default.clone(),
+        fresnel_coefficient: FresnelConstants::Diamond,
     }));
     let glass_blue = capture_material(Box::new(Material {
         color_tint: COLOR_BLUE_SCUFF,
         specular: 0.99,
         albedo: texture_default.clone(),
+        fresnel_coefficient: FresnelConstants::Diamond,
     }));
-    let middle_red =  capture_material(Box::new(Material {
+    let middle_red = capture_material(Box::new(Material {
         color_tint: COLOR_RED_SCUFF,
         specular: 0.95,
         albedo: texture_default.clone(),
+        fresnel_coefficient: FresnelConstants::Diamond,
     }));
 
     // ! SHAPES //////////////////////////////////////
@@ -156,9 +169,11 @@ fn main() -> anyhow::Result<()> {
 
     shapes_list.push(Box::new(Quad::new(
         // "FLOOR"
+        Vec3::new([0.0, -0.2, 0.0]),
+        Quad::DEFAULT_GEOMETRY,
         floor_checkerboard.clone(),
     )));
-    
+
     let mut scene = Box::new(Scene::new(texture_skybox.clone()));
     for shape in &shapes_list {
         scene.push_shape(shape.as_ref() as *const dyn Shape);
@@ -171,22 +186,22 @@ fn main() -> anyhow::Result<()> {
     //     2.4,
     //     Vec3::from_rgb(255, 0, 255),
     // )));
-    scene.lights.push(Box::new(PointLight::new(
-        Vec3::new([0.0, 10.0, -1.0]),
-        25.0,
-        0.5,
-        COLOR_WHITE,
-    )));
+    // scene.lights.push(Box::new(PointLight::new(
+    //     Vec3::new([0.0, 10.0, -1.0]),
+    //     25.0,
+    //     0.5,
+    //     COLOR_WHITE,
+    // )));
 
-    scene.lights.push(Box::new(PointLight::new(
-        Vec3::new([10.0, 10.0, -1.0]),
-        25.0,
-        0.1,
-        COLOR_WHITE,
-    )));
+    // scene.lights.push(Box::new(PointLight::new(
+    //     Vec3::new([10.0, 10.0, -1.0]),
+    //     25.0,
+    //     0.1,
+    //     COLOR_WHITE,
+    // )));
 
     scene.lights.push(Box::new(DirectionalLight::new(
-        Vec3::new([1.0, -1.0, 0.0]),
+        Vec3::new([0.0, -1.0, 0.0]),
         0.4,
         COLOR_WHITE,
     )));

@@ -1,7 +1,12 @@
 use core::arch::x86_64::*;
-use std::{mem::MaybeUninit, u128, intrinsics::fabsf32};
+use std::{
+    fmt::{write, Debug},
+    intrinsics::fabsf32,
+    mem::MaybeUninit,
+    u128,
+};
 
-use crate::tracing::MAX_BOUNCES;
+use crate::{tracing::MAX_BOUNCES, util::fresnel_constants::FresnelConstants};
 
 pub mod random;
 
@@ -18,12 +23,18 @@ const unsafe fn make_m128(x: f32, y: f32, z: f32, w: f32) -> __m128 {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub struct Vec3 {
     #[cfg(not(target_feature = "sse"))]
     data: [f32; 4],
     #[cfg(target_feature = "sse")]
     data_vectorized: __m128,
+}
+
+impl Debug for Vec3 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Vec3<{};{};{}>", self.x(), self.y(), self.z())
+    }
 }
 
 impl Vec3 {
@@ -378,14 +389,7 @@ impl Vec3 {
 
     #[inline]
     pub fn abs(&self) -> Self {
-        unsafe 
-        {
-            return Self::new([
-                self.x().abs(),
-                self.y().abs(),
-                self.z().abs()
-            ])
-        }
+        unsafe { return Self::new([self.x().abs(), self.y().abs(), self.z().abs()]) }
     }
 
     #[inline]
@@ -397,8 +401,13 @@ impl Vec3 {
             2 => self.z(),
             _ => {
                 panic!("index_unchecked pee pee poo poo")
-            },
+            }
         }
+    }
+
+    #[inline]
+    pub fn flip_y(&self) -> Self {
+        return Self::new([self.x(), -self.y(), self.z()]);
     }
 }
 
@@ -478,7 +487,7 @@ pub struct Ray {
 impl Ray {
     pub fn new(origin: Vec3, direction: Vec3, max_distance: f32) -> Self {
         Self {
-            direction,
+            direction: direction.normalized(),
             origin,
             max_distance,
         }
@@ -520,24 +529,35 @@ pub fn refract(incident: Vec3, surface_normal: Vec3, refractiveness_ratio: f32) 
     }
 }
 
+pub enum RayRefractionState {
+    /// Ray is currently inside a solid material.
+    InsideMaterial {
+        current_outside_fresnel_coefficient: f32,
+    },
+    /// Ray is outside, going through air.
+    TraversingAir,
+}
+
 pub struct RayBounce {
     pub ray: Ray,
     pub bounces: i32,
     pub multiplier: f32,
+    pub refraction_state: RayRefractionState,
 }
 
 impl RayBounce {
-    pub fn new(ray: Ray) -> Self {
+    pub fn default_from_ray(ray: Ray) -> Self {
         Self {
             ray,
             bounces: MAX_BOUNCES,
             multiplier: 1.0,
+            refraction_state: RayRefractionState::TraversingAir,
         }
     }
 }
 
 impl Into<RayBounce> for Ray {
     fn into(self) -> RayBounce {
-        RayBounce::new(self)
+        RayBounce::default_from_ray(self)
     }
 }

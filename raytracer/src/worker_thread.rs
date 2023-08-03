@@ -36,6 +36,12 @@ impl WorkerThreadHandle {
                             let u = (x as f32 + offset.0) / RENDER_WIDTH as f32;
                             let v = (y as f32 + offset.1) / RENDER_HEIGHT as f32;
 
+                            // if u < 0.35 || u > 0.65 || v < 0.2 || v > 0.5 {
+                            //     continue;
+                            // }
+                            // if u < 0.9 || u > 0.94 || v < 0.9 || v > 0.94 {
+                            //     continue;
+                            // }
                             let starting_ray = scene.camera.ray(u, v);
 
                             // first hit to eliminate branching in loop
@@ -51,11 +57,7 @@ impl WorkerThreadHandle {
                             // }
 
                             let indirect_lighting = outside_cast(
-                                RayBounce {
-                                    ray: starting_ray,
-                                    bounces: MAX_BOUNCES,
-                                    multiplier: 1.0,
-                                },
+                                RayBounce::default_from_ray(starting_ray),
                                 scene,
                             );
 

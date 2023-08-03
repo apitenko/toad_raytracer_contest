@@ -12,6 +12,7 @@ use super::texture::TextureShared;
 
 pub struct Material {
     pub color_tint: Vec3, // non-PBR parameter; use Vec3::ONE to disable it
+    pub fresnel_coefficient: f32,
     // pub subsurface: f32,
     // pub metallic: f32,
     pub specular: f32,

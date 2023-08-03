@@ -1,4 +1,5 @@
 use crate::{constants::{MISS_COLOR, RENDER_HEIGHT, WINDOW_HEIGHT}, math::Vec3};
+use palette::*;
 
 unsafe impl Send for TotallySafeSurfaceWrapper {}
 unsafe impl Sync for TotallySafeSurfaceWrapper {}
@@ -21,7 +22,18 @@ impl TotallySafeSurfaceWrapper {
         }
     }
 
-    pub fn write(&mut self, unscaled_position: (u32, u32), data: u32) {
+    pub fn write(&mut self, unscaled_position: (u32, u32), pixel_color: Vec3) {
+        
+        // Convert sRGB -> Linear
+        let pixel_color = LinSrgb::new(pixel_color.x(),pixel_color.y(),pixel_color.z());
+        let pixel_color: Srgb::<f32> = Srgb::from_linear(pixel_color);
+        
+        let red: u32 = (255.99 * pixel_color.red) as u32;
+        let green: u32 = (255.99 * pixel_color.green) as u32;
+        let blue: u32 = (255.99 * pixel_color.blue) as u32;
+
+        let data = blue | (green << 8) | (red << 16);
+
         let render_scale = self.render_scale;
 
         let scaled_position = (

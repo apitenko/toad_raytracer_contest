@@ -2,16 +2,18 @@ use raytracer_lib::generate_multisample_positions;
 
 use crate::{
     constants::MISS_COLOR_VEC3,
-    math::{random::random_in_unit_sphere, reflect, Ray, RayBounce, RayRefractionState, Vec3},
+    math::{
+        random::random_in_unit_sphere, reflect, refract, Ray, RayBounce, RayRefractionState, Vec3,
+    },
     scene::scene::Scene,
     util::fresnel_constants::FresnelConstants,
 };
 
 // ? づ｀･ω･)づ it's compile time o'clock
 
-generate_multisample_positions!(4);
+generate_multisample_positions!(8);
 
-pub const MULTISAMPLE_OFFSETS: [(f32, f32); 4] = generated_samples();
+pub const MULTISAMPLE_OFFSETS: [(f32, f32); 8] = generated_samples();
 pub const MULTISAMPLE_SIZE: usize = MULTISAMPLE_OFFSETS.len();
 
 pub const MAX_BOUNCES: i32 = 50;
@@ -83,30 +85,34 @@ pub fn outside_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
     let rnd = random_in_unit_sphere().normalized();
     let reflection_normal = Vec3::lerp(rnd, reflected_normal, material_specular);
 
-    let reflect_multiplier = if let RayRefractionState::InsideMaterial {
-        current_outside_fresnel_coefficient,
-    } = current_bounce.refraction_state
-    {
-        // ray is currently refracted inside a solid object
-        fresnel_reflect_amount(
-            FresnelConstants::Air,
+    let (fresnel_outside, fresnel_inside, fresnel_ratio) =
+        if let RayRefractionState::InsideMaterial {
             current_outside_fresnel_coefficient,
-            current_bounce.ray.direction().normalized(),
-            cast_result.normal,
-        )
-    } else {
-        // ::TraversingAir
-        fresnel_reflect_amount(
-            cast_result.material.get().fresnel_coefficient,
-            FresnelConstants::Air,
-            current_bounce.ray.direction().normalized(),
-            cast_result.normal,
-        )
-    };
+        } = current_bounce.refraction_state
+        {
+            // ray is currently refracted inside a solid object
+            let fresnel_inside = FresnelConstants::Air;
+            let fresnel_outisde = current_outside_fresnel_coefficient;
+            let fresnel_ratio = fresnel_inside / fresnel_outisde;
+            (fresnel_inside, fresnel_outisde, fresnel_ratio)
+        } else {
+            // ::TraversingAir
+            let fresnel_inside = cast_result.material.get().fresnel_coefficient;
+            let fresnel_outisde = FresnelConstants::Air;
+            let fresnel_ratio = fresnel_outisde / fresnel_inside;
+            (fresnel_inside, fresnel_outisde, fresnel_ratio)
+        };
+
+    let reflect_multiplier = fresnel_reflect_amount(
+        fresnel_inside,
+        fresnel_outside,
+        current_bounce.ray.direction().normalized(),
+        cast_result.normal,
+    );
 
     let refract_multiplier = 1.0 - reflect_multiplier;
 
-    let specular_indirect_lighting = outside_cast(
+    let component_reflect = outside_cast(
         RayBounce {
             ray: Ray::new(cast_result.intersection_point, reflection_normal, f32::MAX),
             bounces: current_bounce.bounces - 1,
@@ -116,6 +122,32 @@ pub fn outside_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
         scene,
     );
     // indirect lighting: refraction
+    let refracted_ray_direction = refract(
+        current_bounce.ray.direction(),
+        cast_result.normal,
+        fresnel_ratio,
+    );
+
+    // Split energy between Diffuse and Refracted
+    let diffuse_multiplier = 0.5;
+    let refracted_multiplier = 1.0 - diffuse_multiplier;
+
+    let component_refract = outside_cast(
+        // TODO: should be inside cast
+        RayBounce {
+            ray: Ray::new(
+                cast_result.intersection_point,
+                refracted_ray_direction,
+                f32::MAX,
+            ),
+            bounces: current_bounce.bounces - 1,
+            multiplier: refracted_multiplier,
+            refraction_state: RayRefractionState::InsideMaterial {
+                current_outside_fresnel_coefficient: fresnel_outside,
+            },
+        },
+        scene,
+    );
 
     // direct lighting
     // TODO: microfacets
@@ -149,8 +181,9 @@ pub fn outside_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
     }
 
     // TODO: Subsurface Scattering
-    let indirect_lighting = direct_lighting * (1.0 - material_specular) * refract_multiplier
-        + specular_indirect_lighting * material_albedo;
+    let component_diffuse = direct_lighting * (1.0 - material_specular);
+    let indirect_lighting = (component_diffuse + component_refract) * refract_multiplier
+        + component_reflect * material_albedo;
     indirect_lighting * current_bounce.multiplier
 }
 

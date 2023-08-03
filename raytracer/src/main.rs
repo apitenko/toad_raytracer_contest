@@ -45,6 +45,7 @@ use crate::scene::material::{Material, MaterialShared};
 use crate::scene::scene::Scene;
 use crate::scene::texture::{Texture, TextureShared};
 use crate::surface::TotallySafeSurfaceWrapper;
+use crate::util::fill_gradient::fill_gradient_black_to_white;
 use crate::util::fresnel_constants::FresnelConstants;
 
 fn main() -> anyhow::Result<()> {
@@ -70,6 +71,8 @@ fn main() -> anyhow::Result<()> {
 
     let surface_wrapper =
         TotallySafeSurfaceWrapper::new(unsafe_buffer_ptr, RENDER_SIZE, SCALE_FACTOR);
+
+    fill_gradient_black_to_white(surface_wrapper.clone());
 
     // ! TEXTURES //////////////////////////////////////////
     let mut textures_list = Vec::<Box<Texture>>::new();
@@ -117,30 +120,30 @@ fn main() -> anyhow::Result<()> {
     let floor_checkerboard = capture_material(Box::new(Material {
         uv_scale: 0.01,
         color_tint: Vec3::ONE / 4.0,
-        specular: 0.4,
+        specular: 0.1,
         albedo: texture_concrete.clone(),
-        fresnel_coefficient: FresnelConstants::Air,
+        fresnel_coefficient: 4.0,
     }));
     let diffuse_green = capture_material(Box::new(Material {
         uv_scale: 1.0,
         color_tint: Vec3::from_rgb(10, 255, 10),
-        specular: 0.2,
-        albedo: texture_default.clone(),
-        fresnel_coefficient: FresnelConstants::Air,
+        specular: 0.35,
+        albedo: texture_concrete.clone(),
+        fresnel_coefficient: 1.03,
     }));
     let glass_blue = capture_material(Box::new(Material {
         uv_scale: 1.0,
         color_tint: COLOR_BLUE_SCUFF,
-        specular: 0.99,
-        albedo: texture_default.clone(),
-        fresnel_coefficient: 9.0,
+        specular: 0.993,
+        albedo: texture_concrete.clone(),
+        fresnel_coefficient: 3.0,
     }));
     let middle_red = capture_material(Box::new(Material {
         uv_scale: 1.0,
         color_tint: COLOR_RED_SCUFF,
         specular: 0.9,
-        albedo: texture_default.clone(),
-        fresnel_coefficient: FresnelConstants::TypicalCrownGlass,
+        albedo: texture_concrete.clone(),
+        fresnel_coefficient: 1.009,
     }));
 
     // ! SHAPES //////////////////////////////////////
@@ -197,7 +200,7 @@ fn main() -> anyhow::Result<()> {
         Vec3::new([2.5, 0.2, -0.8]),
         5.0,
         5.0,
-        Vec3::from_rgb(255, 0, 255),
+        Vec3::from_rgb(255, 60, 255),
     )));
     scene.lights.push(Box::new(PointLight::new(
         Vec3::new([0.0, 7.0, -1.0]),
@@ -215,7 +218,7 @@ fn main() -> anyhow::Result<()> {
 
     scene.lights.push(Box::new(DirectionalLight::new(
         Vec3::new([0.0, -1.0, 0.0]),
-        1.0,
+        1.5,
         COLOR_SKY_BLUE,
     )));
 
@@ -223,7 +226,7 @@ fn main() -> anyhow::Result<()> {
     let unsafe_scene_ptr: *const Scene = scene.as_ref();
 
     let mut render_thread: Cell<Option<RenderThreadHandle>> = Cell::new(Some(
-        RenderThreadHandle::run(surface_wrapper, RENDER_SIZE, unsafe_scene_ptr)
+        RenderThreadHandle::run(surface_wrapper.clone(), RENDER_SIZE, unsafe_scene_ptr)
             .expect("RenderThreadHandle cannot start"),
     ));
     let mut fps_counter = FpsCounter::new();

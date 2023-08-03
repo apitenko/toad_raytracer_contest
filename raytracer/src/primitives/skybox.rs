@@ -20,7 +20,11 @@ impl Skybox {
     }
 
     pub fn sample_from_direction(&self, direction: Vec3) -> Vec3 {
-        return MISS_COLOR_VEC3;
+        return MISS_COLOR_VEC3 / 3.0;
+
+        // let t = 0.5 * (unit_direction.y() + 1.0);
+        // pixel_color += (1.0 - t) * Vec3::ONE + t * COLOR_CALL_PARAMETERS;
+
         let (u,v) = Self::uv(direction);
         self.sample(u, v) * SKYBOX_EMISSION_INTENSITY
     }

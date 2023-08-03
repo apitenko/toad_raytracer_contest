@@ -11,6 +11,7 @@ use crate::{
 use super::texture::TextureShared;
 
 pub struct Material {
+    pub uv_scale: f32,
     pub color_tint: Vec3, // non-PBR parameter; use Vec3::ONE to disable it
     pub fresnel_coefficient: f32,
     // pub subsurface: f32,

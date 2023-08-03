@@ -43,7 +43,7 @@ impl Shape for Quad {
         // 1.
         let delta_s10: Vec3 = geom[1] - geom[0];
         let delta_s20: Vec3 = geom[2] - geom[0];
-        let surface_normal: Vec3 = Vec3::cross(delta_s10, delta_s20).normalized();
+        let surface_normal: Vec3 = Vec3::cross(delta_s10, delta_s20);
 
         // 2.
         let ray_direction: Vec3 = ray.direction();
@@ -55,6 +55,9 @@ impl Shape for Quad {
         }
         
         let t: f32 = Vec3::dot(-surface_normal, ray.origin() - geom[0]) / surface_normal_dot_ray_direction;
+        if t <= 0.0 {
+            return None;
+        }
         let intersection_point: Vec3 = ray.origin() + (ray_direction * t);
 
         // print!("d {:?}", intersection_point);
@@ -70,10 +73,6 @@ impl Shape for Quad {
         if !is_intersection_happened {
             return None;
         }
-
-        // scale uv
-        let u = (u * UV_SCALE).fract();
-        let v = (v * UV_SCALE).fract();
 
         let intersection_point = intersection_point;
         let distance_traversed = (ray_direction * t).length();

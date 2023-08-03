@@ -14,7 +14,9 @@ generate_multisample_positions!(4);
 pub const MULTISAMPLE_OFFSETS: [(f32, f32); 4] = generated_samples();
 pub const MULTISAMPLE_SIZE: usize = MULTISAMPLE_OFFSETS.len();
 
-pub const MAX_BOUNCES: i32 = 5;
+pub const MAX_BOUNCES: i32 = 50;
+
+pub const SKYBOX_LIGHT_INTENSITY: f32 = 0.0;
 
 // const OBJECT_REFLECTIVITY: f32 = 0.01;
 fn fresnel_reflect_amount(n1: f32, n2: f32, normal: Vec3, incident: Vec3) -> f32 {
@@ -54,7 +56,7 @@ pub fn outside_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
         // stop recursion by limit
         return Vec3::ZERO;
     }
-    if current_bounce.multiplier < f32::EPSILON {
+    if current_bounce.multiplier < 0.00001 {
         // optional
         return Vec3::ZERO;
     }
@@ -62,7 +64,7 @@ pub fn outside_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
     let cast_result = scene.geometry.single_cast(current_bounce.ray);
     if cast_result.is_missed() {
         // every miss is a skybox hit
-        return MISS_COLOR_VEC3;
+        return MISS_COLOR_VEC3 * SKYBOX_LIGHT_INTENSITY;
         // let unit_direction = current_bounce.ray.direction().normalized();
         // let skybox_color = scene.skybox.sample_from_direction(unit_direction);
         // return skybox_color * current_bounce.multiplier;
@@ -118,11 +120,13 @@ pub fn outside_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
     // direct lighting
     // TODO: microfacets
 
-    let material_color_tint = cast_result.material.get().color_tint;
-
-    let (u, v) = cast_result.uv;
-    let material_albedo =
-        material_color_tint * cast_result.material.get().albedo.get().sample(u, v);
+    let material_albedo = {
+        let material_color_tint = cast_result.material.get().color_tint;
+        let (u, v) = cast_result.uv;
+        let u = (u * cast_result.material.get().uv_scale).fract();
+        let v = (v * cast_result.material.get().uv_scale).fract();
+        material_color_tint * cast_result.material.get().albedo.get().sample(u, v)
+    };
 
     for light_source in &scene.lights {
         let (distance_to_light, normal_into_light) =
@@ -145,8 +149,8 @@ pub fn outside_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
     }
 
     // TODO: Subsurface Scattering
-    let indirect_lighting =
-        direct_lighting * (1.0 - material_specular) * refract_multiplier + specular_indirect_lighting * material_albedo;
+    let indirect_lighting = direct_lighting * (1.0 - material_specular) * refract_multiplier
+        + specular_indirect_lighting * material_albedo;
     indirect_lighting * current_bounce.multiplier
 }
 

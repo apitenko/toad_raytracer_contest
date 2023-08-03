@@ -94,6 +94,11 @@ fn main() -> anyhow::Result<()> {
     let texture_checkerboard = capture_texture(Box::new(Texture::new_from_file(&Path::new(
         "./res/checkerboard.png",
     ))?));
+    let texture_concrete = capture_texture(Box::new(Texture::new_from_file(&Path::new(
+        "./res/concrete.jpg",
+    ))?));
+
+    
 
     // ! MATERIALS //////////////////////////////////////
 
@@ -106,36 +111,36 @@ fn main() -> anyhow::Result<()> {
         mat_shared
     };
 
-    let floor_checkerboard = capture_material(Box::new(Material {
-        color_tint: Vec3::new([1.0, 1.0, 1.0]),
-        specular: 0.8,
-        albedo: texture_checkerboard.clone(),
-        fresnel_coefficient: 1.2,
-    }));
+    let fresnel_floor = 1.00089;
+    let fresnel_balls = 3.0;
 
-    let diffuse_white = capture_material(Box::new(Material {
-        color_tint: Vec3::new([1.0, 1.0, 1.0]),
-        specular: 0.1,
-        albedo: texture_default.clone(),
-        fresnel_coefficient: FresnelConstants::Diamond,
+    let floor_checkerboard = capture_material(Box::new(Material {
+        uv_scale: 0.01,
+        color_tint: Vec3::ONE / 4.0,
+        specular: 0.4,
+        albedo: texture_concrete.clone(),
+        fresnel_coefficient: FresnelConstants::Air,
     }));
     let diffuse_green = capture_material(Box::new(Material {
+        uv_scale: 1.0,
         color_tint: Vec3::from_rgb(10, 255, 10),
-        specular: 0.85,
+        specular: 0.2,
         albedo: texture_default.clone(),
-        fresnel_coefficient: FresnelConstants::Diamond,
+        fresnel_coefficient: FresnelConstants::Air,
     }));
     let glass_blue = capture_material(Box::new(Material {
+        uv_scale: 1.0,
         color_tint: COLOR_BLUE_SCUFF,
         specular: 0.99,
         albedo: texture_default.clone(),
-        fresnel_coefficient: FresnelConstants::Diamond,
+        fresnel_coefficient: 9.0,
     }));
     let middle_red = capture_material(Box::new(Material {
+        uv_scale: 1.0,
         color_tint: COLOR_RED_SCUFF,
-        specular: 0.95,
+        specular: 0.9,
         albedo: texture_default.clone(),
-        fresnel_coefficient: FresnelConstants::Diamond,
+        fresnel_coefficient: FresnelConstants::TypicalCrownGlass,
     }));
 
     // ! SHAPES //////////////////////////////////////
@@ -148,28 +153,36 @@ fn main() -> anyhow::Result<()> {
     //     0.02,
     //     smol.clone(),
     // )));
+    shapes_list.push(Box::new(Sphere::new(
+        // "RED"
+        Vec3::new([-0.2, 0.0, -1.0]),
+        0.5,
+        middle_red.clone(),
+    )));
+    shapes_list.push(Box::new(Sphere::new(
+        // "GREEN"
+        Vec3::new([0.6, -0.2, -1.0]),
+        0.3,
+        diffuse_green.clone(),
+    )));
+    shapes_list.push(Box::new(Sphere::new(
+        // "BIG BLUE"
+        Vec3::new([-3.0, 0.9, -3.0]),
+        1.4,
+        glass_blue.clone(),
+    )));
+
     // shapes_list.push(Box::new(Sphere::new(
-    //     // "RED"
-    //     Vec3::new([-0.2, 0.0, -1.0]),
-    //     0.5,
-    //     middle_red.clone(),
-    // )));
-    // shapes_list.push(Box::new(Sphere::new(
-    //     // "GREEN"
-    //     Vec3::new([0.6, -0.2, -1.0]),
-    //     0.3,
-    //     diffuse_green.clone(),
-    // )));
-    // shapes_list.push(Box::new(Sphere::new(
-    //     // "BIG BLUE"
-    //     Vec3::new([-3.0, 0.9, -3.0]),
-    //     1.4,
-    //     glass_blue.clone(),
+    //     // "FLOOR"
+    //     Vec3::new([0.0, -100.5, -1.0]),
+    //     100.0,
+    //     default_material.clone(),
     // )));
 
+    // QUAD
     shapes_list.push(Box::new(Quad::new(
         // "FLOOR"
-        Vec3::new([0.0, -0.2, 0.0]),
+        Vec3::new([0.0, -0.5, 0.0]),
         Quad::DEFAULT_GEOMETRY,
         floor_checkerboard.clone(),
     )));
@@ -180,30 +193,30 @@ fn main() -> anyhow::Result<()> {
     }
 
     // ! LIGHTS //////////////////////////////////////
-    // scene.lights.push(Box::new(PointLight::new(
-    //     Vec3::new([2.5, 0.2, -0.8]),
-    //     55.0,
-    //     2.4,
-    //     Vec3::from_rgb(255, 0, 255),
-    // )));
-    // scene.lights.push(Box::new(PointLight::new(
-    //     Vec3::new([0.0, 10.0, -1.0]),
-    //     25.0,
-    //     0.5,
-    //     COLOR_WHITE,
-    // )));
+    scene.lights.push(Box::new(PointLight::new(
+        Vec3::new([2.5, 0.2, -0.8]),
+        5.0,
+        5.0,
+        Vec3::from_rgb(255, 0, 255),
+    )));
+    scene.lights.push(Box::new(PointLight::new(
+        Vec3::new([0.0, 7.0, -1.0]),
+        250.0,
+        0.5,
+        COLOR_WHITE,
+    )));
 
-    // scene.lights.push(Box::new(PointLight::new(
-    //     Vec3::new([10.0, 10.0, -1.0]),
-    //     25.0,
-    //     0.1,
-    //     COLOR_WHITE,
-    // )));
+    scene.lights.push(Box::new(PointLight::new(
+        Vec3::new([10.0, 10.0, -1.0]),
+        25.0,
+        1.0,
+        COLOR_WHITE,
+    )));
 
     scene.lights.push(Box::new(DirectionalLight::new(
         Vec3::new([0.0, -1.0, 0.0]),
-        0.4,
-        COLOR_WHITE,
+        1.0,
+        COLOR_SKY_BLUE,
     )));
 
     // notice the intentional lack of thread synchronization. for the moment.

@@ -529,6 +529,7 @@ pub fn refract(incident: Vec3, surface_normal: Vec3, refractiveness_ratio: f32) 
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum RayRefractionState {
     /// Ray is currently inside a solid material.
     InsideMaterial {

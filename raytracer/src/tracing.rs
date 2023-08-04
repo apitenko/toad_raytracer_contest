@@ -121,33 +121,53 @@ pub fn outside_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
         },
         scene,
     );
-    // indirect lighting: refraction
-    let refracted_ray_direction = refract(
-        current_bounce.ray.direction(),
-        cast_result.normal,
-        fresnel_ratio,
-    );
+    // Split energy between Lost and Refracted
+    let lost_multiplier = 0.0;
+    let refracted_multiplier = 1.0 - lost_multiplier;
+    // TODO: subsurface scattering / BSSRDF
 
-    // Split energy between Diffuse and Refracted
-    let diffuse_multiplier = 0.5;
-    let refracted_multiplier = 1.0 - diffuse_multiplier;
-
-    let component_refract = outside_cast(
-        // TODO: should be inside cast
-        RayBounce {
-            ray: Ray::new(
-                cast_result.intersection_point,
-                refracted_ray_direction,
-                f32::MAX,
-            ),
-            bounces: current_bounce.bounces - 1,
-            multiplier: refracted_multiplier,
-            refraction_state: RayRefractionState::InsideMaterial {
-                current_outside_fresnel_coefficient: fresnel_outside,
-            },
-        },
-        scene,
-    );
+    let component_refract = {
+        // indirect lighting: refraction
+        let refracted_ray_direction = refract(
+            current_bounce.ray.direction(),
+            cast_result.normal,
+            fresnel_ratio,
+        );
+    
+        if let RayRefractionState::TraversingAir = current_bounce.refraction_state {
+            outside_cast(
+                // TODO: should be inside cast
+                RayBounce {
+                    ray: Ray::new(
+                        cast_result.intersection_point,
+                        refracted_ray_direction,
+                        f32::MAX,
+                    ),
+                    bounces: current_bounce.bounces - 1,
+                    multiplier: refracted_multiplier,
+                    refraction_state: RayRefractionState::InsideMaterial {
+                        current_outside_fresnel_coefficient: fresnel_outside,
+                    },
+                },
+                scene,
+            )
+        } else {
+            outside_cast(
+                // TODO: should be inside cast
+                RayBounce {
+                    ray: Ray::new(
+                        cast_result.intersection_point,
+                        refracted_ray_direction,
+                        f32::MAX,
+                    ),
+                    bounces: current_bounce.bounces - 1,
+                    multiplier: refracted_multiplier,
+                    refraction_state: RayRefractionState::TraversingAir,
+                },
+                scene,
+            )
+        }
+    };
 
     // direct lighting
     // TODO: microfacets
@@ -174,16 +194,18 @@ pub fn outside_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
 
             let light_power = (Vec3::dot(cast_result.normal, normal_into_light)) * light_color;
 
-            let color = material_albedo * light_color * light_power;
+            let color = light_color * light_power;
 
             direct_lighting = direct_lighting + color;
         }
     }
 
     // TODO: Subsurface Scattering
-    let component_diffuse = direct_lighting * (1.0 - material_specular);
-    let indirect_lighting = (component_diffuse + component_refract) * refract_multiplier
-        + component_reflect * material_albedo;
+    let component_diffuse = direct_lighting * (1.0 - material_specular) * material_albedo;
+    let component_specular = component_reflect * material_specular * material_albedo;
+
+    let indirect_lighting = (component_refract) * refract_multiplier
+        + (component_diffuse + component_specular);
     indirect_lighting * current_bounce.multiplier
 }
 

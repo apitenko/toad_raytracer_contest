@@ -37,7 +37,7 @@ impl Quad {
 }
 
 impl Shape for Quad {
-    fn intersect(&self, ray: crate::math::Ray) -> Option<CastResult> {
+    fn intersect(&self, ray: crate::math::Ray, inside: bool) -> Option<CastResult> {
         let geom = &self.translated_geometry;
 
         // 1.

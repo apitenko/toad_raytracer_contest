@@ -34,14 +34,14 @@ impl SVORoot {
     //     };
     // }
 
-    pub fn single_cast(&self, ray: Ray) -> CastResult {
+    pub fn single_cast(&self, ray: Ray, inside: bool) -> CastResult {
         // TODO: Scene traversal logic w/ SVOIterator
 
         let cast_result = self
             .root
             .shapes
             .iter()
-            .filter_map(|item| unsafe { (**item).intersect(ray) })
+            .filter_map(|item| unsafe { (**item).intersect(ray, inside) })
             .fold(CastResult::MISS, |acc, item| {
                 if acc.distance_traversed > item.distance_traversed
                     && item.distance_traversed > 0.001

@@ -1,3 +1,5 @@
+#![allow(non_snake_case)]
+
 #![feature(try_blocks)]
 #![feature(const_for)]
 #![feature(const_trait_impl)]
@@ -117,33 +119,41 @@ fn main() -> anyhow::Result<()> {
     let fresnel_floor = 1.00089;
     let fresnel_balls = 3.0;
 
+    let material_test_inside_intersections = capture_material(Box::new(Material {
+        uv_scale: 1.0,
+        color_tint: Vec3::from_rgb(255, 255, 255),
+        albedo: texture_concrete.clone(),
+        fresnel_coefficient: 9.9,
+        ..Default::default()
+    }));
+
     let floor_checkerboard = capture_material(Box::new(Material {
         uv_scale: 0.01,
         color_tint: Vec3::ONE / 4.0,
-        specular: 0.1,
         albedo: texture_concrete.clone(),
         fresnel_coefficient: 4.0,
+        ..Default::default()
     }));
     let diffuse_green = capture_material(Box::new(Material {
         uv_scale: 1.0,
         color_tint: Vec3::from_rgb(10, 255, 10),
-        specular: 0.35,
         albedo: texture_concrete.clone(),
         fresnel_coefficient: 1.03,
+        ..Default::default()
     }));
     let glass_blue = capture_material(Box::new(Material {
         uv_scale: 1.0,
         color_tint: COLOR_BLUE_SCUFF,
-        specular: 0.993,
         albedo: texture_concrete.clone(),
         fresnel_coefficient: 3.0,
+        ..Default::default()
     }));
     let middle_red = capture_material(Box::new(Material {
         uv_scale: 1.0,
         color_tint: COLOR_RED_SCUFF,
-        specular: 0.9,
         albedo: texture_concrete.clone(),
         fresnel_coefficient: 1.009,
+        ..Default::default()
     }));
 
     // ! SHAPES //////////////////////////////////////
@@ -174,6 +184,15 @@ fn main() -> anyhow::Result<()> {
         1.4,
         glass_blue.clone(),
     )));
+
+    // test inside intersection w/ Sphere
+    
+    // shapes_list.push(Box::new(Sphere::new(
+    //     // "HOLLOW SPHERE"
+    //     Vec3::ZERO,
+    //     2.0,
+    //     material_test_inside_intersections.clone(),
+    // )));
 
     // shapes_list.push(Box::new(Sphere::new(
     //     // "FLOOR"
@@ -213,6 +232,13 @@ fn main() -> anyhow::Result<()> {
         Vec3::new([10.0, 10.0, -1.0]),
         25.0,
         1.0,
+        COLOR_WHITE,
+    )));
+
+    scene.lights.push(Box::new(PointLight::new(
+        Vec3::new([0.0, 20.02, 0.0]),
+        125.0,
+        1.4,
         COLOR_WHITE,
     )));
 

@@ -45,7 +45,7 @@ impl WorkerThreadHandle {
                             let starting_ray = scene.camera.ray(u, v);
 
                             // Hit skybox (so it doesn't affect the lighting)
-                            if scene.geometry.single_cast(starting_ray).is_missed() {
+                            if scene.geometry.single_cast(starting_ray, true).is_missed() {
                                 // first ray missed, get skybox color
                                 // let unit_direction = starting_ray.direction().normalized();
                                 // let skybox_color = scene.skybox.sample_from_direction(unit_direction);
@@ -54,19 +54,18 @@ impl WorkerThreadHandle {
                                 continue;
                             }
 
-                            let indirect_lighting = outside_cast(
+                            let ray_color = outside_cast(
                                 RayBounce::default_from_ray(starting_ray),
                                 scene,
                             );
 
-                            pixel_color += indirect_lighting;
+                            pixel_color += ray_color;
                         }
 
                         pixel_color = pixel_color / MULTISAMPLE_SIZE as f32;
 
                         //scale??
                         // pixel_color = pixel_color * 0.1;
-                        // gamma correct
                         pixel_color = pixel_color.clamp(0.0, 1.0);
 
                         surface.write((x, y), pixel_color);

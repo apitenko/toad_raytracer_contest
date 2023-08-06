@@ -529,6 +529,7 @@ pub fn refract(incident: Vec3, surface_normal: Vec3, refractiveness_ratio: f32) 
     }
 }
 
+#[derive(Clone, Copy, PartialEq)]
 pub enum RayRefractionState {
     /// Ray is currently inside a solid material.
     InsideMaterial {
@@ -551,7 +552,7 @@ impl RayBounce {
             ray,
             bounces: MAX_BOUNCES,
             multiplier: 1.0,
-            refraction_state: RayRefractionState::TraversingAir,
+            refraction_state: RayRefractionState::InsideMaterial { current_outside_fresnel_coefficient: 9.9 },
         }
     }
 }

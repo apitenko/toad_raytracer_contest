@@ -122,37 +122,43 @@ fn main() -> anyhow::Result<()> {
     let material_test_inside_intersections = capture_material(Box::new(Material {
         uv_scale: 1.0,
         color_tint: Vec3::from_rgb(255, 255, 255),
-        albedo: texture_concrete.clone(),
+        color_albedo: texture_concrete.clone(),
         fresnel_coefficient: 9.9,
+        roughness: 0.211,
         ..Default::default()
     }));
 
     let floor_checkerboard = capture_material(Box::new(Material {
         uv_scale: 0.01,
-        color_tint: Vec3::ONE / 4.0,
-        albedo: texture_concrete.clone(),
+        color_tint: Vec3::ONE,
+        color_albedo: texture_concrete.clone(),
         fresnel_coefficient: 4.0,
+        roughness: 0.99,
+        specular: 0.99 * Vec3::ZERO,
         ..Default::default()
     }));
     let diffuse_green = capture_material(Box::new(Material {
         uv_scale: 1.0,
         color_tint: Vec3::from_rgb(10, 255, 10),
-        albedo: texture_concrete.clone(),
+        color_albedo: texture_concrete.clone(),
         fresnel_coefficient: 1.03,
+        roughness: 0.211,
         ..Default::default()
     }));
     let glass_blue = capture_material(Box::new(Material {
         uv_scale: 1.0,
         color_tint: COLOR_BLUE_SCUFF,
-        albedo: texture_concrete.clone(),
+        color_albedo: texture_concrete.clone(),
         fresnel_coefficient: 3.0,
+        roughness: 0.211,
         ..Default::default()
     }));
     let middle_red = capture_material(Box::new(Material {
         uv_scale: 1.0,
         color_tint: COLOR_RED_SCUFF,
-        albedo: texture_concrete.clone(),
+        color_albedo: texture_concrete.clone(),
         fresnel_coefficient: 1.009,
+        roughness: 0.211,
         ..Default::default()
     }));
 

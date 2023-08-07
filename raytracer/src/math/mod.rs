@@ -6,7 +6,7 @@ use std::{
     u128,
 };
 
-use crate::{tracing::MAX_BOUNCES, util::fresnel_constants::FresnelConstants};
+use crate::{tracing::{MAX_BOUNCES, MAX_DEPTH}, util::fresnel_constants::FresnelConstants};
 
 pub mod random;
 
@@ -549,7 +549,7 @@ impl Ray {
 }
 
 pub fn reflect(vector: Vec3, normal: Vec3) -> Vec3 {
-    return vector - 2.0 * Vec3::dot(vector, normal) * normal;
+    return (vector - 2.0 * Vec3::dot(vector, normal) * normal).normalized();
 }
 
 pub fn refract(incident: Vec3, surface_normal: Vec3, refractiveness_ratio: f32) -> Vec3 {
@@ -579,8 +579,8 @@ pub enum RayRefractionState {
 
 pub struct RayBounce {
     pub ray: Ray,
-    pub bounces: i32,
-    pub multiplier: f32,
+    pub remaining_bounces: i32,
+    pub remaining_depth: f32,
     pub refraction_state: RayRefractionState,
 }
 
@@ -588,8 +588,8 @@ impl RayBounce {
     pub fn default_from_ray(ray: Ray) -> Self {
         Self {
             ray,
-            bounces: MAX_BOUNCES,
-            multiplier: 1.0,
+            remaining_bounces: MAX_BOUNCES,
+            remaining_depth: MAX_DEPTH,
             refraction_state: RayRefractionState::InsideMaterial {
                 current_outside_fresnel_coefficient: 9.9,
             },

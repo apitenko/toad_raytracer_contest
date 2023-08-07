@@ -15,11 +15,7 @@ impl Texture {
     pub fn sample(&self, u: f32, v: f32) -> Vec3 {
         let x: usize = (u.fract() * 0.99 * self.width as f32) as usize;
         let y: usize = (v.fract() * 0.99 * self.height as f32) as usize;
-        let index = (y * self.height + x);
-        let index = index.clamp(0, self.width * self.height);
-
         let sample = unsafe { self.image.unsafe_get_pixel(x as u32, y as u32) };
-
         return Vec3::from_f32(sample.0);
     }
 }

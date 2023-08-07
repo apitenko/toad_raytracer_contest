@@ -6,13 +6,13 @@ use raytracer_lib::generate_multisample_positions;
 use crate::{
     constants::MISS_COLOR_VEC3,
     math::{
-        random::random_in_unit_sphere, reflect, refract, Ray, RayBounce, RayRefractionState, Vec3, Saturatable
+        random::random_in_unit_sphere, reflect, refract, Ray, RayBounce, RayRefractionState,
+        Saturatable, Vec3,
     },
     primitives::cast_result::CastResult,
     scene::{lights::light::Light, scene::Scene},
     util::fresnel_constants::FresnelConstants,
 };
-
 
 // ? づ｀･ω･)づ it's compile time o'clock
 
@@ -22,6 +22,7 @@ pub const MULTISAMPLE_OFFSETS: [(f32, f32); 40] = generated_samples();
 pub const MULTISAMPLE_SIZE: usize = MULTISAMPLE_OFFSETS.len();
 
 pub const MAX_BOUNCES: i32 = 50;
+pub const MAX_DEPTH: f32 = 30.0;
 
 pub const SKYBOX_LIGHT_INTENSITY: f32 = 0.0;
 
@@ -64,12 +65,11 @@ fn fresnel_reflect_amount(n1: f32, n2: f32, normal: Vec3, incident: Vec3) -> f32
 // regular cast
 // RETURNS indirect_lighting
 pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
-    if current_bounce.bounces < 0 {
+    if current_bounce.remaining_bounces < 0 {
         // stop recursion by limit
         return Vec3::ZERO;
     }
-    if current_bounce.multiplier < 0.00001 {
-        // optional
+    if current_bounce.remaining_depth < 0.00001 {
         return Vec3::ZERO;
     }
 
@@ -253,7 +253,7 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
     // ! Blend components  -------------------------
 
     let final_color = component_direct + component_indirect;
-    return final_color * current_bounce.multiplier;
+    return final_color;
 }
 
 // cast inside object (refractive)
@@ -335,7 +335,6 @@ fn ggx_direct(
     let V = current_ray_direction;
     let dif = material_albedo;
     let N = cast_result.normal;
-    let rough = material_roughness;
     let spec = material_specular;
     let hit = cast_result.intersection_point;
 
@@ -365,8 +364,8 @@ fn ggx_direct(
     let NdotV = (Vec3::dot(N, V)).clamp(f32::EPSILON, 1.0 - f32::EPSILON);
 
     // Evaluate terms for our GGX BRDF model
-    let D = ggx_normal_distribution(NdotH, rough);
-    let G = ggx_schlick_masking_term(NdotL, NdotV, rough);
+    let D = ggx_normal_distribution(NdotH, material_roughness);
+    let G = ggx_schlick_masking_term(NdotL, NdotV, material_roughness);
     let F: Vec3 = schlick_fresnel(spec, LdotH);
 
     // Evaluate the Cook-Torrance Microfacet BRDF model
@@ -374,7 +373,7 @@ fn ggx_direct(
     let ggxTerm: Vec3 = D * G * F / (4.0 * NdotV/* * NdotL */);
 
     // Compute our final color (combining diffuse lobe plus specular GGX lobe)
-    return light_visibility * light_intensity * (/* NdotL * */ggxTerm + NdotL * dif / PI);
+    return light_visibility * light_intensity * (/* NdotL * */ggxTerm + NdotL * material_albedo / PI);
 }
 
 fn shadow_ray_visibility(
@@ -411,7 +410,6 @@ fn ggx_indirect(
 ) -> Vec3 {
     // ugh
     let V = current_bounce.ray.direction();
-    let dif = material_albedo;
     let N = cast_result.normal;
     let rough = material_roughness;
     let spec = material_specular;
@@ -423,31 +421,43 @@ fn ggx_indirect(
 
     if chooseDiffuse {
         // Shoot a randomly selected cosine-sampled diffuse ray.
-        let L: Vec3 = (random_cosine_weighted_point() * N).normalized();
-        let bounceColor: Vec3 = ray_cast(RayBounce {
-            ray: Ray::new(hit, L, f32::MAX),
-            bounces: current_bounce.bounces - 1,
-            multiplier: 1.0,
-            refraction_state: RayRefractionState::TraversingAir,
-        }, scene);
+        let random_direction: Vec3 = (random_cosine_weighted_point() * N).normalized();
+        let bounceColor: Vec3 = ray_cast(
+            RayBounce {
+                ray: Ray::new(hit, random_direction, f32::MAX),
+                remaining_bounces: current_bounce.remaining_bounces - 1,
+                remaining_depth: current_bounce.remaining_depth - cast_result.distance_traversed,
+                refraction_state: RayRefractionState::TraversingAir,
+            },
+            scene,
+        );
 
-        // Accumulate the color: (NdotL * incomingLight * dif / pi)
+        // Accumulate the color: (NdotL * incomingLight * material_albedo / pi)
         // Probability of sampling this ray:  (NdotL / pi) * probDiffuse
-        return bounceColor * dif / probDiffuse;
+        let result_color = bounceColor * material_albedo / probDiffuse;
+        // if result_color.length() > 3.0 {
+        //     println!("FUCKME IN THE ASS {:?}", probDiffuse);
+        //     println!("{:?} ", result_color);
+        // }
+        return result_color;
     } else {
         // Randomly sample the NDF to get a microfacet in our BRDF
         let H: Vec3 = getGGXMicrofacet(rough, N);
 
         // Compute outgoing direction based on this (perfectly reflective) facet
-        let L: Vec3 = (2.0 * Vec3::dot(V, H) * H - V).normalized();
+        let reflected_ray = reflect(V, H);
 
         // Compute our color by tracing a ray in this direction
-        let bounceColor: Vec3 = ray_cast(RayBounce {
-            ray: Ray::new(hit, L, f32::MAX),
-            bounces: current_bounce.bounces - 1,
-            multiplier: 1.0,
-            refraction_state: RayRefractionState::TraversingAir,
-        }, scene);
+        let bounceColor: Vec3 = ray_cast(
+            RayBounce {
+                ray: Ray::new(hit, reflected_ray, f32::MAX),
+                remaining_bounces: current_bounce.remaining_bounces - 1,
+                remaining_depth: current_bounce.remaining_depth - cast_result.distance_traversed,
+                refraction_state: RayRefractionState::TraversingAir,
+            },
+            scene,
+        );
+        let L = reflected_ray;
 
         // Compute some dot products needed for shading
         let NdotL: f32 = (Vec3::dot(N, L)).saturate();
@@ -472,8 +482,8 @@ fn ggx_indirect(
 
 // TODO: find a better approach
 fn probabilityToSampleDiffuse(material_albedo: Vec3, material_specular: Vec3) -> f32 {
-    let lumDiffuse = material_albedo.luminosity().clamp(0.01, 1.0);
-    let lumSpecular = material_specular.luminosity().clamp(0.01, 1.0);
+    let lumDiffuse = material_albedo.luminosity().saturate();
+    let lumSpecular = material_specular.luminosity().saturate();
     return lumDiffuse / (lumDiffuse + lumSpecular);
 }
 

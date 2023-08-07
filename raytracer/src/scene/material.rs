@@ -27,7 +27,7 @@ pub struct Material {
     // pub sheen_tint: f32,
     // pub clearcoat: f32,
     // pub clearcoat_gloss: f32,
-    pub albedo: TextureShared,
+    pub color_albedo: TextureShared,
 }
 
 lazy_static::lazy_static! {
@@ -50,9 +50,9 @@ impl Default for Material {
             fresnel_coefficient: 4.0,
             emission_color: Vec3::ONE,
             emission_power: 0.0,
-            specular: 0.92 * Vec3::ONE,
+            specular: 0.1 * Vec3::ONE,
             roughness: 0.04,
-            albedo: TEXTURE_DEFAULT.clone(),
+            color_albedo: TEXTURE_DEFAULT.clone(),
         }
     }
 }
@@ -69,8 +69,8 @@ impl Material {
     }
 
     pub fn sample_albedo(&self, uv: (f32, f32)) -> Vec3 {
-        TEXTURE_DATA_DEFAULT.sample(uv.0, uv.1) * self.color_tint
-        // self.sample_uv_scaled(&self.albedo, uv) * self.color_tint
+        // TEXTURE_DATA_DEFAULT.sample(uv.0, uv.1) * self.color_tint
+        self.sample_uv_scaled(&self.color_albedo, uv) * self.color_tint
     }
 
     pub fn sample_roughness(&self, uv: (f32, f32)) -> f32 {

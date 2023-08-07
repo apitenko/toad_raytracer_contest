@@ -65,7 +65,7 @@ impl WorkerThreadHandle {
                         pixel_color = pixel_color / MULTISAMPLE_SIZE as f32;
 
                         //scale??
-                        // pixel_color = pixel_color * 0.1;
+                        pixel_color = pixel_color * 0.1;
                         pixel_color = pixel_color.clamp(0.0, 1.0);
 
                         surface.write((x, y), pixel_color);

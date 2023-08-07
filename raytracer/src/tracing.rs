@@ -16,12 +16,12 @@ use crate::{
 
 // ? づ｀･ω･)づ it's compile time o'clock
 
-generate_multisample_positions!(400);
+generate_multisample_positions!(40);
 
-pub const MULTISAMPLE_OFFSETS: [(f32, f32); 400] = generated_samples();
+pub const MULTISAMPLE_OFFSETS: [(f32, f32); 40] = generated_samples();
 pub const MULTISAMPLE_SIZE: usize = MULTISAMPLE_OFFSETS.len();
 
-pub const MAX_BOUNCES: i32 = 1;
+pub const MAX_BOUNCES: i32 = 50;
 
 pub const SKYBOX_LIGHT_INTENSITY: f32 = 0.0;
 
@@ -427,7 +427,7 @@ fn ggx_indirect(
         let bounceColor: Vec3 = ray_cast(RayBounce {
             ray: Ray::new(hit, L, f32::MAX),
             bounces: current_bounce.bounces - 1,
-            multiplier: probDiffuse,
+            multiplier: 1.0,
             refraction_state: RayRefractionState::TraversingAir,
         }, scene);
 
@@ -445,7 +445,7 @@ fn ggx_indirect(
         let bounceColor: Vec3 = ray_cast(RayBounce {
             ray: Ray::new(hit, L, f32::MAX),
             bounces: current_bounce.bounces - 1,
-            multiplier: probDiffuse,
+            multiplier: 1.0,
             refraction_state: RayRefractionState::TraversingAir,
         }, scene);
 

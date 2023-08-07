@@ -62,7 +62,6 @@ impl WorkerThreadHandle {
                             pixel_color += ray_color;
                         }
 
-                        pixel_color *= 0.1;
                         pixel_color = pixel_color / MULTISAMPLE_SIZE as f32;
 
                         //scale??

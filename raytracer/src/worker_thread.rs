@@ -8,7 +8,7 @@ use crate::{
         workload::Workload,
     },
     surface::TotallySafeSurfaceWrapper,
-    tracing::{outside_cast, MAX_BOUNCES, MULTISAMPLE_OFFSETS, MULTISAMPLE_SIZE},
+    tracing::{ray_cast, MAX_BOUNCES, MULTISAMPLE_OFFSETS, MULTISAMPLE_SIZE},
     util::queue::Queue,
 };
 
@@ -54,7 +54,7 @@ impl WorkerThreadHandle {
                                 continue;
                             }
 
-                            let ray_color = outside_cast(
+                            let ray_color = ray_cast(
                                 RayBounce::default_from_ray(starting_ray),
                                 scene,
                             );
@@ -62,6 +62,7 @@ impl WorkerThreadHandle {
                             pixel_color += ray_color;
                         }
 
+                        pixel_color *= 0.1;
                         pixel_color = pixel_color / MULTISAMPLE_SIZE as f32;
 
                         //scale??

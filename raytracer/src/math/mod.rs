@@ -409,6 +409,33 @@ impl Vec3 {
     pub fn flip_y(&self) -> Self {
         return Self::new([self.x(), -self.y(), self.z()]);
     }
+
+    #[inline]
+    pub fn sum_components(&self) -> f32 {
+        #[cfg(target_feature = "sse")]
+        unsafe {
+            let d = self.data_vectorized;
+            let d = _mm_hadd_ps(d, d);
+            let d = _mm_hadd_ps(d, d);
+
+            let ptr = (&d) as *const __m128 as *const f32;
+            return *ptr.add(0);
+        }
+        #[cfg(not(target_feature = "sse"))]
+        {
+            self.x() + self.y() + self.z()
+        }
+    }
+
+    #[inline]
+    pub fn luminosity(&self) -> f32 {
+        (*self * Self::from_f32([0.2126, 0.7152, 0.0722, 0.0])).sum_components()
+    }
+
+    #[inline]
+    pub fn saturate(&self) -> Vec3 {
+        self.clamp(f32::EPSILON, 1.0 - f32::EPSILON)
+    }
 }
 
 // overloaded operators
@@ -433,6 +460,12 @@ impl std::ops::Sub<Vec3> for Vec3 {
     #[inline]
     fn sub(self, rhs: Vec3) -> Self::Output {
         Vec3::subtract(self, rhs)
+    }
+}
+
+impl std::ops::SubAssign<Vec3> for Vec3 {
+    fn sub_assign(&mut self, rhs: Vec3) {
+        *self = Self::subtract(*self, rhs);
     }
 }
 
@@ -466,6 +499,11 @@ impl std::ops::Mul<Vec3> for f32 {
     #[inline]
     fn mul(self, rhs: Vec3) -> Self::Output {
         Vec3::multiply_by_f32(rhs, self)
+    }
+}
+impl std::ops::MulAssign<f32> for Vec3 {
+    fn mul_assign(&mut self, rhs: f32) {
+        *self = Self::multiply_by_f32(*self, rhs);
     }
 }
 
@@ -552,7 +590,9 @@ impl RayBounce {
             ray,
             bounces: MAX_BOUNCES,
             multiplier: 1.0,
-            refraction_state: RayRefractionState::InsideMaterial { current_outside_fresnel_coefficient: 9.9 },
+            refraction_state: RayRefractionState::InsideMaterial {
+                current_outside_fresnel_coefficient: 9.9,
+            },
         }
     }
 }
@@ -560,5 +600,15 @@ impl RayBounce {
 impl Into<RayBounce> for Ray {
     fn into(self) -> RayBounce {
         RayBounce::default_from_ray(self)
+    }
+}
+
+pub trait Saturatable {
+    fn saturate(&self) -> f32;
+}
+
+impl Saturatable for f32 {
+    fn saturate(&self) -> f32 {
+        self.clamp(f32::EPSILON, 1.0 - f32::EPSILON)
     }
 }

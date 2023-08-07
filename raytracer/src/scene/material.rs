@@ -69,7 +69,8 @@ impl Material {
     }
 
     pub fn sample_albedo(&self, uv: (f32, f32)) -> Vec3 {
-        self.sample_uv_scaled(&self.albedo, uv) * self.color_tint
+        TEXTURE_DATA_DEFAULT.sample(uv.0, uv.1) * self.color_tint
+        // self.sample_uv_scaled(&self.albedo, uv) * self.color_tint
     }
 
     pub fn sample_roughness(&self, uv: (f32, f32)) -> f32 {

@@ -134,7 +134,7 @@ fn main() -> anyhow::Result<()> {
         color_albedo: texture_concrete.clone(),
         fresnel_coefficient: 4.0,
         roughness: 0.99,
-        specular: 0.99 * Vec3::ZERO,
+        specular: 0.09 * Vec3::ONE,
         ..Default::default()
     }));
     let diffuse_green = capture_material(Box::new(Material {
@@ -142,7 +142,8 @@ fn main() -> anyhow::Result<()> {
         color_tint: Vec3::from_rgb(10, 255, 10),
         color_albedo: texture_concrete.clone(),
         fresnel_coefficient: 1.03,
-        roughness: 0.211,
+        roughness: 0.99,
+        specular: 0.99 * Vec3::ONE,
         ..Default::default()
     }));
     let glass_blue = capture_material(Box::new(Material {
@@ -150,7 +151,8 @@ fn main() -> anyhow::Result<()> {
         color_tint: COLOR_BLUE_SCUFF,
         color_albedo: texture_concrete.clone(),
         fresnel_coefficient: 3.0,
-        roughness: 0.211,
+        roughness: 0.99,
+        specular: 0.5 * Vec3::ONE,
         ..Default::default()
     }));
     let middle_red = capture_material(Box::new(Material {
@@ -158,7 +160,8 @@ fn main() -> anyhow::Result<()> {
         color_tint: COLOR_RED_SCUFF,
         color_albedo: texture_concrete.clone(),
         fresnel_coefficient: 1.009,
-        roughness: 0.211,
+        roughness: 0.779,
+        specular: 0.02 * Vec3::ONE,
         ..Default::default()
     }));
 

@@ -10,21 +10,21 @@ use crate::{
         Saturatable, Vec3,
     },
     primitives::cast_result::CastResult,
-    scene::{lights::light::Light, scene::Scene},
+    scene::{lights::light::Light, material::Material, scene::Scene},
     util::fresnel_constants::FresnelConstants,
 };
 
 // ? づ｀･ω･)づ it's compile time o'clock
 
-generate_multisample_positions!(40);
+generate_multisample_positions!(400);
 
-pub const MULTISAMPLE_OFFSETS: [(f32, f32); 40] = generated_samples();
+pub const MULTISAMPLE_OFFSETS: [(f32, f32); 400] = generated_samples();
 pub const MULTISAMPLE_SIZE: usize = MULTISAMPLE_OFFSETS.len();
 
 pub const MAX_BOUNCES: i32 = 50;
-pub const MAX_DEPTH: f32 = 30.0;
+pub const MAX_DEPTH: f32 = 2000.0;
 
-pub const SKYBOX_LIGHT_INTENSITY: f32 = 0.0;
+pub const SKYBOX_LIGHT_INTENSITY: f32 = 0.01;
 
 // Cook-Torrance F term
 fn schlick_fresnel(f0: Vec3, lDotH: f32) -> Vec3 {
@@ -333,7 +333,6 @@ fn ggx_direct(
     material_roughness: f32,
 ) -> Vec3 {
     let V = current_ray_direction;
-    let dif = material_albedo;
     let N = cast_result.normal;
     let spec = material_specular;
     let hit = cast_result.intersection_point;
@@ -373,7 +372,9 @@ fn ggx_direct(
     let ggxTerm: Vec3 = D * G * F / (4.0 * NdotV/* * NdotL */);
 
     // Compute our final color (combining diffuse lobe plus specular GGX lobe)
-    return light_visibility * light_intensity * (/* NdotL * */ggxTerm + NdotL * material_albedo / PI);
+    return light_visibility
+        * light_intensity
+        * (/* NdotL * */ggxTerm + NdotL * material_albedo / PI);
 }
 
 fn shadow_ray_visibility(
@@ -420,6 +421,7 @@ fn ggx_indirect(
     let chooseDiffuse = (rng.gen::<f32>() < probDiffuse);
 
     if chooseDiffuse {
+        return Vec3::ZERO;
         // Shoot a randomly selected cosine-sampled diffuse ray.
         let random_direction: Vec3 = (random_cosine_weighted_point() * N).normalized();
         let bounceColor: Vec3 = ray_cast(
@@ -499,4 +501,96 @@ fn random_cosine_weighted_point() -> Vec3 {
     let y = radial * theta.sin();
 
     return Vec3::new([x, y, (1.0 - u).sqrt()]);
+}
+
+//====================================================================
+fn SmithGGXMasking(cast_result_normal: Vec3, wi: Vec3, wo: Vec3, a2: f32) -> f32 {
+
+    let dotNL: f32 = Vec3::dot(cast_result_normal, wi);
+    let dotNV: f32 = Vec3::dot(cast_result_normal, wo);
+    let denomC: f32 = (a2 + (1.0 - a2) * dotNV * dotNV).sqrt() + dotNV;
+
+    return 2.0 * dotNV / denomC;
+}
+
+//====================================================================
+fn SmithGGXMaskingShadowing(cast_result_normal: Vec3, wi: Vec3, wo: Vec3, a2: f32) -> f32 {
+    let dotNL = Vec3::dot(cast_result_normal, wi);
+    let dotNV = Vec3::dot(cast_result_normal, wo);
+
+    let denomA = dotNV * (a2 + (1.0 - a2) * dotNL * dotNL).sqrt();
+    let denomB = dotNL * (a2 + (1.0 - a2) * dotNV * dotNV).sqrt();
+
+    return 2.0 * dotNL * dotNV / (denomA + denomB);
+}
+
+//====================================================================
+// https://hal.archives-ouvertes.fr/hal-01509746/document
+fn GgxVndf(wo: Vec3, roughness: f32, u1: f32, u2: f32) -> Vec3 {
+    // -- Stretch the view vector so we are sampling as though
+    // -- roughness==1
+    let v: Vec3 = Vec3::new([wo.x() * roughness, wo.y(), wo.z() * roughness]).normalized();
+
+    // -- Build an orthonormal basis with v, t1, and t2
+    let t1: Vec3 = if (v.y() < 0.999) {
+        (Vec3::cross(v, Vec3::Y_AXIS)).normalized()
+    } else {
+        Vec3::X_AXIS
+    };
+    let t2: Vec3 = Vec3::cross(t1, v);
+
+    // -- Choose a point on a disk with each half of the disk weighted
+    // -- proportionally to its projection onto direction v
+    let a: f32 = 1.0 / (1.0 + v.y());
+    let r: f32 = u1.sqrt();
+    let phi: f32 = if u2 < a {
+        (u2 / a) * PI
+    } else {
+        PI + (u2 - a) / (1.0 - a) * PI
+    };
+    let p1: f32 = r * phi.cos();
+    let p2: f32 = r * phi.sin() * (if u2 < a { 1.0 } else { v.y() });
+
+    // -- Calculate the normal in this stretched tangent space
+    let n: Vec3 = p1 * t1 + p2 * t2 + (f32::max(0.0, 1.0 - p1 * p1 - p2 * p2)).sqrt() * v;
+
+    // -- unstretch and normalize the normal
+    return (Vec3::new([roughness * n.x(), f32::max(0.0, n.y()), roughness * n.z()])).normalized();
+}
+
+// https://schuttejoe.github.io/post/ggximportancesamplingpart1/
+//====================================================================
+fn ImportanceSampleGgxVdn(
+    cast_result: &CastResult,
+    specularColor: Vec3,
+    roughness: f32,
+    wg: Vec3,
+    wo: Vec3,
+    mut wi: Vec3,
+) -> Vec3 //reflectance
+{
+    let cast_result_normal = cast_result.normal;
+    let NdotWI = Vec3::dot(cast_result_normal, wi);
+
+    let mut rng = rand::thread_rng();
+    let a = roughness;
+    let a2 = a * a;
+
+    let r0 = rng.gen::<f32>(); // Random::MersenneTwisterFloat(twister);
+    let r1 = rng.gen::<f32>(); // Random::MersenneTwisterFloat(twister);
+    let wm: Vec3 = GgxVndf(wo, roughness, r0, r1);
+
+    wi = reflect(wm, wo);
+
+    if (NdotWI > 0.0) {
+        let F: Vec3 = schlick_fresnel(specularColor, Vec3::dot(wi, wm));
+        let G1: f32 = SmithGGXMasking(cast_result_normal, wi, wo, a2);
+        let G2: f32 = SmithGGXMaskingShadowing(cast_result_normal, wi, wo, a2);
+
+        let reflectance = F * (G2 / G1);
+        return reflectance;
+    } else {
+        let reflectance = Vec3::ZERO;
+        return reflectance;
+    }
 }

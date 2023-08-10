@@ -21,6 +21,14 @@ impl Sphere {
             material,
         }
     }
+
+    fn uv(&self, intersection_point: Vec3) -> (f32, f32) {
+        let point = (intersection_point - self.position) / self.radius;
+        let [dx, dy, dz, ..] = point.extract();
+        let u = 0.5 + f32::atan2(dz, dx) / TAU;
+        let v = 0.5 - f32::asin(dy) / PI;
+        return (u, v);
+    }
 }
 
 impl Shape for Sphere {
@@ -71,18 +79,6 @@ impl Shape for Sphere {
                 uv: self.uv(intersection_point),
             });
         }
-    }
-
-    fn material(&self) -> &crate::scene::material::Material {
-        return self.material.get();
-    }
-
-    fn uv(&self, intersection_point: Vec3) -> (f32, f32) {
-        let point = (intersection_point - self.position) / self.radius;
-        let [dx, dy, dz, ..] = point.extract();
-        let u = 0.5 + f32::atan2(dz, dx) / TAU;
-        let v = 0.5 - f32::asin(dy) / PI;
-        return (u, v);
     }
 }
 

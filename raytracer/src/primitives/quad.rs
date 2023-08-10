@@ -86,14 +86,4 @@ impl Shape for Quad {
             material: self.material.clone(),
         });
     }
-
-    fn material(&self) -> &Material {
-        return self.material.get();
-    }
-
-    fn uv(&self, intersection_point: Vec3) -> (f32, f32) {
-        // pee pee poo poo
-        panic!("quad.uv");
-        (0.0, 0.0)
-    }
 }

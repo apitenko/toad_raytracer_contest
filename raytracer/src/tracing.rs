@@ -16,15 +16,19 @@ use crate::{
 
 // ? づ｀･ω･)づ it's compile time o'clock
 
-generate_multisample_positions!(400);
+generate_multisample_positions!(100);
 
-pub const MULTISAMPLE_OFFSETS: [(f32, f32); 400] = generated_samples();
+pub const MULTISAMPLE_OFFSETS: [(f32, f32); 100] = generated_samples();
 pub const MULTISAMPLE_SIZE: usize = MULTISAMPLE_OFFSETS.len();
 
 pub const MAX_BOUNCES: i32 = 50;
-pub const MAX_DEPTH: f32 = 2000.0;
+pub const MAX_DEPTH: f32 = 20.0;
 
+// todo: move to skybox
 pub const SKYBOX_LIGHT_INTENSITY: f32 = 0.01;
+
+pub const AMBIENT_LIGHT_INTENSITY: f32 = 0.0;
+pub const AMBIENT_LIGHT_COLOR: Vec3 = MISS_COLOR_VEC3;
 
 // Cook-Torrance F term
 fn schlick_fresnel(f0: Vec3, lDotH: f32) -> Vec3 {
@@ -84,7 +88,6 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
         // let skybox_color = scene.skybox.sample_from_direction(unit_direction);
         // return skybox_color * current_bounce.multiplier;
     }
-
     let current_material = cast_result.material.get();
 
     let material_albedo = current_material.sample_albedo(cast_result.uv);
@@ -94,7 +97,7 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
 
     // GGX
     const DO_DIRECT_LIGHTING: bool = true;
-    const DO_INDIRECT_LIGHTING: bool = true;
+    const DO_INDIRECT_LIGHTING: bool = false;
 
     // Do explicit direct lighting to a random light in the scene
     let component_direct = if (DO_DIRECT_LIGHTING) {
@@ -124,75 +127,6 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
         Vec3::ZERO
     };
 
-    // 1. Fresnel (specular/diffuse ratio)
-
-    // let (fresnel_outside, fresnel_inside, fresnel_ratio) =
-    //     if let RayRefractionState::InsideMaterial {
-    //         current_outside_fresnel_coefficient,
-    //     } = current_bounce.refraction_state
-    //     {
-    //         // ray is currently refracted inside a solid object
-    //         let fresnel_inside = FresnelConstants::Air;
-    //         let fresnel_outisde = current_outside_fresnel_coefficient;
-    //         let fresnel_ratio = fresnel_inside / fresnel_outisde;
-    //         (fresnel_inside, fresnel_outisde, fresnel_ratio)
-    //     } else {
-    //         // ::TraversingAir
-    //         let fresnel_inside = current_material.fresnel_coefficient;
-    //         let fresnel_outisde = FresnelConstants::Air;
-    //         let fresnel_ratio = fresnel_outisde / fresnel_inside;
-    //         (fresnel_inside, fresnel_outisde, fresnel_ratio)
-    //     };
-
-    // let specular_ratio = fresnel_reflect_amount(
-    //     fresnel_inside,
-    //     fresnel_outside,
-    //     current_bounce.ray.direction().normalized(),
-    //     cast_result.normal,
-    // );
-
-    // let diffuse_ratio = 1.0 - specular_ratio;
-
-    // 2. Specular component is raycast
-
-    // let component_specular = {
-    //     // TODO:
-    //     let material_specular = current_material.specular; // TODO: texture sample
-    //     let reflected_normal = reflect(
-    //         current_bounce.ray.direction().normalized(),
-    //         cast_result.normal,
-    //     );
-    //     let rnd = random_in_unit_sphere().normalized();
-    //     let reflection_normal = Vec3::lerp(rnd, reflected_normal, material_specular);
-
-    //     let component_reflect = outside_cast(
-    //         RayBounce {
-    //             ray: Ray::new(cast_result.intersection_point, reflection_normal, f32::MAX),
-    //             bounces: current_bounce.bounces - 1,
-    //             multiplier: specular_ratio,
-    //             refraction_state: current_bounce.refraction_state,
-    //         },
-    //         scene,
-    //     );
-
-    //     component_reflect
-    // };
-
-    // 3. Diffuse component =
-    // diffuse reflectance
-    // + microfacet scattering
-    // + subsurface scattering
-    // + volume area scattering
-    // + refraction raycast
-    // let component_diffuse = {};
-    // 4. Emission is omnidirectional (Lambertian)
-
-    // indirect lighting: refraction
-    // let refracted_ray_direction = refract(
-    //     current_bounce.ray.direction(),
-    //     cast_result.normal,
-    //     fresnel_ratio,
-    // );
 
     // Split energy between Diffuse and Refracted
     // let diffuse_multiplier = 0.5;
@@ -252,7 +186,7 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
 
     // ! Blend components  -------------------------
 
-    let final_color = component_direct + component_indirect;
+    let final_color = component_direct + component_indirect + AMBIENT_LIGHT_INTENSITY * AMBIENT_LIGHT_COLOR;
     return final_color;
 }
 

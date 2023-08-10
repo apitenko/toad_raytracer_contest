@@ -4,3 +4,4 @@ pub mod sphere;
 pub mod cast_result;
 pub mod skybox;
 pub mod quad;
+pub mod triangle;

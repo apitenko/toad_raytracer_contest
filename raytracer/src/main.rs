@@ -1,5 +1,4 @@
 #![allow(non_snake_case)]
-
 #![feature(try_blocks)]
 #![feature(const_for)]
 #![feature(const_trait_impl)]
@@ -41,6 +40,7 @@ use crate::math::Vec3;
 use crate::primitives::quad::Quad;
 use crate::primitives::shape::Shape;
 use crate::primitives::sphere::Sphere;
+use crate::primitives::triangle::Triangle;
 use crate::scene::lights::directional::DirectionalLight;
 use crate::scene::lights::point::PointLight;
 use crate::scene::material::{Material, MaterialShared};
@@ -103,8 +103,6 @@ fn main() -> anyhow::Result<()> {
         "./res/concrete.jpg",
     ))?));
 
-    
-
     // ! MATERIALS //////////////////////////////////////
 
     let mut materials_list = Vec::<Box<Material>>::new();
@@ -133,7 +131,7 @@ fn main() -> anyhow::Result<()> {
         color_tint: Vec3::ONE,
         color_albedo: texture_concrete.clone(),
         fresnel_coefficient: 4.0,
-        roughness: 0.99,
+        roughness: 0.1,
         specular: 0.09 * Vec3::ONE,
         ..Default::default()
     }));
@@ -195,7 +193,7 @@ fn main() -> anyhow::Result<()> {
     )));
 
     // test inside intersection w/ Sphere
-    
+
     // shapes_list.push(Box::new(Sphere::new(
     //     // "HOLLOW SPHERE"
     //     Vec3::ZERO,
@@ -211,10 +209,24 @@ fn main() -> anyhow::Result<()> {
     // )));
 
     // QUAD
-    shapes_list.push(Box::new(Quad::new(
+    shapes_list.push(Box::new(Triangle::new(
         // "FLOOR"
         Vec3::new([0.0, -0.5, 0.0]),
-        Quad::DEFAULT_GEOMETRY,
+        [
+            Quad::DEFAULT_GEOMETRY[0],
+            Quad::DEFAULT_GEOMETRY[1],
+            Quad::DEFAULT_GEOMETRY[2],
+        ],
+        floor_checkerboard.clone(),
+    )));
+    shapes_list.push(Box::new(Triangle::new(
+        // "FLOOR"
+        Vec3::new([0.0, -0.5, 0.0]),
+        [
+            Quad::DEFAULT_GEOMETRY[0],
+            Quad::DEFAULT_GEOMETRY[2],
+            Quad::DEFAULT_GEOMETRY[3],
+        ],
         floor_checkerboard.clone(),
     )));
 

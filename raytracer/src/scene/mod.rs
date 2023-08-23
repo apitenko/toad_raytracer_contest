@@ -1,6 +1,9 @@
 pub mod scene;
-pub mod svo;
+pub mod acceleration_structure;
 pub mod workload;
 pub mod lights;
 pub mod material;
 pub mod texture;
+pub mod gltf_importer;
+pub mod camera;
+pub mod uri;

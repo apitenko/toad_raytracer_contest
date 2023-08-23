@@ -14,13 +14,13 @@ pub struct Sphere {
 }
 
 impl Sphere {
-    pub fn new(position: Vec3, radius: f32, material: MaterialShared) -> Self {
-        Self {
-            position,
-            radius,
-            material,
-        }
-    }
+    // pub fn new(position: Vec3, radius: f32, material: MaterialShared) -> Self {
+    //     Self {
+    //         position,
+    //         radius,
+    //         material,
+    //     }
+    // }
 
     fn uv(&self, intersection_point: Vec3) -> (f32, f32) {
         let point = (intersection_point - self.position) / self.radius;

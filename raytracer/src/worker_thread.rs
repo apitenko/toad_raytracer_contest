@@ -2,14 +2,13 @@ use std::thread::JoinHandle;
 
 use crate::{
     constants::{COLOR_CALL_PARAMETERS, MISS_COLOR, MISS_COLOR_VEC3, RENDER_HEIGHT, RENDER_WIDTH},
-    math::{random::random_in_unit_sphere, reflect, Ray, RayBounce, Vec3},
     scene::{
         scene::{Scene, TotallySafeSceneWrapper},
         workload::Workload,
     },
     surface::TotallySafeSurfaceWrapper,
     tracing::{ray_cast, MAX_BOUNCES, MULTISAMPLE_OFFSETS, MULTISAMPLE_SIZE},
-    util::queue::Queue,
+    util::queue::Queue, math::{Vec3, RayBounce},
 };
 
 pub struct WorkerThreadHandle {

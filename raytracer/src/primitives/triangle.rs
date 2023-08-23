@@ -9,17 +9,13 @@ use super::{cast_result::CastResult, shape::Shape};
 
 pub struct Triangle {
     // pub position: Vec3,
-    pub material: MaterialShared,
+    // pub material: MaterialShared,
     pub vertices: [Vec3; 3],
 }
 
 impl Triangle {
-    pub fn new(position: Vec3, vertices: [Vec3; 3], material: MaterialShared) -> Self {
-        Self { material, vertices: [
-            position + vertices[0],
-            position + vertices[1],
-            position + vertices[2],
-        ] }
+    pub fn new(vertices: [Vec3; 3]) -> Self {
+        Self { vertices }
     }
 }
 
@@ -65,8 +61,8 @@ impl Shape for Triangle {
                 intersection_point,
                 distance_traversed: (ray.direction() * t).length(),
                 normal,
-                material: self.material.clone(),
-                uv: (u, v)
+                uv: (u, v),
+                material: MaterialShared::null()
             });
         } else {
             // This means that there is a line intersection but not a ray intersection.

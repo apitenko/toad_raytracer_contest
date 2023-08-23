@@ -1,10 +1,11 @@
-use std::path::Path;
+use std::{path::Path, ptr::null};
 
 use base64::Engine;
 use image::GenericImageView;
 
 use crate::math::Vec3;
 
+#[derive(Clone)]
 pub struct Texture {
     width: usize,
     height: usize,
@@ -20,7 +21,7 @@ impl Texture {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct TextureShared {
     mat: *const Texture,
 }
@@ -29,6 +30,11 @@ unsafe impl Send for TextureShared {}
 unsafe impl Sync for TextureShared {}
 
 impl TextureShared {
+    pub fn uninitialized() -> Self {
+        Self {
+            mat: null()
+        }
+    }
     pub const fn new(mat: *const Texture) -> Self {
         Self { mat }
     }
@@ -76,6 +82,15 @@ impl Texture {
             .decode(base64)
             .unwrap();
 
+        let texture = Texture::new_from_raw_bytes(&bytes)?;
+        return Ok(texture);
+    }
+
+    pub fn new_from_base64_str(base64_str: &str) -> anyhow::Result<Self> {
+        
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(base64_str)
+            .unwrap();
         let texture = Texture::new_from_raw_bytes(&bytes)?;
         return Ok(texture);
     }

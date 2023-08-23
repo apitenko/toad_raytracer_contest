@@ -4,11 +4,8 @@ use rand::Rng;
 use raytracer_lib::generate_multisample_positions;
 
 use crate::{
-    constants::MISS_COLOR_VEC3,
-    math::{
-        random::random_in_unit_sphere, reflect, refract, Ray, RayBounce, RayRefractionState,
-        Saturatable, Vec3,
-    },
+    constants::{MISS_COLOR_VEC3, COLOR_RED},
+    math::{Saturatable, Vec3, ray::{RayRefractionState, reflect}, RayBounce, Ray},
     primitives::cast_result::CastResult,
     scene::{lights::light::Light, material::Material, scene::Scene},
     util::fresnel_constants::FresnelConstants,
@@ -16,18 +13,18 @@ use crate::{
 
 // ? づ｀･ω･)づ it's compile time o'clock
 
-generate_multisample_positions!(100);
+generate_multisample_positions!(4);
 
-pub const MULTISAMPLE_OFFSETS: [(f32, f32); 100] = generated_samples();
+pub const MULTISAMPLE_OFFSETS: [(f32, f32); 4] = generated_samples();
 pub const MULTISAMPLE_SIZE: usize = MULTISAMPLE_OFFSETS.len();
 
 pub const MAX_BOUNCES: i32 = 50;
 pub const MAX_DEPTH: f32 = 20.0;
 
 // todo: move to skybox
-pub const SKYBOX_LIGHT_INTENSITY: f32 = 0.01;
+pub const SKYBOX_LIGHT_INTENSITY: f32 = 0.12;
 
-pub const AMBIENT_LIGHT_INTENSITY: f32 = 0.0;
+pub const AMBIENT_LIGHT_INTENSITY: f32 = 0.12;
 pub const AMBIENT_LIGHT_COLOR: Vec3 = MISS_COLOR_VEC3;
 
 // Cook-Torrance F term
@@ -88,6 +85,7 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
         // let skybox_color = scene.skybox.sample_from_direction(unit_direction);
         // return skybox_color * current_bounce.multiplier;
     }
+    
     let current_material = cast_result.material.get();
 
     let material_albedo = current_material.sample_albedo(cast_result.uv);
@@ -97,7 +95,7 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
 
     // GGX
     const DO_DIRECT_LIGHTING: bool = true;
-    const DO_INDIRECT_LIGHTING: bool = false;
+    const DO_INDIRECT_LIGHTING: bool = true;
 
     // Do explicit direct lighting to a random light in the scene
     let component_direct = if (DO_DIRECT_LIGHTING) {
@@ -126,7 +124,6 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
     } else {
         Vec3::ZERO
     };
-
 
     // Split energy between Diffuse and Refracted
     // let diffuse_multiplier = 0.5;
@@ -186,7 +183,8 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
 
     // ! Blend components  -------------------------
 
-    let final_color = component_direct + component_indirect + AMBIENT_LIGHT_INTENSITY * AMBIENT_LIGHT_COLOR;
+    let final_color =
+        component_direct + component_indirect + AMBIENT_LIGHT_INTENSITY * AMBIENT_LIGHT_COLOR;
     return final_color;
 }
 
@@ -439,7 +437,6 @@ fn random_cosine_weighted_point() -> Vec3 {
 
 //====================================================================
 fn SmithGGXMasking(cast_result_normal: Vec3, wi: Vec3, wo: Vec3, a2: f32) -> f32 {
-
     let dotNL: f32 = Vec3::dot(cast_result_normal, wi);
     let dotNV: f32 = Vec3::dot(cast_result_normal, wo);
     let denomC: f32 = (a2 + (1.0 - a2) * dotNV * dotNV).sqrt() + dotNV;

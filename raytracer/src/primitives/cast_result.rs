@@ -1,11 +1,12 @@
 use crate::{math::{Vec3, Ray}, constants::{MISS_COLOR_VEC3, COLOR_CALL_PARAMETERS}, scene::material::MaterialShared};
 
+
 pub struct CastResult {
     pub distance_traversed: f32,
     pub intersection_point: Vec3,
     pub normal: Vec3,
-    pub material: MaterialShared,
     pub uv: (f32, f32),
+    pub material: MaterialShared
 }
 
 impl CastResult {
@@ -13,8 +14,8 @@ impl CastResult {
         intersection_point: Vec3::ZERO,
         normal: Vec3::ZERO,
         distance_traversed: f32::INFINITY,
-        material: MaterialShared::INVALID_MAT,
-        uv: (0.0, 0.0)
+        uv: (0.0, 0.0),
+        material: MaterialShared::null(),
     };
 
     #[inline]

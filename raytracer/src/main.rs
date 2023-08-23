@@ -8,6 +8,12 @@
 #![feature(const_maybe_uninit_zeroed)]
 #![feature(const_try)]
 #![feature(core_intrinsics)]
+#![feature(maybe_uninit_uninit_array)]
+#![feature(inline_const)]
+#![feature(negative_impls)]
+#![feature(generic_const_exprs)]
+#![feature(adt_const_params)]
+#![feature(new_uninit)]
 
 use fps_counter::FpsCounter;
 use std::cell::Cell;
@@ -41,6 +47,7 @@ use crate::primitives::quad::Quad;
 use crate::primitives::shape::Shape;
 use crate::primitives::sphere::Sphere;
 use crate::primitives::triangle::Triangle;
+use crate::scene::gltf_importer::read_into_scene;
 use crate::scene::lights::directional::DirectionalLight;
 use crate::scene::lights::point::PointLight;
 use crate::scene::material::{Material, MaterialShared};
@@ -85,87 +92,87 @@ fn main() -> anyhow::Result<()> {
         mat_shared
     };
 
-    const TEXTURE_WHITE_1X1_BASE64: &[u8] = b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAA1JREFUGFdj+P///38ACfsD/QVDRcoAAAAASUVORK5CYII=";
-    let texture_default = capture_texture(Box::new(Texture::new_from_base64(
-        TEXTURE_WHITE_1X1_BASE64,
-    )?));
-    const TEXTURE_1X1_MAGENTA_BASE64: &[u8] = b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAAEnQAABJ0Ad5mH3gAAAAMSURBVBhXY/jP8B8ABAAB/4jQ/cwAAAAASUVORK5CYII=";
-    let texture_1x1_magenta = capture_texture(Box::new(Texture::new_from_base64(
-        TEXTURE_1X1_MAGENTA_BASE64,
-    )?));
+    // const TEXTURE_WHITE_1X1_BASE64: &[u8] = b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAA1JREFUGFdj+P///38ACfsD/QVDRcoAAAAASUVORK5CYII=";
+    // let texture_default = capture_texture(Box::new(Texture::new_from_base64(
+    //     TEXTURE_WHITE_1X1_BASE64,
+    // )?));
+    // const TEXTURE_1X1_MAGENTA_BASE64: &[u8] = b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAAEnQAABJ0Ad5mH3gAAAAMSURBVBhXY/jP8B8ABAAB/4jQ/cwAAAAASUVORK5CYII=";
+    // let texture_1x1_magenta = capture_texture(Box::new(Texture::new_from_base64(
+    //     TEXTURE_1X1_MAGENTA_BASE64,
+    // )?));
     let texture_skybox = capture_texture(Box::new(Texture::new_from_file(&Path::new(
         "./res/skybox.png",
     ))?));
-    let texture_checkerboard = capture_texture(Box::new(Texture::new_from_file(&Path::new(
-        "./res/checkerboard.png",
-    ))?));
-    let texture_concrete = capture_texture(Box::new(Texture::new_from_file(&Path::new(
-        "./res/concrete.jpg",
-    ))?));
+    // let texture_checkerboard = capture_texture(Box::new(Texture::new_from_file(&Path::new(
+    //     "./res/checkerboard.png",
+    // ))?));
+    // let texture_concrete = capture_texture(Box::new(Texture::new_from_file(&Path::new(
+    //     "./res/concrete.jpg",
+    // ))?));
 
     // ! MATERIALS //////////////////////////////////////
 
-    let mut materials_list = Vec::<Box<Material>>::new();
+    // let mut materials_list = Vec::<Box<Material>>::new();
 
-    let mut capture_material = |mat: Box<Material>| {
-        let mat_ptr = mat.as_ref() as *const Material;
-        let mat_shared = MaterialShared::new(mat_ptr);
-        materials_list.push(mat);
-        mat_shared
-    };
+    // let mut capture_material = |mat: Box<Material>| {
+    //     let mat_ptr = mat.as_ref() as *const Material;
+    //     let mat_shared = MaterialShared::new(mat_ptr);
+    //     materials_list.push(mat);
+    //     mat_shared
+    // };
 
-    let fresnel_floor = 1.00089;
-    let fresnel_balls = 3.0;
+    // let fresnel_floor = 1.00089;
+    // let fresnel_balls = 3.0;
 
-    let material_test_inside_intersections = capture_material(Box::new(Material {
-        uv_scale: 1.0,
-        color_tint: Vec3::from_rgb(255, 255, 255),
-        color_albedo: texture_concrete.clone(),
-        fresnel_coefficient: 9.9,
-        roughness: 0.211,
-        ..Default::default()
-    }));
+    // let material_test_inside_intersections = capture_material(Box::new(Material {
+    //     uv_scale: 1.0,
+    //     color_factor: Vec3::from_rgb(255, 255, 255),
+    //     color_albedo: texture_concrete.clone(),
+    //     fresnel_coefficient: 9.9,
+    //     roughness: 0.211,
+    //     ..Default::default()
+    // }));
 
-    let floor_checkerboard = capture_material(Box::new(Material {
-        uv_scale: 0.01,
-        color_tint: Vec3::ONE,
-        color_albedo: texture_concrete.clone(),
-        fresnel_coefficient: 4.0,
-        roughness: 0.1,
-        specular: 0.09 * Vec3::ONE,
-        ..Default::default()
-    }));
-    let diffuse_green = capture_material(Box::new(Material {
-        uv_scale: 1.0,
-        color_tint: Vec3::from_rgb(10, 255, 10),
-        color_albedo: texture_concrete.clone(),
-        fresnel_coefficient: 1.03,
-        roughness: 0.99,
-        specular: 0.99 * Vec3::ONE,
-        ..Default::default()
-    }));
-    let glass_blue = capture_material(Box::new(Material {
-        uv_scale: 1.0,
-        color_tint: COLOR_BLUE_SCUFF,
-        color_albedo: texture_concrete.clone(),
-        fresnel_coefficient: 3.0,
-        roughness: 0.99,
-        specular: 0.5 * Vec3::ONE,
-        ..Default::default()
-    }));
-    let middle_red = capture_material(Box::new(Material {
-        uv_scale: 1.0,
-        color_tint: COLOR_RED_SCUFF,
-        color_albedo: texture_concrete.clone(),
-        fresnel_coefficient: 1.009,
-        roughness: 0.779,
-        specular: 0.02 * Vec3::ONE,
-        ..Default::default()
-    }));
+    // let floor_checkerboard = capture_material(Box::new(Material {
+    //     uv_scale: 0.01,
+    //     color_factor: Vec3::ONE,
+    //     color_albedo: texture_concrete.clone(),
+    //     fresnel_coefficient: 4.0,
+    //     roughness: 0.1,
+    //     specular: 0.09 * Vec3::ONE,
+    //     ..Default::default()
+    // }));
+    // let diffuse_green = capture_material(Box::new(Material {
+    //     uv_scale: 1.0,
+    //     color_factor: Vec3::from_rgb(10, 255, 10),
+    //     color_albedo: texture_concrete.clone(),
+    //     fresnel_coefficient: 1.03,
+    //     roughness: 0.99,
+    //     specular: 0.99 * Vec3::ONE,
+    //     ..Default::default()
+    // }));
+    // let glass_blue = capture_material(Box::new(Material {
+    //     uv_scale: 1.0,
+    //     color_factor: COLOR_BLUE_SCUFF,
+    //     color_albedo: texture_concrete.clone(),
+    //     fresnel_coefficient: 3.0,
+    //     roughness: 0.99,
+    //     specular: 0.5 * Vec3::ONE,
+    //     ..Default::default()
+    // }));
+    // let middle_red = capture_material(Box::new(Material {
+    //     uv_scale: 1.0,
+    //     color_factor: COLOR_RED_SCUFF,
+    //     color_albedo: texture_concrete.clone(),
+    //     fresnel_coefficient: 1.009,
+    //     roughness: 0.779,
+    //     specular: 0.02 * Vec3::ONE,
+    //     ..Default::default()
+    // }));
 
     // ! SHAPES //////////////////////////////////////
     // owning shapes container (Scene doesn't own shapes!)
-    let mut shapes_list = Vec::<Box<dyn Shape>>::new();
+    // let mut shapes_list = Vec::<Box<dyn Shape>>::new();
 
     // shapes_list.push(Box::new(Sphere::new(
     //     // "veryvery smol"
@@ -173,24 +180,24 @@ fn main() -> anyhow::Result<()> {
     //     0.02,
     //     smol.clone(),
     // )));
-    shapes_list.push(Box::new(Sphere::new(
-        // "RED"
-        Vec3::new([-0.2, 0.0, -1.0]),
-        0.5,
-        middle_red.clone(),
-    )));
-    shapes_list.push(Box::new(Sphere::new(
-        // "GREEN"
-        Vec3::new([0.6, -0.2, -1.0]),
-        0.3,
-        diffuse_green.clone(),
-    )));
-    shapes_list.push(Box::new(Sphere::new(
-        // "BIG BLUE"
-        Vec3::new([-3.0, 0.9, -3.0]),
-        1.4,
-        glass_blue.clone(),
-    )));
+    // shapes_list.push(Box::new(Sphere::new(
+    //     // "RED"
+    //     Vec3::new([-0.2, 0.0, -1.0]),
+    //     0.5,
+    //     middle_red.clone(),
+    // )));
+    // shapes_list.push(Box::new(Sphere::new(
+    //     // "GREEN"
+    //     Vec3::new([0.6, -0.2, -1.0]),
+    //     0.3,
+    //     diffuse_green.clone(),
+    // )));
+    // shapes_list.push(Box::new(Sphere::new(
+    //     // "BIG BLUE"
+    //     Vec3::new([-3.0, 0.9, -3.0]),
+    //     1.4,
+    //     glass_blue.clone(),
+    // )));
 
     // test inside intersection w/ Sphere
 
@@ -209,59 +216,62 @@ fn main() -> anyhow::Result<()> {
     // )));
 
     // QUAD
-    shapes_list.push(Box::new(Triangle::new(
-        // "FLOOR"
-        Vec3::new([0.0, -0.5, 0.0]),
-        [
-            Quad::DEFAULT_GEOMETRY[0],
-            Quad::DEFAULT_GEOMETRY[1],
-            Quad::DEFAULT_GEOMETRY[2],
-        ],
-        floor_checkerboard.clone(),
-    )));
-    shapes_list.push(Box::new(Triangle::new(
-        // "FLOOR"
-        Vec3::new([0.0, -0.5, 0.0]),
-        [
-            Quad::DEFAULT_GEOMETRY[0],
-            Quad::DEFAULT_GEOMETRY[2],
-            Quad::DEFAULT_GEOMETRY[3],
-        ],
-        floor_checkerboard.clone(),
-    )));
+    // shapes_list.push(Box::new(Triangle::new(
+    //     // "FLOOR"
+    //     Vec3::new([0.0, -0.5, 0.0]),
+    //     [
+    //         Quad::DEFAULT_GEOMETRY[0],
+    //         Quad::DEFAULT_GEOMETRY[1],
+    //         Quad::DEFAULT_GEOMETRY[2],
+    //     ],
+    //     floor_checkerboard.clone(),
+    // )));
+    // shapes_list.push(Box::new(Triangle::new(
+    //     // "FLOOR"
+    //     Vec3::new([0.0, -0.5, 0.0]),
+    //     [
+    //         Quad::DEFAULT_GEOMETRY[0],
+    //         Quad::DEFAULT_GEOMETRY[2],
+    //         Quad::DEFAULT_GEOMETRY[3],
+    //     ],
+    //     floor_checkerboard.clone(),
+    // )));
 
     let mut scene = Box::new(Scene::new(texture_skybox.clone()));
-    for shape in &shapes_list {
-        scene.push_shape(shape.as_ref() as *const dyn Shape);
-    }
+
+    read_into_scene(scene.as_mut(), "./res/scene2_embedded.gltf")?;
+    
+    // for shape in &shapes_list {
+    //     scene.push_shape(shape.as_ref() as *const dyn Shape);
+    // }
 
     // ! LIGHTS //////////////////////////////////////
-    scene.lights.push(Box::new(PointLight::new(
-        Vec3::new([2.5, 0.2, -0.8]),
-        5.0,
-        5.0,
-        Vec3::from_rgb(255, 60, 255),
-    )));
-    scene.lights.push(Box::new(PointLight::new(
-        Vec3::new([0.0, 7.0, -1.0]),
-        250.0,
-        0.5,
-        COLOR_WHITE,
-    )));
+    // scene.lights.push(Box::new(PointLight::new(
+    //     Vec3::new([2.5, 0.2, -0.8]),
+    //     5.0,
+    //     5.0,
+    //     Vec3::from_rgb(255, 60, 255),
+    // )));
+    // scene.lights.push(Box::new(PointLight::new(
+    //     Vec3::new([0.0, 7.0, -1.0]),
+    //     250.0,
+    //     0.5,
+    //     COLOR_WHITE,
+    // )));
 
-    scene.lights.push(Box::new(PointLight::new(
-        Vec3::new([10.0, 10.0, -1.0]),
-        25.0,
-        1.0,
-        COLOR_WHITE,
-    )));
+    // scene.lights.push(Box::new(PointLight::new(
+    //     Vec3::new([10.0, 10.0, -1.0]),
+    //     25.0,
+    //     1.0,
+    //     COLOR_WHITE,
+    // )));
 
-    scene.lights.push(Box::new(PointLight::new(
-        Vec3::new([0.0, 20.02, 0.0]),
-        125.0,
-        1.4,
-        COLOR_WHITE,
-    )));
+    // scene.lights.push(Box::new(PointLight::new(
+    //     Vec3::new([0.0, 20.02, 0.0]),
+    //     125.0,
+    //     1.4,
+    //     COLOR_WHITE,
+    // )));
 
     scene.lights.push(Box::new(DirectionalLight::new(
         Vec3::new([0.0, -1.0, 0.0]),

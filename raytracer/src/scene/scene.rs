@@ -1,15 +1,16 @@
 use crate::{
     math::Vec3,
-    primitives::{camera::Camera, shape::Shape, sphere::Sphere, skybox::Skybox},
+    primitives::{shape::Shape, sphere::Sphere, skybox::Skybox, mesh::Mesh},
 };
 
-use super::{svo::SVORoot, lights::light::Light, texture::TextureShared};
+use super::{acceleration_structure::SVORoot, lights::light::Light, texture::TextureShared, material::MaterialStorage, camera::Camera};
 
 pub struct Scene {
     pub camera: Camera,
     pub geometry: SVORoot,
     pub lights: Vec<Box<dyn Light>>,
     pub skybox: Skybox,
+    pub material_storage: MaterialStorage
 }
 
 impl Scene {
@@ -19,11 +20,16 @@ impl Scene {
             geometry: SVORoot::empty(),
             lights: Vec::new(),
             skybox: Skybox::new(skybox_texture),
+            material_storage: MaterialStorage::new()
         }
     }
 
-    pub fn push_shape(&mut self, shape: *const dyn Shape) {
-        self.geometry.push_shape(shape);
+    pub fn set_camera(&mut self, camera: Camera) {
+        self.camera = camera;
+    }
+
+    pub fn add_mesh(&mut self, mesh: Mesh) {
+        self.geometry.add_mesh(mesh);
     }
 }
 

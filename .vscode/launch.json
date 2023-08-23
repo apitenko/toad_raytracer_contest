@@ -4,6 +4,32 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+        
+        {
+            "type": "cppvsdbg",
+            "request": "launch",
+            "name": "MS VS debugger",
+            "program": "${workspaceRoot}/target/debug/raytracing.exe",
+            "symbolSearchPath": "${workspaceRoot}/target/debug",
+            "console": "integratedTerminal",
+            // "cargo": {
+            //     "args": [
+            //         "build",
+            //         "--bin=aelia",
+            //         "--package=aelia"
+            //     ],
+            //     "filter": {
+            //         "name": "aelia",
+            //         "kind": "bin"
+            //     }
+            // },
+            // "environment": {
+            //     // "RUST_BACKTRACE": "1",
+            //     // "DISABLE_VK_LAYER_VALVE_steam_overlay_1": "1"
+            // },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
         {
             "type": "lldb",
             "request": "launch",

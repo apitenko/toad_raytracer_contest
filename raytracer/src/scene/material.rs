@@ -3,17 +3,14 @@ use std::{
     sync::Arc,
 };
 
-use crate::{
-    math::{random::random_in_unit_sphere, refract, Ray, Vec3},
-    primitives::cast_result::CastResult,
-    scene::texture::Texture,
-};
+use crate::{math::Vec3, scene::texture::Texture};
 
 use super::texture::TextureShared;
 
+#[derive(Clone, Copy)]
 pub struct Material {
     pub uv_scale: f32,
-    pub color_tint: Vec3, // non-PBR parameter; use Vec3::ONE to disable it
+    pub color_factor: Vec3, // non-PBR parameter; use Vec3::ONE to disable it
     pub fresnel_coefficient: f32,
     pub emission_color: Vec3, // TODO: texture?
     pub emission_power: f32,
@@ -46,7 +43,7 @@ impl Default for Material {
     fn default() -> Self {
         Self {
             uv_scale: 1.0,
-            color_tint: Vec3::ONE,
+            color_factor: Vec3::ONE,
             fresnel_coefficient: 4.0,
             emission_color: Vec3::ONE,
             emission_power: 0.0,
@@ -58,19 +55,25 @@ impl Default for Material {
 }
 
 impl Material {
+    // pub fn empty() -> Self {
+    //     Self {
+    //         color_albedo: TextureShared::uninitialized(),
+    //         ..Default::default()
+    //     }
+    // }
+
     fn sample_uv_scaled(&self, texture: &TextureShared, uv: (f32, f32)) -> Vec3 {
         let material_albedo = {
-            let material_color_tint = self.color_tint;
             let u = (uv.0 * self.uv_scale).fract();
             let v = (uv.1 * self.uv_scale).fract();
-            material_color_tint * texture.get().sample(u, v)
+            texture.get().sample(u, v)
         };
         return material_albedo;
     }
 
     pub fn sample_albedo(&self, uv: (f32, f32)) -> Vec3 {
         // TEXTURE_DATA_DEFAULT.sample(uv.0, uv.1) * self.color_tint
-        self.sample_uv_scaled(&self.color_albedo, uv) * self.color_tint
+        self.sample_uv_scaled(&self.color_albedo, uv) * self.color_factor
     }
 
     pub fn sample_roughness(&self, uv: (f32, f32)) -> f32 {
@@ -105,15 +108,19 @@ impl MaterialShared {
         }
     }
 
-    const fn invalid_mat() -> Self {
+    pub const fn null() -> Self {
         unsafe {
             Self {
-                mat: MaybeUninit::zeroed().assume_init(),
+                mat: std::ptr::null(),
             }
         }
     }
 
-    pub const INVALID_MAT: Self = Self::invalid_mat();
+    pub fn valid(&self) -> bool {
+        !self.mat.is_null()
+    }
+
+    // pub const INVALID_MAT: Self = Self::invalid_mat();
 }
 
 // pub struct DefaultMaterialsMap {
@@ -121,3 +128,57 @@ impl MaterialShared {
 // }
 
 // pub fn default_materials_map() {}
+
+pub struct MaterialStorage {
+    materials_current_index: usize,
+    materials: [Material; Self::MATERIALS_MAX],
+    textures_current_index: usize,
+    textures: [Texture; Self::TEXTURES_MAX],
+}
+
+impl MaterialStorage {
+    const MATERIALS_MAX: usize = 200;
+    const TEXTURES_MAX: usize = 600;
+
+    pub fn new() -> Self {
+        unsafe {
+            let textures = MaybeUninit::<Texture>::uninit_array::<{ Self::TEXTURES_MAX }>()
+                .map(|item| item.assume_init());
+            let materials = MaybeUninit::<Material>::uninit_array::<{ Self::MATERIALS_MAX }>()
+                .map(|item| item.assume_init());
+            Self {
+                materials_current_index: 0,
+                materials,
+                textures_current_index: 0,
+                textures,
+            }
+        }
+    }
+
+    pub fn push_material(&mut self, mat: Material) -> MaterialShared {
+        if self.materials_current_index >= Self::MATERIALS_MAX {
+            panic!("MaterialStorage materials is > Self::MATERIALS_MAX");
+        }
+        self.materials[self.materials_current_index] = mat.clone();
+        let mat_ptr = &self.materials[self.materials_current_index] as *const Material;
+        self.materials_current_index += 1;
+        MaterialShared::new(mat_ptr)
+    }
+
+    pub fn push_texture(&mut self, tex: Texture) -> TextureShared {
+        if self.textures_current_index >= Self::TEXTURES_MAX {
+            panic!("MaterialStorage textures is > Self::TEXTURES_MAX");
+        }
+        self.textures[self.textures_current_index] = tex;
+        let ptr = &self.textures[self.textures_current_index] as *const Texture;
+        self.textures_current_index += 1;
+        TextureShared::new(ptr)
+    }
+
+    pub fn get_unchecked(&self, index: usize) -> *const Material {
+        unsafe { self.materials.get_unchecked(index) as *const Material }
+    }
+}
+
+unsafe impl Send for MaterialStorage {}
+unsafe impl Sync for MaterialStorage {}

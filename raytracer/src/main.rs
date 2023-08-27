@@ -42,7 +42,8 @@ pub mod worker_thread;
 use constants::*;
 use render_thread::*;
 
-use crate::math::Vec3;
+use crate::math::{Vec3, Mat44};
+use crate::primitives::mesh::{BoundingBox, Mesh};
 use crate::primitives::quad::Quad;
 use crate::primitives::shape::Shape;
 use crate::primitives::sphere::Sphere;
@@ -240,7 +241,49 @@ fn main() -> anyhow::Result<()> {
     let mut scene = Box::new(Scene::new(texture_skybox.clone()));
 
     read_into_scene(scene.as_mut(), "./res/scene2_embedded.gltf")?;
-    
+
+    if false
+    {
+        let aabb = BoundingBox {
+            min: Quad::DEFAULT_GEOMETRY[0],
+            max: Quad::DEFAULT_GEOMETRY[2],
+        };
+        let bounding_sphere = aabb.bounding_sphere();
+        
+        let color_texture = Texture::make_default_texture()?;
+        let color_albedo = scene.material_storage.push_texture(color_texture);
+        let mat = Material {
+            color_factor: Vec3::ONE,
+            color_albedo,
+            ..Default::default()
+        };
+        
+        let mat_shared = scene.material_storage.push_material(mat);
+        let translation_matrix = Mat44::from_translation([0.0, -1.0, 0.0]);
+        
+        scene.add_mesh(Mesh {
+            aabb,
+            bounding_sphere,
+            material: mat_shared,
+            triangles: vec![
+                Triangle {
+                    vertices: [
+                        translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[0]),
+                        translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[1]),
+                        translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[2]),
+                    ],
+                },
+                Triangle {
+                    vertices: [
+                        translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[0]),
+                        translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[2]),
+                        translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[3]),
+                    ],
+                },
+            ],
+        });
+    }
+
     // for shape in &shapes_list {
     //     scene.push_shape(shape.as_ref() as *const dyn Shape);
     // }
@@ -275,7 +318,7 @@ fn main() -> anyhow::Result<()> {
 
     scene.lights.push(Box::new(DirectionalLight::new(
         Vec3::new([0.0, -1.0, 0.0]),
-        1.5,
+        5.5,
         COLOR_SKY_BLUE,
     )));
 

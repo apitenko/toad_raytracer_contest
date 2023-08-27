@@ -19,6 +19,6 @@ lazy_static = "1.4.0"
 image = "0.24.6"
 base64 = "0.21.2"
 palette = "0.7.2"
-gltf = "1.2.0"
+gltf = { version = "1.2.0", features = ["KHR_lights_punctual"] }
 itertools = "0.11.0"
 uriparse = "0.6.4"

@@ -24,6 +24,7 @@ impl Mat44 {
         Self { row }
     }
 
+    // row-major
     pub fn from_translation(translation: [f32; 3]) -> Self {
         let t = translation;
         Self {
@@ -37,10 +38,10 @@ impl Mat44 {
     }
 
     pub fn from_rotation_quaternion(rotation: [f32; 4]) -> Self {
-        let mut qw = rotation[0];
-        let mut qx = rotation[1];
-        let mut qy = rotation[2];
-        let mut qz = rotation[3];
+        let mut qx = rotation[0];
+        let mut qy = rotation[1];
+        let mut qz = rotation[2];
+        let mut qw = rotation[3];
 
         let n: f32 = 1.0 / (qx * qx + qy * qy + qz * qz + qw * qw).sqrt();
         qx *= n;
@@ -93,16 +94,34 @@ impl Mat44 {
         Self { m: matrix }
     }
 
-    pub fn from_perspective(yfov: f32, aspect_ratio: f32, near: f32, far: f32) -> Self {
-        let D2R = PI / 180.0;
-        let yScale = 1.0 / (D2R * yfov / 2.0).tan();
-        let xScale = yScale / aspect_ratio;
-        let nearmfar = near - far;
+    // row-major
+    pub fn from_perspective_lh(yfov: f32, aspect_ratio: f32, z_near: f32, z_far: f32) -> Self {
+        
+        let (sin_fov, cos_fov) = (0.5 * yfov).sin_cos();
+        let h = cos_fov / sin_fov;
+        let w = h / aspect_ratio;
+        let r = z_far / (z_far - z_near);
         let m = [
-            [xScale, 0.0, 0.0, 0.0],
-            [0.0, yScale, 0.0, 0.0],
-            [0.0, 0.0, (far + near) / nearmfar, -1.0],
-            [0.0, 0.0, 2.0 * far * near / nearmfar, 0.0],
+            [w, 0.0, 0.0, 0.0],
+            [0.0, h, 0.0, 0.0],
+            [0.0, 0.0, r, -r * z_near],
+            [0.0, 0.0, 1.0, 0.0],
+        ];
+        Self { m }
+    }
+
+    // row-major
+    pub fn from_perspective_rh(yfov: f32, aspect_ratio: f32, z_near: f32, z_far: f32) -> Self {
+        
+        let (sin_fov, cos_fov) = (yfov).sin_cos();
+        let h = cos_fov / sin_fov;
+        let w = h * aspect_ratio;
+        let r = z_far / (z_near - z_far);
+        let m = [
+            [w, 0.0, 0.0, 0.0],
+            [0.0, h, 0.0, 0.0],
+            [0.0, 0.0, r, r * z_near],
+            [0.0, 0.0, -1.0, 0.0],
         ];
         Self { m }
     }
@@ -113,6 +132,17 @@ impl Mat44 {
 
     pub fn from_orthographic(xmag: f32, ymag: f32, near: f32, far: f32) -> Self {
         todo!()
+        // let rcp_width = 1.0 / (right - left);
+        // let rcp_height = 1.0 / (top - bottom);
+        // let r = 1.0 / (near - far);
+        // Self {
+        //     m: [
+        //         [rcp_width + rcp_width, 0.0, 0.0, 0.0],
+        //         [0.0, rcp_height + rcp_height, 0.0, 0.0],
+        //         [0.0, 0.0, r, 0.0],
+        //         [-(left + right) * rcp_width, -(top + bottom) * rcp_height, r * near, 1.0],
+        //     ]
+        // }
     }
 
     #[inline]

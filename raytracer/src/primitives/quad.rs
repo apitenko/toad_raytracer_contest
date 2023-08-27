@@ -29,10 +29,10 @@ impl Quad {
 
     pub const DEFAULT_GEOMETRY: [Vec3; 4] = [
         // ccw
-        Vec3::new([-PLANE_SIZE, 0.0, -PLANE_SIZE]),
-        Vec3::new([-PLANE_SIZE, 0.0, PLANE_SIZE]),
-        Vec3::new([PLANE_SIZE, 0.0, PLANE_SIZE]),
-        Vec3::new([PLANE_SIZE, 0.0, -PLANE_SIZE]),
+        Vec3::from_f32([-PLANE_SIZE, 0.0, -PLANE_SIZE, 1.0]),
+        Vec3::from_f32([-PLANE_SIZE, 0.0, PLANE_SIZE, 1.0]),
+        Vec3::from_f32([PLANE_SIZE, 0.0, PLANE_SIZE, 1.0]),
+        Vec3::from_f32([PLANE_SIZE, 0.0, -PLANE_SIZE, 1.0]),
     ];
 }
 

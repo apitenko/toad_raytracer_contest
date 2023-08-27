@@ -310,7 +310,18 @@ impl Vec3 {
     #[inline]
     #[must_use]
     pub fn divided_by_w(&self) -> Self {
-        Vec3::divide_by_f32(*self, self.w())
+        if self.w() == 0.0 {
+            self.clone()
+        }
+        else {
+            Vec3::divide_by_f32(*self, self.w())
+        }
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn as_point(&self) -> Self {
+        Self::from_f32([self.x(), self.y(), self.z(), 1.0])
     }
 
     #[inline]
@@ -522,5 +533,13 @@ impl std::ops::Mul<&Mat44> for Vec3 {
     #[inline]
     fn mul(self, rhs: &Mat44) -> Self::Output {
         Mat44::transform_point(&rhs, self)
+    }
+}
+
+impl From<__m128> for Vec3 {
+    fn from(value: __m128) -> Self {
+        Self {
+            data_vectorized: value
+        }
     }
 }

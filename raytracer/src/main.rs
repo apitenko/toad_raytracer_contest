@@ -241,8 +241,9 @@ fn main() -> anyhow::Result<()> {
     let mut scene = Box::new(Scene::new(texture_skybox.clone()));
 
     read_into_scene(scene.as_mut(), "./res/scene2_embedded.gltf")?;
+    // read_into_scene(scene.as_mut(), "./res/duck_embedded.gltf")?;
 
-    if false
+    if true
     {
         let aabb = BoundingBox {
             min: Quad::DEFAULT_GEOMETRY[0],
@@ -317,8 +318,8 @@ fn main() -> anyhow::Result<()> {
     // )));
 
     scene.lights.push(Box::new(DirectionalLight::new(
-        Vec3::new([0.0, -1.0, 0.0]),
-        5.5,
+        Vec3::new([0.5, -1.0, 0.0]),
+        0.001,
         COLOR_SKY_BLUE,
     )));
 

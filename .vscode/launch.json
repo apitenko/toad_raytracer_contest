@@ -39,6 +39,7 @@
                     "build",
                     "--bin=raytracing",
                     "--package=raytracing",
+                    "--profile=releasewithdebug"
                     // "--release"
                 ],
                 "filter": {

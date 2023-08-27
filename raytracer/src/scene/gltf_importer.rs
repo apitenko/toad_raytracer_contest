@@ -53,25 +53,25 @@ pub fn read_into_scene(app_scene: &mut Scene, path: &str) -> anyhow::Result<()> 
     let (transform, camera) = scan_for_camera(Mat44::IDENTITY, &mut scene.nodes())
         .expect("No camera found in the gltf scene");
 
-    let camera_transform_matrix: Mat44 = Into::<Mat44>::into(transform).inverted();
+    let camera_transform_matrix: Mat44 = Into::<Mat44>::into(transform).inverse();
     let camera_projection_matrix: Mat44 = camera.projection().into();
     // let camera_projection_matrix = Mat44::IDENTITY;
     // let camera_projection_matrix: Mat44 = Mat44::from_orthographic(4.0, 4.0, 0.1, 100.0);
-    let view_projection = camera_projection_matrix * camera_transform_matrix;
+    // let view_projection = camera_projection_matrix * camera_transform_matrix;
+    app_scene.set_camera(Camera::from_matrices(camera_transform_matrix, camera_projection_matrix));
     // 2. Import all vertices into the acceleration structure, applying camera transform
 
-    let test_point = Vec3::from_f32([0.0, 0.0, -5.0, 1.0]);
+    // let test_point = Vec3::from_f32([0.0, 0.0, -5.0, 1.0]);
     // let transformed_test_point = camera_transform_matrix.transform_point(test_point);
-    let test_point = camera_projection_matrix.transform_point(test_point);
     // let test_point = view_projection.transform_point(test_point);
-    println!("{:?}", test_point.divided_by_w());
+    // let test_point = view_projection.transform_point(test_point);
+    // println!("{:?}", test_point.divided_by_w());
 
     for node in scene.nodes() {
         import_node(
             app_scene,
             &node,
             &Mat44::IDENTITY,
-            &view_projection,
             &imported,
         )?;
         println!(
@@ -129,7 +129,6 @@ fn import_node(
     app_scene: &mut Scene,
     node: &gltf::Node,
     parent_transform: &Mat44,
-    view_projection: &Mat44,
     imported: &ImportedGltfScene,
 ) -> anyhow::Result<()> {
     let own_transform: Mat44 = node.transform().into();
@@ -137,8 +136,6 @@ fn import_node(
 
     match node.mesh() {
         Some(mesh) => {
-            let mvp_matrix = accumulated_transform * view_projection;
-            let inverse_transposed_mv_matrix = mvp_matrix.inverted().transposed();
             for primitive in mesh.primitives() {
                 let bbox = primitive.bounding_box();
                 let positions = primitive
@@ -177,27 +174,28 @@ fn import_node(
                 let input_positions: Vec<_> = positions_reader.collect();
                 let mut final_positions = Vec::with_capacity(input_positions.len() * 2); // guesstimating the total size
 
-                let process_vertex = |index: u32| {
-                    let current_position = Vec3::from_f32_3(input_positions[index as usize], 1.0);
-                    let current_position =
-                        mvp_matrix.transform_point(current_position).divided_by_w();
-                    return current_position;
-                };
+                // let process_vertex = |index: u32| {
+                //     let current_position = Vec3::from_f32_3(input_positions[index as usize], 1.0);
+                //     let current_position =
+                //         accumulated_transform.transform_point(current_position).divided_by_w();
+                //     return current_position;
+                // };
                 for (i0, i1, i2) in indices.tuple_windows().step_by(3) {
                     // transform position
-                    let v0 = mvp_matrix
+                    let v0 = accumulated_transform
                         .transform_point(Vec3::from_f32_3(input_positions[i0 as usize], 1.0));
-                    let v1 = mvp_matrix
+                    let v1 = accumulated_transform
                         .transform_point(Vec3::from_f32_3(input_positions[i1 as usize], 1.0));
-                    let v2 = mvp_matrix
+                    let v2 = accumulated_transform
                         .transform_point(Vec3::from_f32_3(input_positions[i2 as usize], 1.0));
                     // transform normals
-                    let n0 = inverse_transposed_mv_matrix
-                        .transform_point(Vec3::from_f32_3(input_positions[i0 as usize], 0.0));
-                    let n1 = inverse_transposed_mv_matrix
-                        .transform_point(Vec3::from_f32_3(input_positions[i1 as usize], 0.0));
-                    let n2 = inverse_transposed_mv_matrix
-                        .transform_point(Vec3::from_f32_3(input_positions[i2 as usize], 0.0));
+                    // TODO
+                    // let n0 = inverse_transposed_mv_matrix
+                    //     .transform_point(Vec3::from_f32_3(input_positions[i0 as usize], 0.0));
+                    // let n1 = inverse_transposed_mv_matrix
+                    //     .transform_point(Vec3::from_f32_3(input_positions[i1 as usize], 0.0));
+                    // let n2 = inverse_transposed_mv_matrix
+                    //     .transform_point(Vec3::from_f32_3(input_positions[i2 as usize], 0.0));
                     final_positions.push(Triangle {
                         vertices: [v0, v1, v2],
                         // normals: [n0, n1, n2]
@@ -246,7 +244,6 @@ fn import_node(
             app_scene,
             &child,
             &accumulated_transform,
-            view_projection,
             imported,
         )?;
     }

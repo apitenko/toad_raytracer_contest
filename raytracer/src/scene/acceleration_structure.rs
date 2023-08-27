@@ -7,46 +7,8 @@ use crate::{
     primitives::{
         cast_result::CastResult, mesh::Mesh, shape::Shape, sphere::Sphere, triangle::Triangle,
     },
+    util::unresizable_array::UnresizableArray,
 };
-
-pub struct UnresizableArray<T, const TCapacity: usize>
-where
-    T: Sized,
-{
-    data: Box<[T; TCapacity]>,
-    current_index: usize,
-}
-
-impl<T, const TCapacity: usize> UnresizableArray<T, TCapacity>
-where
-    T: Sized,
-{
-    const MAX_SIZE: usize = TCapacity;
-    pub fn with_capacity() -> Self
-    where
-        [(); Self::MAX_SIZE]:,
-    {
-        unsafe {
-            Self {
-                data: Box::new_uninit().assume_init(),
-                current_index: 0,
-            }
-        }
-    }
-
-    pub fn push(&mut self, mut item: T) -> *const T {
-        if self.current_index >= Self::MAX_SIZE {
-            panic!("UnresizableArray is out of memory");
-        }
-
-        std::mem::swap(&mut self.data[self.current_index], &mut item);
-        std::mem::forget(item);
-
-        let ptr = &self.data[self.current_index] as *const T;
-        self.current_index += 1;
-        return ptr;
-    }
-}
 
 pub struct SVONode {
     // shapes: Vec<*const dyn Shape>,
@@ -61,17 +23,20 @@ impl SVONode {
 }
 
 pub struct SVORoot {
-    meshes: UnresizableArray<Mesh, 2000>,    // mesh memory
-    memory: UnresizableArray<SVONode, 2000>, // node memory
-    root: SVONode,                           // tree root node
+    meshes: UnresizableArray<Mesh, { Self::MESHES_MAX }>, // mesh memory
+    memory: UnresizableArray<SVONode, { Self::NODES_MAX }>, // node memory
+    root: SVONode,                                        // tree root node
 }
 
 impl SVORoot {
+    const MESHES_MAX: usize = 2000;
+    const NODES_MAX: usize = 2000;
+
     pub fn empty() -> Self {
         Self {
-            memory: UnresizableArray::<SVONode, 2000>::with_capacity(),
+            memory: UnresizableArray::<SVONode, { Self::NODES_MAX }>::with_capacity(),
             root: SVONode::empty(),
-            meshes: UnresizableArray::<Mesh, 2000>::with_capacity(),
+            meshes: UnresizableArray::<Mesh, { Self::MESHES_MAX }>::with_capacity(),
         }
     }
 

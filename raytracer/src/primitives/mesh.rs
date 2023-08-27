@@ -42,10 +42,10 @@ pub struct Mesh {
 
 impl Shape for Mesh {
     fn intersect(&self, ray: crate::math::Ray, inside: bool) -> Option<CastResult> {
-        let bounding_volume_cast = self.bounding_sphere.intersect(ray, false);
-        if let None = bounding_volume_cast {
-            return None;
-        }
+        // let bounding_volume_cast = self.bounding_sphere.intersect(ray, false);
+        // if let None = bounding_volume_cast {
+        //     return None;
+        // }
 
         let cast_result = self
             .triangles

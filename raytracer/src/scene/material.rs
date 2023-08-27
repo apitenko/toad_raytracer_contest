@@ -3,7 +3,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::{math::Vec3, scene::texture::Texture};
+use crate::{math::Vec3, scene::texture::Texture, util::unresizable_array::UnresizableArray};
 
 use super::texture::TextureShared;
 
@@ -130,10 +130,8 @@ impl MaterialShared {
 // pub fn default_materials_map() {}
 
 pub struct MaterialStorage {
-    materials_current_index: usize,
-    materials: [Material; Self::MATERIALS_MAX],
-    textures_current_index: usize,
-    textures: [Texture; Self::TEXTURES_MAX],
+    materials: UnresizableArray<Material, { Self::MATERIALS_MAX }>,
+    textures: UnresizableArray<Texture, { Self::TEXTURES_MAX }>,
 }
 
 impl MaterialStorage {
@@ -141,42 +139,20 @@ impl MaterialStorage {
     const TEXTURES_MAX: usize = 600;
 
     pub fn new() -> Self {
-        unsafe {
-            let textures = MaybeUninit::<Texture>::uninit_array::<{ Self::TEXTURES_MAX }>()
-                .map(|item| item.assume_init());
-            let materials = MaybeUninit::<Material>::uninit_array::<{ Self::MATERIALS_MAX }>()
-                .map(|item| item.assume_init());
-            Self {
-                materials_current_index: 0,
-                materials,
-                textures_current_index: 0,
-                textures,
-            }
+        Self {
+            materials: UnresizableArray::<Material, { Self::MATERIALS_MAX }>::with_capacity(),
+            textures: UnresizableArray::<Texture, { Self::TEXTURES_MAX }>::with_capacity(),
         }
     }
 
     pub fn push_material(&mut self, mat: Material) -> MaterialShared {
-        if self.materials_current_index >= Self::MATERIALS_MAX {
-            panic!("MaterialStorage materials is > Self::MATERIALS_MAX");
-        }
-        self.materials[self.materials_current_index] = mat.clone();
-        let mat_ptr = &self.materials[self.materials_current_index] as *const Material;
-        self.materials_current_index += 1;
-        MaterialShared::new(mat_ptr)
+        let ptr = self.materials.push(mat);
+        MaterialShared::new(ptr)
     }
 
     pub fn push_texture(&mut self, tex: Texture) -> TextureShared {
-        if self.textures_current_index >= Self::TEXTURES_MAX {
-            panic!("MaterialStorage textures is > Self::TEXTURES_MAX");
-        }
-        self.textures[self.textures_current_index] = tex;
-        let ptr = &self.textures[self.textures_current_index] as *const Texture;
-        self.textures_current_index += 1;
+        let ptr = self.textures.push(tex);
         TextureShared::new(ptr)
-    }
-
-    pub fn get_unchecked(&self, index: usize) -> *const Material {
-        unsafe { self.materials.get_unchecked(index) as *const Material }
     }
 }
 

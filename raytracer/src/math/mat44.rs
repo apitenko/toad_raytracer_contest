@@ -87,33 +87,31 @@ impl Mat44 {
 
     pub fn from_decomposed(translation: [f32; 3], rotation: [f32; 4], scale: [f32; 3]) -> Self {
         Self::from_translation(translation)
-            * (Self::from_rotation_quaternion(rotation)
-            * Self::from_scale(scale))
+            * Self::from_rotation_quaternion(rotation)
+            * Self::from_scale(scale)
     }
     pub fn from_4x4(matrix: [[f32; 4]; 4]) -> Self {
         Self { m: matrix }
     }
 
     // row-major
-    pub fn from_perspective_lh(yfov: f32, aspect_ratio: f32, z_near: f32, z_far: f32) -> Self {
-        
-        let (sin_fov, cos_fov) = (0.5 * yfov).sin_cos();
-        let h = cos_fov / sin_fov;
-        let w = h / aspect_ratio;
-        let r = z_far / (z_far - z_near);
-        let m = [
-            [w, 0.0, 0.0, 0.0],
-            [0.0, h, 0.0, 0.0],
-            [0.0, 0.0, r, -r * z_near],
-            [0.0, 0.0, 1.0, 0.0],
-        ];
-        Self { m }
-    }
+    // pub fn from_perspective_lh(yfov: f32, aspect_ratio: f32, z_near: f32, z_far: f32) -> Self {
+    //     let (sin_fov, cos_fov) = (0.5 * yfov).sin_cos();
+    //     let h = cos_fov / sin_fov;
+    //     let w = h / aspect_ratio;
+    //     let r = z_far / (z_far - z_near);
+    //     let m = [
+    //         [w, 0.0, 0.0, 0.0],
+    //         [0.0, h, 0.0, 0.0],
+    //         [0.0, 0.0, r, -r * z_near],
+    //         [0.0, 0.0, 1.0, 0.0],
+    //     ];
+    //     Self { m }
+    // }
 
     // row-major
     pub fn from_perspective_rh(yfov: f32, aspect_ratio: f32, z_near: f32, z_far: f32) -> Self {
-        
-        let (sin_fov, cos_fov) = (yfov).sin_cos();
+        let (sin_fov, cos_fov) = (0.5 * yfov).sin_cos();
         let h = cos_fov / sin_fov;
         let w = h * aspect_ratio;
         let r = z_far / (z_near - z_far);
@@ -169,7 +167,7 @@ impl Mat44 {
             let res1: __m128 = _mm_fmadd_ps(vec_y, self.row[1], res0);
             let res2: __m128 = _mm_fmadd_ps(vec_z, self.row[2], res1);
             let res3: __m128 = _mm_fmadd_ps(vec_w, self.row[3], res2);
-            return Vec3::from_sse(res3).divided_by_w();
+            return Vec3::from_sse(res3).divided_by_w().as_point();
         }
         #[cfg(not(target_feature = "sse"))]
         {
@@ -178,8 +176,8 @@ impl Mat44 {
     }
 
     // ! probably won't work for non-transform matrices
-    pub fn inverted(&self) -> Self {
-        unsafe { GetTransformInverse(&self) }
+    pub fn inverse(&self) -> Self {
+        unsafe { GetTransformInverse_glam(&self) }
     }
     pub fn transposed(&self) -> Self {
         #[cfg(target_feature = "sse")]
@@ -231,7 +229,14 @@ impl std::ops::Mul<Mat44> for &Mat44 {
 }
 
 // Don't implement this
-impl !std::ops::Mul<Vec3> for Mat44 {}
+impl !std::ops::Mul<Mat44> for Vec3 {}
+
+impl std::ops::Mul<Vec3> for Mat44 {
+    type Output = Vec3;
+    fn mul(self, rhs: Vec3) -> Self::Output {
+        Self::transform_point(&self, rhs)
+    }
+}
 
 // helpers
 
@@ -405,15 +410,165 @@ unsafe fn GetTransformInverse(inM: &Mat44) -> Mat44 {
     return r;
 }
 
+// row major
+fn GetTransformInverse_glam(inM: &Mat44) -> Mat44 {
+    unsafe {
+        let inM = inM.transposed(); // convert to column-major
+        let w_axis = inM.row[3];
+        let z_axis = inM.row[2];
+        let y_axis = inM.row[1];
+        let x_axis = inM.row[0];
+
+        // Based on https://github.com/g-truc/glm `glm_mat4_inverse`
+        let fac0 = {
+            let swp0a = _mm_shuffle_ps(w_axis, z_axis, 0b11_11_11_11);
+            let swp0b = _mm_shuffle_ps(w_axis, z_axis, 0b10_10_10_10);
+
+            let swp00 = _mm_shuffle_ps(z_axis, y_axis, 0b10_10_10_10);
+            let swp01 = _mm_shuffle_ps(swp0a, swp0a, 0b10_00_00_00);
+            let swp02 = _mm_shuffle_ps(swp0b, swp0b, 0b10_00_00_00);
+            let swp03 = _mm_shuffle_ps(z_axis, y_axis, 0b11_11_11_11);
+
+            let mul00 = _mm_mul_ps(swp00, swp01);
+            let mul01 = _mm_mul_ps(swp02, swp03);
+            _mm_sub_ps(mul00, mul01)
+        };
+        let fac1 = {
+            let swp0a = _mm_shuffle_ps(w_axis, z_axis, 0b11_11_11_11);
+            let swp0b = _mm_shuffle_ps(w_axis, z_axis, 0b01_01_01_01);
+
+            let swp00 = _mm_shuffle_ps(z_axis, y_axis, 0b01_01_01_01);
+            let swp01 = _mm_shuffle_ps(swp0a, swp0a, 0b10_00_00_00);
+            let swp02 = _mm_shuffle_ps(swp0b, swp0b, 0b10_00_00_00);
+            let swp03 = _mm_shuffle_ps(z_axis, y_axis, 0b11_11_11_11);
+
+            let mul00 = _mm_mul_ps(swp00, swp01);
+            let mul01 = _mm_mul_ps(swp02, swp03);
+            _mm_sub_ps(mul00, mul01)
+        };
+        let fac2 = {
+            let swp0a = _mm_shuffle_ps(w_axis, z_axis, 0b10_10_10_10);
+            let swp0b = _mm_shuffle_ps(w_axis, z_axis, 0b01_01_01_01);
+
+            let swp00 = _mm_shuffle_ps(z_axis, y_axis, 0b01_01_01_01);
+            let swp01 = _mm_shuffle_ps(swp0a, swp0a, 0b10_00_00_00);
+            let swp02 = _mm_shuffle_ps(swp0b, swp0b, 0b10_00_00_00);
+            let swp03 = _mm_shuffle_ps(z_axis, y_axis, 0b10_10_10_10);
+
+            let mul00 = _mm_mul_ps(swp00, swp01);
+            let mul01 = _mm_mul_ps(swp02, swp03);
+            _mm_sub_ps(mul00, mul01)
+        };
+        let fac3 = {
+            let swp0a = _mm_shuffle_ps(w_axis, z_axis, 0b11_11_11_11);
+            let swp0b = _mm_shuffle_ps(w_axis, z_axis, 0b00_00_00_00);
+
+            let swp00 = _mm_shuffle_ps(z_axis, y_axis, 0b00_00_00_00);
+            let swp01 = _mm_shuffle_ps(swp0a, swp0a, 0b10_00_00_00);
+            let swp02 = _mm_shuffle_ps(swp0b, swp0b, 0b10_00_00_00);
+            let swp03 = _mm_shuffle_ps(z_axis, y_axis, 0b11_11_11_11);
+
+            let mul00 = _mm_mul_ps(swp00, swp01);
+            let mul01 = _mm_mul_ps(swp02, swp03);
+            _mm_sub_ps(mul00, mul01)
+        };
+        let fac4 = {
+            let swp0a = _mm_shuffle_ps(w_axis, z_axis, 0b10_10_10_10);
+            let swp0b = _mm_shuffle_ps(w_axis, z_axis, 0b00_00_00_00);
+
+            let swp00 = _mm_shuffle_ps(z_axis, y_axis, 0b00_00_00_00);
+            let swp01 = _mm_shuffle_ps(swp0a, swp0a, 0b10_00_00_00);
+            let swp02 = _mm_shuffle_ps(swp0b, swp0b, 0b10_00_00_00);
+            let swp03 = _mm_shuffle_ps(z_axis, y_axis, 0b10_10_10_10);
+
+            let mul00 = _mm_mul_ps(swp00, swp01);
+            let mul01 = _mm_mul_ps(swp02, swp03);
+            _mm_sub_ps(mul00, mul01)
+        };
+        let fac5 = {
+            let swp0a = _mm_shuffle_ps(w_axis, z_axis, 0b01_01_01_01);
+            let swp0b = _mm_shuffle_ps(w_axis, z_axis, 0b00_00_00_00);
+
+            let swp00 = _mm_shuffle_ps(z_axis, y_axis, 0b00_00_00_00);
+            let swp01 = _mm_shuffle_ps(swp0a, swp0a, 0b10_00_00_00);
+            let swp02 = _mm_shuffle_ps(swp0b, swp0b, 0b10_00_00_00);
+            let swp03 = _mm_shuffle_ps(z_axis, y_axis, 0b01_01_01_01);
+
+            let mul00 = _mm_mul_ps(swp00, swp01);
+            let mul01 = _mm_mul_ps(swp02, swp03);
+            _mm_sub_ps(mul00, mul01)
+        };
+        let sign_a = _mm_set_ps(1.0, -1.0, 1.0, -1.0);
+        let sign_b = _mm_set_ps(-1.0, 1.0, -1.0, 1.0);
+
+        let temp0 = _mm_shuffle_ps(y_axis, x_axis, 0b00_00_00_00);
+        let vec0 = _mm_shuffle_ps(temp0, temp0, 0b10_10_10_00);
+
+        let temp1 = _mm_shuffle_ps(y_axis, x_axis, 0b01_01_01_01);
+        let vec1 = _mm_shuffle_ps(temp1, temp1, 0b10_10_10_00);
+
+        let temp2 = _mm_shuffle_ps(y_axis, x_axis, 0b10_10_10_10);
+        let vec2 = _mm_shuffle_ps(temp2, temp2, 0b10_10_10_00);
+
+        let temp3 = _mm_shuffle_ps(y_axis, x_axis, 0b11_11_11_11);
+        let vec3 = _mm_shuffle_ps(temp3, temp3, 0b10_10_10_00);
+
+        let mul00 = _mm_mul_ps(vec1, fac0);
+        let mul01 = _mm_mul_ps(vec2, fac1);
+        let mul02 = _mm_mul_ps(vec3, fac2);
+        let sub00 = _mm_sub_ps(mul00, mul01);
+        let add00 = _mm_add_ps(sub00, mul02);
+        let inv0 = _mm_mul_ps(sign_b, add00);
+
+        let mul03 = _mm_mul_ps(vec0, fac0);
+        let mul04 = _mm_mul_ps(vec2, fac3);
+        let mul05 = _mm_mul_ps(vec3, fac4);
+        let sub01 = _mm_sub_ps(mul03, mul04);
+        let add01 = _mm_add_ps(sub01, mul05);
+        let inv1 = _mm_mul_ps(sign_a, add01);
+
+        let mul06 = _mm_mul_ps(vec0, fac1);
+        let mul07 = _mm_mul_ps(vec1, fac3);
+        let mul08 = _mm_mul_ps(vec3, fac5);
+        let sub02 = _mm_sub_ps(mul06, mul07);
+        let add02 = _mm_add_ps(sub02, mul08);
+        let inv2 = _mm_mul_ps(sign_b, add02);
+
+        let mul09 = _mm_mul_ps(vec0, fac2);
+        let mul10 = _mm_mul_ps(vec1, fac4);
+        let mul11 = _mm_mul_ps(vec2, fac5);
+        let sub03 = _mm_sub_ps(mul09, mul10);
+        let add03 = _mm_add_ps(sub03, mul11);
+        let inv3 = _mm_mul_ps(sign_a, add03);
+
+        let row0 = _mm_shuffle_ps(inv0, inv1, 0b00_00_00_00);
+        let row1 = _mm_shuffle_ps(inv2, inv3, 0b00_00_00_00);
+        let row2 = _mm_shuffle_ps(row0, row1, 0b10_00_10_00);
+
+        let dot0 = Vec3::dot(x_axis.into(), row2.into());
+        assert!(dot0 != 0.0);
+
+        let rcp0 = _mm_set1_ps(dot0.recip());
+
+        Mat44 {
+            row: [
+                _mm_mul_ps(inv0, rcp0),
+                _mm_mul_ps(inv1, rcp0),
+                _mm_mul_ps(inv2, rcp0),
+                _mm_mul_ps(inv3, rcp0),
+            ],
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
-    use crate::math::{Vec3, Mat44};
+    use crate::math::{Mat44, Vec3};
 
     #[test]
     fn transform_point() {
         let point = Vec3::from_f32([1.0, 1.0, 1.0, 1.0]);
-        let mat = Mat44::from_translation([-1.0,5.0,-2.0]);
+        let mat = Mat44::from_translation([-1.0, 5.0, -2.0]);
         let transformed = mat.transform_point(point).divided_by_w();
         assert_eq!(transformed.x(), 0.0);
         assert_eq!(transformed.y(), 6.0);

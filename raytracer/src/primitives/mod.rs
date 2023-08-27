@@ -5,3 +5,4 @@ pub mod skybox;
 pub mod quad;
 pub mod triangle;
 pub mod mesh;
+pub mod bounding_sphere;

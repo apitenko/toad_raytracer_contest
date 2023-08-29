@@ -13,10 +13,11 @@ use itertools::Itertools;
 
 use super::{
     camera::Camera,
+    lights::{directional::DirectionalLight, point::{PointLightRadius, PointLight}},
     material::{Material, MaterialShared},
     scene::Scene,
     texture::Texture,
-    uri::{resolve_uri, UriResolved}, lights::directional::DirectionalLight,
+    uri::{resolve_uri, UriResolved},
 };
 
 struct ImportedGltfScene {
@@ -58,7 +59,10 @@ pub fn read_into_scene(app_scene: &mut Scene, path: &str) -> anyhow::Result<()> 
     // let camera_projection_matrix = Mat44::IDENTITY;
     // let camera_projection_matrix: Mat44 = Mat44::from_orthographic(4.0, 4.0, 0.1, 100.0);
     // let view_projection = camera_projection_matrix * camera_transform_matrix;
-    app_scene.set_camera(Camera::from_matrices(camera_transform_matrix, camera_projection_matrix));
+    app_scene.set_camera(Camera::from_matrices(
+        camera_transform_matrix,
+        camera_projection_matrix,
+    ));
     // 2. Import all vertices into the acceleration structure, applying camera transform
 
     // let test_point = Vec3::from_f32([0.0, 0.0, -5.0, 1.0]);
@@ -68,12 +72,7 @@ pub fn read_into_scene(app_scene: &mut Scene, path: &str) -> anyhow::Result<()> 
     // println!("{:?}", test_point.divided_by_w());
 
     for node in scene.nodes() {
-        import_node(
-            app_scene,
-            &node,
-            &Mat44::IDENTITY,
-            &imported,
-        )?;
+        import_node(app_scene, &node, &Mat44::IDENTITY, &imported)?;
         println!(
             "Node #{} has {} children",
             node.index(),
@@ -217,35 +216,50 @@ fn import_node(
         None => (),
     }
 
-    // match node.light() {
-    //     None => (),
-    //     Some(light) => {
-    //         let color = light.color();
-    //         light.
-    //         match light.kind() {
-    //             gltf::khr_lights_punctual::Kind::Directional => {
-    //                 app_scene.lights.push(Box::new(DirectionalLight {
-    //                     color,
+    match node.light() {
+        None => (),
+        Some(light) => {
+            let color = Vec3::new(light.color());
+            let intensity = light.intensity();
+            let direction = accumulated_transform * Vec3::from_f32([0.0, 0.0, -1.0, 0.0]);
+            let position = accumulated_transform * Vec3::from_f32([0.0, 0.0, 0.0, 1.0]);
 
-    //                 }))
-    //             }
-    //             gltf::khr_lights_punctual::Kind::Point => {
-
-    //             }
-    //             gltf::khr_lights_punctual::Kind::Spot { inner_cone_angle, outer_cone_angle } => {
-    //                 todo!();
-    //             }
-    //         }
-    //     }
-    // }
+            match light.kind() {
+                gltf::khr_lights_punctual::Kind::Directional => {
+                    app_scene.lights.push(Box::new(DirectionalLight {
+                        color,
+                        intensity,
+                        direction,
+                    }))
+                }
+                gltf::khr_lights_punctual::Kind::Point => match light.range() {
+                    None => app_scene.lights.push(Box::new(PointLight {
+                        color,
+                        intensity,
+                        position,
+                    })),
+                    Some(range) => app_scene.lights.push(Box::new(PointLightRadius {
+                        color,
+                        intensity,
+                        position,
+                        radius: range,
+                    })),
+                },
+                gltf::khr_lights_punctual::Kind::Spot {
+                    inner_cone_angle,
+                    outer_cone_angle,
+                } => {
+                    let range = light
+                        .range()
+                        .expect("Spot Light must have a non-default range");
+                    todo!();
+                }
+            }
+        }
+    }
 
     for child in node.children() {
-        import_node(
-            app_scene,
-            &child,
-            &accumulated_transform,
-            imported,
-        )?;
+        import_node(app_scene, &child, &accumulated_transform, imported)?;
     }
 
     Ok(())

@@ -1,4 +1,4 @@
-use crate::{constants::{MISS_COLOR, RENDER_HEIGHT, WINDOW_HEIGHT}, math::Vec3};
+use crate::math::Vec3;
 use palette::*;
 
 unsafe impl Send for TotallySafeSurfaceWrapper {}
@@ -23,11 +23,10 @@ impl TotallySafeSurfaceWrapper {
     }
 
     pub fn write(&mut self, unscaled_position: (u32, u32), pixel_color: Vec3) {
-        
         // Convert sRGB -> Linear
-        let pixel_color = LinSrgb::new(pixel_color.x(),pixel_color.y(),pixel_color.z());
-        let pixel_color: Srgb::<f32> = Srgb::from_linear(pixel_color);
-        
+        let pixel_color = LinSrgb::new(pixel_color.x(), pixel_color.y(), pixel_color.z());
+        let pixel_color: Srgb<f32> = Srgb::from_linear(pixel_color);
+
         let red: u32 = (255.99 * pixel_color.red) as u32;
         let green: u32 = (255.99 * pixel_color.green) as u32;
         let blue: u32 = (255.99 * pixel_color.blue) as u32;
@@ -44,12 +43,19 @@ impl TotallySafeSurfaceWrapper {
         for i in 0..render_scale {
             for j in 0..render_scale {
                 unsafe {
-                    let y = WINDOW_HEIGHT - (scaled_position.1 + j) - 1;
+                    let y = self.surface_size.1 - (scaled_position.1 + j) - 1;
                     let x = (scaled_position.0 + i);
                     let index = y * self.surface_size.0 + x;
                     *(self.memory).add(index as usize) = data;
                 }
             }
         }
+    }
+
+    pub fn width(&self) -> u32 {
+        self.render_size.0
+    }
+    pub fn height(&self) -> u32 {
+        self.render_size.1
     }
 }

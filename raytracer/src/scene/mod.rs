@@ -7,3 +7,4 @@ pub mod texture;
 pub mod gltf_importer;
 pub mod camera;
 pub mod uri;
+pub mod scene_defaults;

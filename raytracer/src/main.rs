@@ -38,11 +38,12 @@ pub mod surface;
 pub mod tracing;
 pub mod util;
 pub mod worker_thread;
+pub mod cli_api;
 
 use constants::*;
 use render_thread::*;
 
-use crate::math::{Vec3, Mat44};
+use crate::math::{Mat44, Vec3};
 use crate::primitives::mesh::{BoundingBox, Mesh};
 use crate::primitives::quad::Quad;
 use crate::primitives::shape::Shape;
@@ -53,15 +54,40 @@ use crate::scene::lights::directional::DirectionalLight;
 use crate::scene::lights::point::PointLightRadius;
 use crate::scene::material::{Material, MaterialShared};
 use crate::scene::scene::Scene;
+use crate::scene::scene_defaults::add_scene_defaults;
 use crate::scene::texture::{Texture, TextureShared};
 use crate::surface::TotallySafeSurfaceWrapper;
 use crate::util::fill_gradient::fill_gradient_black_to_white;
 use crate::util::fresnel_constants::FresnelConstants;
 
 fn main() -> anyhow::Result<()> {
+    
+    // CLI
+    let cli = cli_api::cli_parse();
+    
+    let height = cli.height.parse::<u32>().unwrap_or_else(|e| {
+        println!("Can't parse height, using default height of {}. Encountered error: {}", DEFAULT_HEIGHT, e);
+        DEFAULT_HEIGHT
+    });
+    let input = cli.input.to_str().unwrap();
+    let output = cli.output;
+
+    // Scene
+    let mut scene = Box::new(Scene::new()?);
+    read_into_scene(scene.as_mut(), input)?;
+    add_scene_defaults(scene.as_mut())?;
+
+    // Render target setup
+    let aspect_ratio = scene.aspect_ratio();
+    let width = (height as f32 * aspect_ratio).round() as u32;
+
+    let render_size = (width, height);
+    let render_scale = RENDER_SCALE;
+    let window_size = (render_size.0 * render_scale, render_size.1 * render_scale);
+
     let mut event_loop = EventLoop::new();
     let window = WindowBuilder::new()
-        .with_inner_size(winit::dpi::PhysicalSize::new(WINDOW_WIDTH, WINDOW_HEIGHT))
+        .with_inner_size(winit::dpi::PhysicalSize::new(window_size.0, window_size.1))
         .build(&event_loop)
         .unwrap();
 
@@ -71,8 +97,8 @@ fn main() -> anyhow::Result<()> {
     let unsafe_buffer_ptr = {
         surface
             .resize(
-                NonZeroU32::new(WINDOW_WIDTH).unwrap(),
-                NonZeroU32::new(WINDOW_HEIGHT).unwrap(),
+                NonZeroU32::new(window_size.0).unwrap(),
+                NonZeroU32::new(window_size.1).unwrap(),
             )
             .unwrap();
         let mut buffer = surface.buffer_mut().unwrap();
@@ -80,18 +106,11 @@ fn main() -> anyhow::Result<()> {
     };
 
     let surface_wrapper =
-        TotallySafeSurfaceWrapper::new(unsafe_buffer_ptr, RENDER_SIZE, SCALE_FACTOR);
+        TotallySafeSurfaceWrapper::new(unsafe_buffer_ptr, render_size, render_scale);
 
     fill_gradient_black_to_white(surface_wrapper.clone());
 
     // ! TEXTURES //////////////////////////////////////////
-    let mut textures_list = Vec::<Box<Texture>>::new();
-    let mut capture_texture = |texture: Box<Texture>| {
-        let mat_ptr = texture.as_ref() as *const Texture;
-        let mat_shared = TextureShared::new(mat_ptr);
-        textures_list.push(texture);
-        mat_shared
-    };
 
     // const TEXTURE_WHITE_1X1_BASE64: &[u8] = b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAA1JREFUGFdj+P///38ACfsD/QVDRcoAAAAASUVORK5CYII=";
     // let texture_default = capture_texture(Box::new(Texture::new_from_base64(
@@ -101,9 +120,6 @@ fn main() -> anyhow::Result<()> {
     // let texture_1x1_magenta = capture_texture(Box::new(Texture::new_from_base64(
     //     TEXTURE_1X1_MAGENTA_BASE64,
     // )?));
-    let texture_skybox = capture_texture(Box::new(Texture::new_from_file(&Path::new(
-        "./res/skybox.png",
-    ))?));
     // let texture_checkerboard = capture_texture(Box::new(Texture::new_from_file(&Path::new(
     //     "./res/checkerboard.png",
     // ))?));
@@ -238,52 +254,6 @@ fn main() -> anyhow::Result<()> {
     //     floor_checkerboard.clone(),
     // )));
 
-    let mut scene = Box::new(Scene::new(texture_skybox.clone()));
-
-    read_into_scene(scene.as_mut(), "./res/scene2_embedded.gltf")?;
-    // read_into_scene(scene.as_mut(), "./res/duck_embedded.gltf")?;
-
-    if true
-    {
-        let aabb = BoundingBox {
-            min: Quad::DEFAULT_GEOMETRY[0],
-            max: Quad::DEFAULT_GEOMETRY[2],
-        };
-        let bounding_sphere = aabb.bounding_sphere();
-        
-        let color_texture = Texture::make_default_texture()?;
-        let color_albedo = scene.material_storage.push_texture(color_texture);
-        let mat = Material {
-            color_factor: Vec3::ONE,
-            color_albedo,
-            ..Default::default()
-        };
-        
-        let mat_shared = scene.material_storage.push_material(mat);
-        let translation_matrix = Mat44::from_translation([0.0, -1.0, 0.0]);
-        
-        scene.add_mesh(Mesh {
-            aabb,
-            bounding_sphere,
-            material: mat_shared,
-            triangles: vec![
-                Triangle {
-                    vertices: [
-                        translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[0]),
-                        translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[1]),
-                        translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[2]),
-                    ],
-                },
-                Triangle {
-                    vertices: [
-                        translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[0]),
-                        translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[2]),
-                        translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[3]),
-                    ],
-                },
-            ],
-        });
-    }
 
     // for shape in &shapes_list {
     //     scene.push_shape(shape.as_ref() as *const dyn Shape);
@@ -317,17 +287,12 @@ fn main() -> anyhow::Result<()> {
     //     COLOR_WHITE,
     // )));
 
-    // scene.lights.push(Box::new(DirectionalLight::new(
-    //     Vec3::new([0.5, -1.0, 0.0]),
-    //     0.001,
-    //     COLOR_SKY_BLUE,
-    // )));
-
     // notice the intentional lack of thread synchronization. for the moment.
     let unsafe_scene_ptr: *const Scene = scene.as_ref();
 
+    #[allow(unused_mut)]
     let mut render_thread: Cell<Option<RenderThreadHandle>> = Cell::new(Some(
-        RenderThreadHandle::run(surface_wrapper.clone(), RENDER_SIZE, unsafe_scene_ptr)
+        RenderThreadHandle::run(surface_wrapper.clone(), unsafe_scene_ptr)
             .expect("RenderThreadHandle cannot start"),
     ));
     let mut fps_counter = FpsCounter::new();

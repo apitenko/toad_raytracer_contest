@@ -2,23 +2,13 @@ use crate::math::Vec3;
 
 pub const WINDOW_OUTPUT_ENABLED: bool = true;
 
-// pub const RENDER_WIDTH: u32 = 1600;
-// pub const RENDER_HEIGHT: u32 = 900;
-// pub const SCALE_FACTOR: u32 = 1;
-pub const RENDER_WIDTH: u32 = 400;
-pub const RENDER_HEIGHT: u32 = 300;
-pub const SCALE_FACTOR: u32 = 2;
-// pub const RENDER_WIDTH: u32 = 300;
-// pub const RENDER_HEIGHT: u32 = 150;
-// pub const SCALE_FACTOR: u32 = 4;
-
-
-pub const WINDOW_WIDTH: u32 = RENDER_WIDTH * SCALE_FACTOR;
-pub const WINDOW_HEIGHT: u32 = RENDER_HEIGHT * SCALE_FACTOR;
-
-pub const RENDER_SIZE: (u32, u32) = (RENDER_WIDTH, RENDER_HEIGHT);
-
 pub const UPDATE_INTERVAL: f32 = 1.0 / 10.0;
+
+pub const DEFAULT_ASPECT_RATIO: f32 = 1.3333333;
+pub const DEFAULT_HEIGHT: u32 = 200;
+pub const DEFAULT_HEIGHT_STRING: &str = const_str::to_str!(DEFAULT_HEIGHT);
+pub const RENDER_SCALE: u32 = 2;
+
 
 pub const MISS_COLOR_VEC3: Vec3 = Vec3::new([144.0 / 256.0, 185.0 / 256.0, 224.0 / 256.0]);
 pub const MISS_COLOR: u32 = 224 | (185 << 8) | (144 << 16);

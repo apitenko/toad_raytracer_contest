@@ -39,7 +39,8 @@
                     "build",
                     "--bin=raytracing",
                     "--package=raytracing",
-                    "--profile=releasewithdebug"
+                    "--profile=dev"
+                    // "--profile=releasewithdebug"
                     // "--release"
                 ],
                 "filter": {
@@ -47,7 +48,14 @@
                     "kind": "bin"
                 }
             },
-            "args": [],
+            "args": [
+                "--in",
+                "./res/scene2_2_embedded.gltf",
+                // "./res/toad/Duck.glb",
+                // "./res/duck_embedded.gltf",
+                // "--height",
+                // "300"
+            ],
             "cwd": "${workspaceFolder}"
         },
         {

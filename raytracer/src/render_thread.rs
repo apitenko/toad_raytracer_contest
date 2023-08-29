@@ -35,13 +35,12 @@ pub struct RenderThreadHandle {
 impl RenderThreadHandle {
     pub fn run(
         surface_wrapper: TotallySafeSurfaceWrapper,
-        size: (u32, u32),
         scene: *const Scene,
     ) -> anyhow::Result<Self> {
         let scene = TotallySafeSceneWrapper::new(scene);
         let (exit_handle_sender, exit_handle) = std::sync::mpsc::channel();
         let thread = std::thread::spawn(move || {
-            return Self::routine(surface_wrapper.clone(), size, scene, exit_handle);
+            return Self::routine(surface_wrapper.clone(), scene, exit_handle);
         });
         let rt = Self {
             thread,
@@ -79,7 +78,6 @@ impl RenderThreadHandle {
 
     pub fn routine(
         memory: TotallySafeSurfaceWrapper,
-        size: (u32, u32),
         scene: TotallySafeSceneWrapper,
         exit_handle: std::sync::mpsc::Receiver<bool>,
     ) -> anyhow::Result<Duration> {
@@ -92,7 +90,7 @@ impl RenderThreadHandle {
 
             let mut task_queue = Queue::new();
 
-            let total_pixels = size.0 * size.1;
+            let total_pixels = memory.width() * memory.height();
             let total_tasks = (available_threads.get() * 20).min(total_pixels as usize);
             let pixels_per_task: usize = (total_pixels as f32 / total_tasks as f32).ceil() as usize;
 
@@ -100,12 +98,17 @@ impl RenderThreadHandle {
                 let workload = Workload::new(
                     (index * pixels_per_task) as u32,
                     ((index + 1) * pixels_per_task) as u32,
+                    (memory.width(), memory.height()),
                 );
                 task_queue.get().push(workload).unwrap();
             }
             {
                 let index = total_tasks - 1;
-                let workload = Workload::new((index * pixels_per_task) as u32, total_pixels);
+                let workload = Workload::new(
+                    (index * pixels_per_task) as u32,
+                    total_pixels,
+                    (memory.width(), memory.height()),
+                );
                 task_queue.get().push(workload).unwrap();
             }
 

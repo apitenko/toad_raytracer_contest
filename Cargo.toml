@@ -6,12 +6,6 @@ members = [
 resolver = "2"
 default-members = ["raytracer"]
 
-[profile.dev]
-opt-level = 0
-
-[profile.release]
-opt-level = 3
-
 [profile.releasewithdebug]
 inherits = "release"
 debug = true

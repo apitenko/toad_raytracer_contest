@@ -61,7 +61,7 @@ impl Texture {
         })
     }
 
-    pub fn new_from_raw_bytes(data: &Vec<u8>) -> anyhow::Result<Self> {
+    pub fn new_from_raw_bytes(data: &[u8]) -> anyhow::Result<Self> {
         let img = image::io::Reader::new(std::io::Cursor::new(data))
             .with_guessed_format()?
             .decode()?;

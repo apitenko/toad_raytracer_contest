@@ -1,11 +1,10 @@
-use crate::math::{Ray, Vec3, Mat44};
+use crate::math::{Mat44, Ray, Vec3};
 
 pub struct Camera {
     pub lower_left_corner: Vec3,
     pub width_in_units: Vec3,
     pub height_in_units: Vec3,
     pub origin: Vec3,
-    
 }
 
 impl Camera {
@@ -19,14 +18,12 @@ impl Camera {
     }
 
     pub fn from_matrices(view_matrix: Mat44, projection_matrix: Mat44) -> Self {
-
         let view_matrix = view_matrix.inverse();
         let projection_matrix = projection_matrix.inverse();
         // inverse projection (from 01 to World Space)
         // then rotate & translate
-        let mvp = Mat44::IDENTITY;
-        let mvp = projection_matrix;
-        // let mvp = mvp * view_matrix;
+        let mvp = view_matrix * projection_matrix;
+
         let bottom_left_p0 = mvp.transform_point(Vec3::from_f32([-1.0, -1.0, 0.0, 1.0]));
         let bottom_left_p1 = mvp.transform_point(Vec3::from_f32([-1.0, -1.0, 1.0, 1.0]));
         let bottom_right_p0 = mvp.transform_point(Vec3::from_f32([1.0, -1.0, 0.0, 1.0]));
@@ -44,7 +41,7 @@ impl Camera {
             lower_left_corner: bottom_left,
             height_in_units: top_left - bottom_left,
             width_in_units: bottom_right - bottom_left,
-            origin
+            origin,
         }
     }
 

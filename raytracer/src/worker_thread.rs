@@ -1,14 +1,14 @@
 use std::thread::JoinHandle;
 
 use crate::{
-    constants::{COLOR_CALL_PARAMETERS, MISS_COLOR, MISS_COLOR_VEC3, RENDER_HEIGHT, RENDER_WIDTH},
+    math::{RayBounce, Vec3},
     scene::{
         scene::{Scene, TotallySafeSceneWrapper},
         workload::Workload,
     },
     surface::TotallySafeSurfaceWrapper,
     tracing::{ray_cast, MAX_BOUNCES, MULTISAMPLE_OFFSETS, MULTISAMPLE_SIZE},
-    util::queue::Queue, math::{Vec3, RayBounce},
+    util::queue::Queue,
 };
 
 pub struct WorkerThreadHandle {
@@ -32,8 +32,8 @@ impl WorkerThreadHandle {
 
                         for offset in MULTISAMPLE_OFFSETS {
                             // Render a pixel
-                            let u = (x as f32 + offset.0) / RENDER_WIDTH as f32;
-                            let v = (y as f32 + offset.1) / RENDER_HEIGHT as f32;
+                            let u = (x as f32 + offset.0) / surface.width() as f32;
+                            let v = (y as f32 + offset.1) / surface.height() as f32;
 
                             // if u < 0.35 || u > 0.65 || v < 0.2 || v > 0.5 {
                             //     continue;
@@ -53,10 +53,8 @@ impl WorkerThreadHandle {
                                 continue;
                             }
 
-                            let ray_color = ray_cast(
-                                RayBounce::default_from_ray(starting_ray),
-                                scene,
-                            );
+                            let ray_color =
+                                ray_cast(RayBounce::default_from_ray(starting_ray), scene);
 
                             pixel_color += ray_color;
                         }

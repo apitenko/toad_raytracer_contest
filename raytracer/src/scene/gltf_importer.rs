@@ -13,7 +13,10 @@ use itertools::Itertools;
 
 use super::{
     camera::Camera,
-    lights::{directional::DirectionalLight, point::{PointLightRadius, PointLight}},
+    lights::{
+        directional::DirectionalLight,
+        point::{PointLight, PointLightRadius},
+    },
     material::{Material, MaterialShared},
     scene::Scene,
     texture::Texture,
@@ -48,25 +51,39 @@ pub fn read_into_scene(app_scene: &mut Scene, path: &str) -> anyhow::Result<()> 
         .expect("No default scene in gtlf file");
 
     let mut cameras = imported.document.cameras();
-    let first_camera = cameras.next().expect("No camera found in the gltf scene");
-    println!("Camera found");
+    let first_camera = cameras.next();
+    let (camera_view_matrix, camera_projection_matrix, aspect_ratio) = match first_camera {
+        None => {
+            println!("Camera not found; using default");
+            let aspect_ratio = 4.0 / 3.0;
+            let camera_view_matrix: Mat44 = Mat44::IDENTITY;
+            let camera_projection_matrix: Mat44 =
+                Mat44::from_perspective_rh(85.0_f32.to_radians(), 4.0 / 3.0, 0.01, 100.0);
 
-    let (transform, camera) = scan_for_camera(Mat44::IDENTITY, &mut scene.nodes())
-        .expect("No camera found in the gltf scene");
+            (camera_view_matrix, camera_projection_matrix, aspect_ratio)
+        }
+        Some(_camera_found) => {
+            let (transform, camera) = scan_for_camera(Mat44::IDENTITY, &mut scene.nodes())
+                .expect("No camera found in the gltf scene: something's wrong with the code");
+            println!("Camera found");
+            let camera_view_matrix: Mat44 = Into::<Mat44>::into(transform).inverse();
+            let (camera_projection_matrix, aspect_ratio) = from_gltf_projection(camera.projection());
 
-    let camera_transform_matrix: Mat44 = Into::<Mat44>::into(transform).inverse();
-    let camera_projection_matrix: Mat44 = camera.projection().into();
-    // let camera_projection_matrix = Mat44::IDENTITY;
-    // let camera_projection_matrix: Mat44 = Mat44::from_orthographic(4.0, 4.0, 0.1, 100.0);
-    // let view_projection = camera_projection_matrix * camera_transform_matrix;
+            (camera_view_matrix, camera_projection_matrix, aspect_ratio)
+        }
+    };
+
     app_scene.set_camera(Camera::from_matrices(
-        camera_transform_matrix,
+        camera_view_matrix,
         camera_projection_matrix,
     ));
+
+    app_scene.set_aspect_ratio(aspect_ratio);
+
     // 2. Import all vertices into the acceleration structure, applying camera transform
 
     // let test_point = Vec3::from_f32([0.0, 0.0, -5.0, 1.0]);
-    // let transformed_test_point = camera_transform_matrix.transform_point(test_point);
+    // let transformed_test_point = camera_view_matrix.transform_point(test_point);
     // let test_point = view_projection.transform_point(test_point);
     // let test_point = view_projection.transform_point(test_point);
     // println!("{:?}", test_point.divided_by_w());
@@ -91,6 +108,7 @@ pub fn scan_for_camera<'a>(
         let current_transform: Mat44 = child.transform().into();
         match scan_for_camera(
             acculumated_transform * current_transform,
+            // current_transform,
             &mut child.children(),
         ) {
             Some(transform_plus_camera) => return Some(transform_plus_camera),
@@ -203,7 +221,7 @@ fn import_node(
 
                 let aabb = primitives::mesh::BoundingBox::from_gltf(primitive.bounding_box());
                 let bounding_sphere = aabb.bounding_sphere();
-                let material = import_material(app_scene, primitive.material())?;
+                let material = import_material(app_scene, imported, primitive.material())?;
 
                 app_scene.add_mesh(Mesh {
                     triangles: final_positions,
@@ -279,42 +297,45 @@ impl From<Transform> for Mat44 {
     }
 }
 
-impl<'a> From<Projection<'a>> for Mat44 {
-    fn from(projection: Projection) -> Self {
-        let matrix = match projection {
-            gltf::camera::Projection::Orthographic(ortho) => {
-                let near = ortho.znear();
-                let far = ortho.zfar();
-                let xmag = ortho.xmag();
-                let ymag = ortho.ymag();
 
-                Mat44::from_orthographic(xmag, ymag, near, far)
-            }
-            gltf::camera::Projection::Perspective(persp) => {
-                let yfov = persp.yfov();
-                let aspect_ratio = persp.aspect_ratio().unwrap_or(1.0);
-                let near = persp.znear();
-                let far_option = persp.zfar();
+pub fn from_gltf_projection(projection: Projection) -> (Mat44, f32) {
+    match projection {
+        gltf::camera::Projection::Orthographic(ortho) => {
+            let near = ortho.znear();
+            let far = ortho.zfar();
+            let xmag = ortho.xmag();
+            let ymag = ortho.ymag();
 
-                match far_option {
-                    Some(far) => {
-                        // Far plane exist
-                        // GLTF default is Right Handed (forward is -z)
-                        Mat44::from_perspective_rh(yfov, aspect_ratio, near, far)
-                    }
-                    None => {
-                        // Infinite far
-                        Mat44::from_perspective_infinite(yfov, aspect_ratio, near)
-                    }
+            return (
+                Mat44::from_orthographic(xmag, ymag, near, far), 
+                1.0
+            )
+        }
+        gltf::camera::Projection::Perspective(persp) => {
+            let yfov = persp.yfov();
+            let aspect_ratio = persp.aspect_ratio().unwrap_or(1.0);
+            let near = persp.znear();
+            let far_option = persp.zfar();
+
+            match far_option {
+                Some(far) => {
+                    // Far plane exist
+                    // GLTF default is Right Handed (forward is -z)
+                    return (Mat44::from_perspective_rh(yfov, 1.0 / aspect_ratio, near, far), aspect_ratio)
+                }
+                None => {
+                    // Infinite far
+                    return (Mat44::from_perspective_infinite(yfov, 1.0 / aspect_ratio, near), aspect_ratio)
                 }
             }
-        };
-        return matrix;
+        }
     }
 }
 
+
 fn import_material(
     app_scene: &mut Scene,
+    imported: &ImportedGltfScene,
     material: gltf::material::Material,
 ) -> anyhow::Result<MaterialShared> {
     let pbr_info = material.pbr_metallic_roughness();
@@ -335,13 +356,10 @@ fn import_material(
                 image::Source::Uri { uri, mime_type } => match resolve_uri(uri)? {
                     UriResolved::Base64(base64_slice) => Texture::new_from_base64_str(base64_slice),
                     _ => {
-                        panic!("unimplemented")
+                        panic!("non-base64 uri not implemented")
                     }
                 },
                 image::Source::View { view, mime_type } => {
-                    if view.offset() > 0 {
-                        todo!("offset is not supported");
-                    }
                     if let Some(_) = view.stride() {
                         todo!("stride is not supported");
                     }
@@ -349,14 +367,19 @@ fn import_material(
 
                     let texture = match buffer.source() {
                         buffer::Source::Bin => {
-                            todo!("buffer bin is not supported");
+                            
+                            let buffer_data = &imported.buffers[buffer.index()];
+                            Texture::new_from_raw_bytes(&buffer_data.0[view.offset()..])
                         }
                         buffer::Source::Uri(uri) => match resolve_uri(uri)? {
                             UriResolved::Base64(base64_slice) => {
+                                if view.offset() > 0 {
+                                    todo!("offset is not supported; something went terribly wrong");
+                                }
                                 Texture::new_from_base64_str(base64_slice)
                             }
                             _ => {
-                                panic!("unimplemented")
+                                panic!("non-base64 uri not implemented")
                             }
                         },
                     };

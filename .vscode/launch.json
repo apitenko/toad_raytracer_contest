@@ -39,9 +39,9 @@
                     "build",
                     "--bin=raytracing",
                     "--package=raytracing",
-                    // "--profile=dev"
+                    "--profile=dev"
                     // "--profile=releasewithdebug"
-                    "--release"
+                    // "--release"
                 ],
                 "filter": {
                     "name": "raytracing",
@@ -54,7 +54,7 @@
                 "./res/toad/Duck.glb",
                 // "./res/duck_embedded.gltf",
                 "--height",
-                "400"
+                "300"
             ],
             // cargo run --release -- --in "./res/toad/Duck.glb" --height 400
             "cwd": "${workspaceFolder}"

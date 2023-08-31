@@ -4,7 +4,7 @@ use rand::Rng;
 use raytracer_lib::generate_multisample_positions;
 
 use crate::{
-    constants::{MISS_COLOR_VEC3, COLOR_RED},
+    constants::{MISS_COLOR_VEC3, COLOR_RED, COLOR_WHITE},
     math::{Saturatable, Vec3, ray::{RayRefractionState, reflect}, RayBounce, Ray},
     primitives::cast_result::CastResult,
     scene::{lights::light::Light, material::Material, scene::Scene},
@@ -18,14 +18,14 @@ generate_multisample_positions!(1);
 pub const MULTISAMPLE_OFFSETS: [(f32, f32); 1] = generated_samples();
 pub const MULTISAMPLE_SIZE: usize = MULTISAMPLE_OFFSETS.len();
 
-pub const MAX_BOUNCES: i32 = 50;
-pub const MAX_DEPTH: f32 = 20.0;
+pub const MAX_BOUNCES: i32 = 1;
+// pub const MAX_DEPTH: f32 = 20.0;
 
 // todo: move to skybox
-pub const SKYBOX_LIGHT_INTENSITY: f32 = 0.12;
+pub const SKYBOX_LIGHT_INTENSITY: f32 = 0.0;
 
-pub const AMBIENT_LIGHT_INTENSITY: f32 = 0.12;
-pub const AMBIENT_LIGHT_COLOR: Vec3 = MISS_COLOR_VEC3;
+pub const AMBIENT_LIGHT_INTENSITY: f32 = 1000.0;
+pub const AMBIENT_LIGHT_COLOR: Vec3 = COLOR_WHITE;
 
 // Cook-Torrance F term
 fn schlick_fresnel(f0: Vec3, lDotH: f32) -> Vec3 {
@@ -70,9 +70,9 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
         // stop recursion by limit
         return Vec3::ZERO;
     }
-    if current_bounce.remaining_depth < 0.00001 {
-        return Vec3::ZERO;
-    }
+    // if current_bounce.remaining_depth < 0.00001 {
+    //     return Vec3::ZERO;
+    // }
 
     let cast_result = scene.geometry.single_cast(
         current_bounce.ray,
@@ -184,7 +184,7 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
     // ! Blend components  -------------------------
 
     let final_color =
-        component_direct + component_indirect + AMBIENT_LIGHT_INTENSITY * AMBIENT_LIGHT_COLOR;
+        component_direct + component_indirect + AMBIENT_LIGHT_INTENSITY * AMBIENT_LIGHT_COLOR * material_albedo;
     return final_color;
 }
 
@@ -360,7 +360,7 @@ fn ggx_indirect(
             RayBounce {
                 ray: Ray::new(hit, random_direction, f32::MAX),
                 remaining_bounces: current_bounce.remaining_bounces - 1,
-                remaining_depth: current_bounce.remaining_depth - cast_result.distance_traversed,
+                // remaining_depth: current_bounce.remaining_depth - cast_result.distance_traversed,
                 refraction_state: RayRefractionState::TraversingAir,
             },
             scene,
@@ -386,7 +386,7 @@ fn ggx_indirect(
             RayBounce {
                 ray: Ray::new(hit, reflected_ray, f32::MAX),
                 remaining_bounces: current_bounce.remaining_bounces - 1,
-                remaining_depth: current_bounce.remaining_depth - cast_result.distance_traversed,
+                // remaining_depth: current_bounce.remaining_depth - cast_result.distance_traversed,
                 refraction_state: RayRefractionState::TraversingAir,
             },
             scene,

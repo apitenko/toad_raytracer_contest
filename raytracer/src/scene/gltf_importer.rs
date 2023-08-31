@@ -1,6 +1,6 @@
 use std::{
     f32::consts::PI,
-    path::{Path, PathBuf},
+    path::{Path, PathBuf}, iter,
 };
 
 use gltf::{buffer, camera::Projection, image, scene::Transform, Document, Gltf};
@@ -66,7 +66,7 @@ pub fn read_into_scene(app_scene: &mut Scene, path: &str) -> anyhow::Result<()> 
             let (transform, camera) = scan_for_camera(Mat44::IDENTITY, &mut scene.nodes())
                 .expect("No camera found in the gltf scene: something's wrong with the code");
             println!("Camera found");
-            let camera_view_matrix: Mat44 = Into::<Mat44>::into(transform).inverse();
+            let camera_view_matrix: Mat44 = transform.inverse();
             let (camera_projection_matrix, aspect_ratio) = from_gltf_projection(camera.projection());
 
             (camera_view_matrix, camera_projection_matrix, aspect_ratio)
@@ -101,13 +101,14 @@ pub fn read_into_scene(app_scene: &mut Scene, path: &str) -> anyhow::Result<()> 
 }
 
 pub fn scan_for_camera<'a>(
-    acculumated_transform: Mat44,
+    parent_transform: Mat44,
     nodes: &mut dyn Iterator<Item = gltf::Node<'a>>,
-) -> Option<(gltf::scene::Transform, gltf::Camera<'a>)> {
+) -> Option<(Mat44, gltf::Camera<'a>)> {
     for child in &mut *nodes {
         let current_transform: Mat44 = child.transform().into();
+        let accumulated_transform = current_transform * parent_transform;
         match scan_for_camera(
-            acculumated_transform * current_transform,
+            accumulated_transform,
             // current_transform,
             &mut child.children(),
         ) {
@@ -116,7 +117,7 @@ pub fn scan_for_camera<'a>(
         }
         match child.camera() {
             Some(cam) => {
-                return Some((child.transform(), cam));
+                return Some((accumulated_transform, cam));
             }
             None => {}
         }
@@ -167,7 +168,27 @@ fn import_node(
 
                 let reader = primitive.reader(|buffer| Some(&imported.buffers[buffer.index()]));
 
-                let indices = reader.read_indices();
+                let index_iter = {
+                    let indices = reader.read_indices();
+                    let indices: Box<dyn Iterator<Item = u32>> = match indices {
+                        Some(indices) => Box::new(indices.into_u32()),
+                        None => Box::new(0..),
+                    };
+                    indices
+                };
+
+                let index_iter = index_iter.tuple_windows().step_by(3);
+                
+                // let uv_iter: Box<dyn Iterator<Item = [f32;2]>> = {
+                //     let uv = reader.read_tex_coords(0);
+                //     let uv: Box<dyn Iterator<Item = [f32;2]>> = match uv {
+                //         Some(uv) => Box::new(uv.into_f32()),
+                //         None => Box::new(iter::repeat([0.5f32, 0.5])),
+                //     };
+                //     uv
+                // };
+                // let uv_iter = uv_iter.tuple_windows().step_by(3);
+
                 let mode_ = primitive.mode();
 
                 if let gltf::mesh::Mode::Triangles = mode_ {
@@ -178,32 +199,41 @@ fn import_node(
                     );
                 }
 
-                let indices: Box<dyn Iterator<Item = u32>> = match indices {
-                    Some(indices) => Box::new(indices.into_u32()),
-                    None => Box::new(0..),
-                };
-
                 let positions_reader = match reader.read_positions() {
                     None => return Err(GltfImportError::new("No positions found".into()).into()),
                     Some(p) => p,
                 };
 
+                
+
+
                 let input_positions: Vec<_> = positions_reader.collect();
+
+                let input_uv: Vec<_> = {
+                    let uv_reader = reader.read_tex_coords(0);
+                    match uv_reader {
+                        None => {
+                            (0..input_positions.len()/2).map(|huynya| {
+                                [huynya as f32, huynya as f32]
+                            }).collect()
+                        },
+                        Some(uv_reader) => {
+                            uv_reader.into_f32().collect()
+                        }
+                    }
+                };
+
+                assert!(input_uv.len() == input_positions.len());
+
                 let mut final_positions = Vec::with_capacity(input_positions.len() * 2); // guesstimating the total size
 
-                // let process_vertex = |index: u32| {
-                //     let current_position = Vec3::from_f32_3(input_positions[index as usize], 1.0);
-                //     let current_position =
-                //         accumulated_transform.transform_point(current_position).divided_by_w();
-                //     return current_position;
-                // };
-                for (i0, i1, i2) in indices.tuple_windows().step_by(3) {
+                for ((i0, i1, i2)) in index_iter {
                     // transform position
-                    let v0 = accumulated_transform
+                    let p0 = accumulated_transform
                         .transform_point(Vec3::from_f32_3(input_positions[i0 as usize], 1.0));
-                    let v1 = accumulated_transform
+                    let p1 = accumulated_transform
                         .transform_point(Vec3::from_f32_3(input_positions[i1 as usize], 1.0));
-                    let v2 = accumulated_transform
+                    let p2 = accumulated_transform
                         .transform_point(Vec3::from_f32_3(input_positions[i2 as usize], 1.0));
                     // transform normals
                     // TODO
@@ -213,8 +243,14 @@ fn import_node(
                     //     .transform_point(Vec3::from_f32_3(input_positions[i1 as usize], 0.0));
                     // let n2 = inverse_transposed_mv_matrix
                     //     .transform_point(Vec3::from_f32_3(input_positions[i2 as usize], 0.0));
+
+                    let uv0 = input_uv[i0 as usize];
+                    let uv1 = input_uv[i1 as usize];
+                    let uv2 = input_uv[i2 as usize];
+
                     final_positions.push(Triangle {
-                        vertices: [v0, v1, v2],
+                        vertices: [p0, p1, p2],
+                        uv: [uv0, uv1, uv2],
                         // normals: [n0, n1, n2]
                     });
                 }

@@ -71,7 +71,7 @@ impl Mat44 {
             [0.0, 0.0, 0.0, 1.0],
         ];
 
-        Self { m }
+        Self { m }.transposed()
     }
 
     pub fn from_scale(scale: [f32; 3]) -> Self {

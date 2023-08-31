@@ -51,7 +51,7 @@ use crate::primitives::sphere::Sphere;
 use crate::primitives::triangle::Triangle;
 use crate::scene::gltf_importer::read_into_scene;
 use crate::scene::lights::directional::DirectionalLight;
-use crate::scene::lights::point::PointLightRadius;
+use crate::scene::lights::point::{PointLightRadius, PointLight};
 use crate::scene::material::{Material, MaterialShared};
 use crate::scene::scene::Scene;
 use crate::scene::scene_defaults::add_scene_defaults;
@@ -262,29 +262,25 @@ fn main() -> anyhow::Result<()> {
     // ! LIGHTS //////////////////////////////////////
     // scene.lights.push(Box::new(PointLight::new(
     //     Vec3::new([2.5, 0.2, -0.8]),
-    //     5.0,
-    //     5.0,
+    //     500000.0,
     //     Vec3::from_rgb(255, 60, 255),
     // )));
     // scene.lights.push(Box::new(PointLight::new(
     //     Vec3::new([0.0, 7.0, -1.0]),
-    //     250.0,
-    //     0.5,
-    //     COLOR_WHITE,
+    //     250000.0,
+    //     COLOR_BLUE,
     // )));
 
     // scene.lights.push(Box::new(PointLight::new(
     //     Vec3::new([10.0, 10.0, -1.0]),
-    //     25.0,
-    //     1.0,
-    //     COLOR_WHITE,
+    //     250000.0,
+    //     COLOR_RED,
     // )));
 
     // scene.lights.push(Box::new(PointLight::new(
     //     Vec3::new([0.0, 20.02, 0.0]),
-    //     125.0,
-    //     1.4,
-    //     COLOR_WHITE,
+    //     125000.0,
+    //     COLOR_GREEN,
     // )));
 
     // notice the intentional lack of thread synchronization. for the moment.

@@ -11,11 +11,15 @@ pub struct Triangle {
     // pub position: Vec3,
     // pub material: MaterialShared,
     pub vertices: [Vec3; 3],
+    pub uv: [[f32; 2]; 3],
 }
 
-impl Triangle {
-    pub fn new(vertices: [Vec3; 3]) -> Self {
-        Self { vertices }
+impl Default for Triangle {
+    fn default() -> Self {
+        Self {
+            vertices: [Vec3::ZERO, Vec3::ZERO, Vec3::ZERO],
+            uv: [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]],
+        }
     }
 }
 
@@ -45,9 +49,13 @@ impl Shape for Triangle {
         let q = Vec3::cross(s, edge1);
         let v = f * Vec3::dot(ray.direction(), q);
 
-        if (v < 0.0 || u + v > 1.0) {
+        if v < 0.0 || u + v > 1.0 {
             return None;
         }
+
+        let w = 1.0 - u - v;
+
+        let uv = interpolate_uv([u, v, w], self.uv);
 
         // At this stage we can compute t to find out where the intersection point is on the line.
         let t = f * Vec3::dot(edge2, q);
@@ -61,12 +69,34 @@ impl Shape for Triangle {
                 intersection_point,
                 distance_traversed: (ray.direction() * t).length(),
                 normal,
-                uv: (u, v),
-                material: MaterialShared::null()
+                uv,
+                material: MaterialShared::null(),
             });
         } else {
             // This means that there is a line intersection but not a ray intersection.
             return None;
         }
     }
+}
+
+#[inline]
+fn interpolate_uv(uvw: [f32; 3], triangle_uv: [[f32; 2]; 3]) -> (f32, f32) {
+    add_f32([
+        mul_f32(triangle_uv[0], uvw[0]),
+        mul_f32(triangle_uv[1], uvw[1]),
+        mul_f32(triangle_uv[2], uvw[2]),
+    ])
+}
+
+#[inline]
+fn mul_f32(triangle_uv: [f32; 2], m: f32) -> [f32; 2] {
+    [triangle_uv[0] * m, triangle_uv[1] * m]
+}
+
+#[inline]
+fn add_f32(fgsfds: [[f32; 2]; 3]) -> (f32, f32) {
+    (
+        fgsfds[0][0] + fgsfds[1][0] + fgsfds[2][0],
+        fgsfds[0][1] + fgsfds[1][1] + fgsfds[2][1],
+    )
 }

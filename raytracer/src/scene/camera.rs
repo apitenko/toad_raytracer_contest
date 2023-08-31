@@ -22,7 +22,7 @@ impl Camera {
         let projection_matrix = projection_matrix.inverse();
         // inverse projection (from 01 to World Space)
         // then rotate & translate
-        let mvp = view_matrix * projection_matrix;
+        let mvp = projection_matrix * view_matrix;
 
         let bottom_left_p0 = mvp.transform_point(Vec3::from_f32([-1.0, -1.0, 0.0, 1.0]));
         let bottom_left_p1 = mvp.transform_point(Vec3::from_f32([-1.0, -1.0, 1.0, 1.0]));

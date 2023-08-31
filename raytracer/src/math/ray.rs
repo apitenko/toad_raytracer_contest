@@ -1,7 +1,6 @@
-use crate::{tracing::{MAX_BOUNCES, MAX_DEPTH}, util::fresnel_constants::FresnelConstants};
+use crate::{tracing::MAX_BOUNCES, util::fresnel_constants::FresnelConstants};
 
 use super::vec3::Vec3;
-
 
 #[derive(Clone, Copy)]
 pub struct Ray {
@@ -68,7 +67,7 @@ pub enum RayRefractionState {
 pub struct RayBounce {
     pub ray: Ray,
     pub remaining_bounces: i32,
-    pub remaining_depth: f32,
+    // pub remaining_depth: f32,
     pub refraction_state: RayRefractionState,
 }
 
@@ -77,7 +76,7 @@ impl RayBounce {
         Self {
             ray,
             remaining_bounces: MAX_BOUNCES,
-            remaining_depth: MAX_DEPTH,
+            // remaining_depth: MAX_DEPTH,
             refraction_state: RayRefractionState::InsideMaterial {
                 current_outside_fresnel_coefficient: 9.9,
             },

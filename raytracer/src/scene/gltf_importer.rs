@@ -2,7 +2,7 @@ use std::{
     f32::consts::PI,
     path::{Path, PathBuf}, iter,
 };
-
+use base64::Engine;
 use gltf::{buffer, camera::Projection, image, scene::Transform, Document, Gltf};
 
 use crate::{
@@ -405,14 +405,19 @@ fn import_material(
                         buffer::Source::Bin => {
                             
                             let buffer_data = &imported.buffers[buffer.index()];
-                            Texture::new_from_raw_bytes(&buffer_data.0[view.offset()..])
+                            let offset = view.offset();
+                            let length = view.length();
+                            Texture::new_from_raw_bytes(&buffer_data.0[offset..offset+length])
                         }
                         buffer::Source::Uri(uri) => match resolve_uri(uri)? {
-                            UriResolved::Base64(base64_slice) => {
-                                if view.offset() > 0 {
-                                    todo!("offset is not supported; something went terribly wrong");
-                                }
-                                Texture::new_from_base64_str(base64_slice)
+                            UriResolved::Base64(base64_str) => {
+
+                                let bytes = base64::engine::general_purpose::STANDARD_NO_PAD
+                                    .decode(&base64_str[8..])?;
+
+                                let offset = view.offset();
+                                let length = view.length();
+                                Texture::new_from_raw_bytes(&bytes[offset..offset+length])
                             }
                             _ => {
                                 panic!("non-base64 uri not implemented")

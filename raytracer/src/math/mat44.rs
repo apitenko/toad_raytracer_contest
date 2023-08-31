@@ -71,7 +71,7 @@ impl Mat44 {
             [0.0, 0.0, 0.0, 1.0],
         ];
 
-        Self { m }.transposed()
+        Self { m }.transposed() // transpose for right-handedness
     }
 
     pub fn from_scale(scale: [f32; 3]) -> Self {
@@ -90,6 +90,7 @@ impl Mat44 {
             * Self::from_rotation_quaternion(rotation)
             * Self::from_scale(scale)
     }
+
     pub fn from_4x4(matrix: [[f32; 4]; 4]) -> Self {
         Self { m: matrix }
     }

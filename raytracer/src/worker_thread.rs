@@ -35,7 +35,7 @@ impl WorkerThreadHandle {
                             let u = (x as f32 + offset.0) / surface.width() as f32;
                             let v = (y as f32 + offset.1) / surface.height() as f32;
 
-                            // if u < 0.35 || u > 0.65 || v < 0.2 || v > 0.5 {
+                            // if u < 0.68 || u > 0.70 || v < 0.83 || v > 0.84 {
                             //     continue;
                             // }
                             // if u < 0.9 || u > 0.94 || v < 0.9 || v > 0.94 {

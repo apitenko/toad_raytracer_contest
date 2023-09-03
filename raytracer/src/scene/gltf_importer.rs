@@ -223,8 +223,31 @@ fn import_node(
                     }
                 };
 
+                let read_normal_for_triangle: Box<dyn Fn(usize, Mat44, Vec3) -> Vec3> = {
+                    let normals_reader = reader.read_normals();
+                    match normals_reader {
+                        None => {
+                            let boxed_closure = Box::new(|index: usize, inv_tr_mat: Mat44, fallback_geometry_normal: Vec3| {
+                                fallback_geometry_normal
+                            });
+                            boxed_closure
+                        },
+                        Some(fuckme) => {
+                            let data: Vec<_> = fuckme.collect();
+                            
+                            let boxed_closure = Box::new(move |index: usize, inv_tr_mat: Mat44, fallback_geometry_normal: Vec3| {
+                                let normal = Vec3::from_f32_3(data[index], 0.0);
+                                let normal = inv_tr_mat * normal;
+                                normal
+                            });
+                            boxed_closure
+                        }
+                    }
+                };
+
                 assert!(input_uv.len() == input_positions.len());
 
+                let inverse_transposed_matrix = accumulated_transform.inverse().transposed();
                 let mut final_positions = Vec::with_capacity(input_positions.len() * 2); // guesstimating the total size
 
                 for ((i0, i1, i2)) in index_iter {
@@ -235,14 +258,13 @@ fn import_node(
                         .transform_point(Vec3::from_f32_3(input_positions[i1 as usize], 1.0));
                     let p2 = accumulated_transform
                         .transform_point(Vec3::from_f32_3(input_positions[i2 as usize], 1.0));
+
                     // transform normals
-                    // TODO
-                    // let n0 = inverse_transposed_mv_matrix
-                    //     .transform_point(Vec3::from_f32_3(input_positions[i0 as usize], 0.0));
-                    // let n1 = inverse_transposed_mv_matrix
-                    //     .transform_point(Vec3::from_f32_3(input_positions[i1 as usize], 0.0));
-                    // let n2 = inverse_transposed_mv_matrix
-                    //     .transform_point(Vec3::from_f32_3(input_positions[i2 as usize], 0.0));
+                    let fallback_geometry_normal = Vec3::calculate_normal_from_points(p0, p1, p2);
+                    
+                    let n0 = read_normal_for_triangle(i0 as usize, inverse_transposed_matrix, fallback_geometry_normal);
+                    let n1 = read_normal_for_triangle(i1 as usize, inverse_transposed_matrix, fallback_geometry_normal);
+                    let n2 = read_normal_for_triangle(i2 as usize, inverse_transposed_matrix, fallback_geometry_normal);
 
                     let uv0 = input_uv[i0 as usize];
                     let uv1 = input_uv[i1 as usize];
@@ -251,7 +273,7 @@ fn import_node(
                     final_positions.push(Triangle {
                         vertices: [p0, p1, p2],
                         uv: [uv0, uv1, uv2],
-                        // normals: [n0, n1, n2]
+                        normals: [n0, n1, n2]
                     });
                 }
 
@@ -444,3 +466,4 @@ fn import_material(
     let mat_shared = app_scene.material_storage.push_material(mat);
     Ok(mat_shared)
 }
+

@@ -12,13 +12,26 @@ pub struct Triangle {
     // pub material: MaterialShared,
     pub vertices: [Vec3; 3],
     pub uv: [[f32; 2]; 3],
+    pub normals: [Vec3; 3],
 }
 
-impl Default for Triangle {
-    fn default() -> Self {
+// impl Default for Triangle {
+//     fn default() -> Self {
+//         Self {
+//             vertices: [Vec3::ZERO, Vec3::ZERO, Vec3::ZERO],
+//             uv: [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]],
+//             normals: [Vec3::ZERO, Vec3::ZERO, Vec3::ZERO]
+//         }
+//     }
+// }
+
+impl Triangle {
+    pub fn from_vertices(p0: Vec3, p1: Vec3, p2: Vec3) -> Self {
+        let normal = Vec3::calculate_normal_from_points(p0, p1, p2);
         Self {
-            vertices: [Vec3::ZERO, Vec3::ZERO, Vec3::ZERO],
+            vertices: [p0, p1, p2],
             uv: [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]],
+            normals: [normal, normal, normal],
         }
     }
 }
@@ -55,7 +68,7 @@ impl Shape for Triangle {
 
         let w = 1.0 - u - v;
 
-        let uv = interpolate_uv([u, v, w], self.uv);
+        let uv = interpolate_uv([w, u, v], self.uv);
 
         // At this stage we can compute t to find out where the intersection point is on the line.
         let t = f * Vec3::dot(edge2, q);
@@ -63,7 +76,10 @@ impl Shape for Triangle {
         if t > EPSILON
         // ray intersection
         {
-            let normal = Vec3::cross(edge1, edge2).normalized();
+            // let geometry_normal = Vec3::cross(edge1, edge2).normalized();
+            let normal = interpolate_normals([w, u, v], self.normals);
+            // let normal = geometry_normal;//* interpolated_normal;
+
             let intersection_point = ray.point_at_parameter(t);
             return Some(CastResult {
                 intersection_point,
@@ -86,6 +102,10 @@ fn interpolate_uv(uvw: [f32; 3], triangle_uv: [[f32; 2]; 3]) -> (f32, f32) {
         mul_f32(triangle_uv[1], uvw[1]),
         mul_f32(triangle_uv[2], uvw[2]),
     ])
+}
+
+fn interpolate_normals(uvw: [f32; 3], normals: [Vec3; 3]) -> Vec3 {
+    uvw[0] * normals[0] + uvw[1] * normals[1] + uvw[2] * normals[2]
 }
 
 #[inline]

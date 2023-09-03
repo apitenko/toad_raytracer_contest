@@ -47,7 +47,7 @@ impl TotallySafeSurfaceWrapper {
         for i in 0..render_scale {
             for j in 0..render_scale {
                 unsafe {
-                    let y = self.surface_size.1 - (scaled_position.1 + j);
+                    let y = self.surface_size.1 - (scaled_position.1 + j) - 1;
                     let x = (scaled_position.0 + i);
                     let index = y * self.surface_size.0 + x;
                     *(self.memory).add(index as usize) = data;

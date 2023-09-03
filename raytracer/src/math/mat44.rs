@@ -155,25 +155,31 @@ impl Mat44 {
             panic!("Not supported");
         }
     }
-    pub fn transform_point(&self, point: Vec3) -> Vec3 {
+
+    pub fn multiply_vec(&self, vector: Vec3) -> Vec3 {
+        
         #[cfg(target_feature = "sse")]
         unsafe {
-            let vec_x: __m128 = _mm_permute_ps(point.data_vectorized, 0x00);
-            let vec_y: __m128 = _mm_permute_ps(point.data_vectorized, 0x55);
-            let vec_z: __m128 = _mm_permute_ps(point.data_vectorized, 0xAA);
-            let vec_w: __m128 = _mm_permute_ps(point.data_vectorized, 0xFF);
+            let vec_x: __m128 = _mm_permute_ps(vector.data_vectorized, 0x00);
+            let vec_y: __m128 = _mm_permute_ps(vector.data_vectorized, 0x55);
+            let vec_z: __m128 = _mm_permute_ps(vector.data_vectorized, 0xAA);
+            let vec_w: __m128 = _mm_permute_ps(vector.data_vectorized, 0xFF);
 
             // assume mat4_1, mat4_2, mat4_3, mat4_4 are matrix's components (I think rows)
             let res0: __m128 = _mm_mul_ps(vec_x, self.row[0]);
             let res1: __m128 = _mm_fmadd_ps(vec_y, self.row[1], res0);
             let res2: __m128 = _mm_fmadd_ps(vec_z, self.row[2], res1);
             let res3: __m128 = _mm_fmadd_ps(vec_w, self.row[3], res2);
-            return Vec3::from_sse(res3).divided_by_w().as_point();
+            return Vec3::from_sse(res3);
         }
         #[cfg(not(target_feature = "sse"))]
         {
             panic!("Not supported");
         }
+    }
+
+    pub fn transform_point(&self, point: Vec3) -> Vec3 {
+        self.multiply_vec(point).divided_by_w().as_point()
     }
 
     // ! probably won't work for non-transform matrices
@@ -235,7 +241,7 @@ impl !std::ops::Mul<Mat44> for Vec3 {}
 impl std::ops::Mul<Vec3> for Mat44 {
     type Output = Vec3;
     fn mul(self, rhs: Vec3) -> Self::Output {
-        Self::transform_point(&self, rhs)
+        Self::multiply_vec(&self, rhs)
     }
 }
 

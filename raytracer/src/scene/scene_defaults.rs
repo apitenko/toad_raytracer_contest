@@ -15,6 +15,7 @@ use super::{
 pub fn add_scene_defaults(scene: &mut Scene) -> anyhow::Result<()> {
     // Default directional light
     if scene.lights.len() == 0 {
+        println!("No lights found, adding default Directional");
         scene.lights.push(Box::new(DirectionalLight::new(
             Vec3::new([0.5, -1.0, 0.0]),
             20000.0,
@@ -23,8 +24,8 @@ pub fn add_scene_defaults(scene: &mut Scene) -> anyhow::Result<()> {
     }
 
     // Plane
-    if true
-    {
+    if true {
+        println!("Adding default plane");
         let aabb = BoundingBox {
             min: Quad::DEFAULT_GEOMETRY[0],
             max: Quad::DEFAULT_GEOMETRY[2],
@@ -47,22 +48,16 @@ pub fn add_scene_defaults(scene: &mut Scene) -> anyhow::Result<()> {
             bounding_sphere,
             material: mat_shared,
             triangles: vec![
-                Triangle {
-                    vertices: [
-                        translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[0]),
-                        translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[1]),
-                        translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[2]),
-                    ],
-                    ..Triangle::default()
-                },
-                Triangle {
-                    vertices: [
-                        translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[0]),
-                        translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[2]),
-                        translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[3]),
-                    ],
-                    ..Triangle::default()
-                },
+                Triangle::from_vertices(
+                    translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[0]),
+                    translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[1]),
+                    translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[2]),
+                ),
+                Triangle::from_vertices(
+                    translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[0]),
+                    translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[2]),
+                    translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[3]),
+                ),
             ],
         });
     }

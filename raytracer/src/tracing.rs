@@ -13,18 +13,18 @@ use crate::{
 
 // ? づ｀･ω･)づ it's compile time o'clock
 
-generate_multisample_positions!(200);
+generate_multisample_positions!(4);
 
-pub const MULTISAMPLE_OFFSETS: [(f32, f32); 200] = generated_samples();
+pub const MULTISAMPLE_OFFSETS: [(f32, f32); 4] = generated_samples();
 pub const MULTISAMPLE_SIZE: usize = MULTISAMPLE_OFFSETS.len();
 
-pub const MAX_BOUNCES: i32 = 1;
+pub const MAX_BOUNCES: i32 = 10;
 // pub const MAX_DEPTH: f32 = 20.0;
 
 // todo: move to skybox
 pub const SKYBOX_LIGHT_INTENSITY: f32 = 0.0;
 
-pub const AMBIENT_LIGHT_INTENSITY: f32 = 1000.0;
+pub const AMBIENT_LIGHT_INTENSITY: f32 = 100.0;//1000.0;
 pub const AMBIENT_LIGHT_COLOR: Vec3 = COLOR_WHITE;
 
 // Cook-Torrance F term
@@ -353,7 +353,7 @@ fn ggx_indirect(
     let chooseDiffuse = (rng.gen::<f32>() < probDiffuse);
 
     if chooseDiffuse {
-        return Vec3::ZERO;
+        // return Vec3::ZERO;
         // Shoot a randomly selected cosine-sampled diffuse ray.
         let random_direction: Vec3 = (random_cosine_weighted_point() * N).normalized();
         let bounceColor: Vec3 = ray_cast(
@@ -375,8 +375,9 @@ fn ggx_indirect(
         // }
         return result_color;
     } else {
+        // return Vec3::ZERO;
         // Randomly sample the NDF to get a microfacet in our BRDF
-        let H: Vec3 = getGGXMicrofacet(rough, N);
+        let H: Vec3 = getGGXMicrofacet(rough, N).normalized();
 
         // Compute outgoing direction based on this (perfectly reflective) facet
         let reflected_ray = reflect(V, H);

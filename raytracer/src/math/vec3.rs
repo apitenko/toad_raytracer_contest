@@ -447,6 +447,19 @@ impl Vec3 {
     pub fn saturate(&self) -> Vec3 {
         self.clamp(f32::EPSILON, 1.0 - f32::EPSILON)
     }
+
+    #[inline]
+    pub fn calculate_normal_from_points(p0: Vec3, p1: Vec3, p2: Vec3) -> Vec3 {
+        
+        let vertex0: Vec3 = p0;
+        let vertex1: Vec3 = p1;
+        let vertex2: Vec3 = p2;
+        let edge1 = vertex1 - vertex0;
+        let edge2 = vertex2 - vertex0;
+
+        let geometry_normal = Vec3::cross(edge1, edge2).normalized();
+        geometry_normal
+    }
 }
 
 // overloaded operators

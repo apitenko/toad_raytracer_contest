@@ -12,7 +12,7 @@ pub struct Quad {
 }
 
 const UV_SCALE: f32 = 0.2;
-const PLANE_SIZE: f32 = 50.0;
+const PLANE_SIZE: f32 = 500.0;
 
 impl Quad {
     pub fn new(position: Vec3, geometry: [Vec3; 4], material: MaterialShared) -> Self {

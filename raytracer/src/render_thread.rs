@@ -1,4 +1,4 @@
-use std::{any::Any, num::NonZeroUsize, thread::JoinHandle, time::Duration};
+use std::{any::Any, num::NonZeroUsize, thread::JoinHandle, time::Duration, path::PathBuf};
 
 use crate::{
     scene::{
@@ -36,11 +36,12 @@ impl RenderThreadHandle {
     pub fn run(
         surface_wrapper: TotallySafeSurfaceWrapper,
         scene: *const Scene,
+        output_filename: PathBuf,
     ) -> anyhow::Result<Self> {
         let scene = TotallySafeSceneWrapper::new(scene);
         let (exit_handle_sender, exit_handle) = std::sync::mpsc::channel();
         let thread = std::thread::spawn(move || {
-            return Self::routine(surface_wrapper.clone(), scene, exit_handle);
+            return Self::routine(surface_wrapper.clone(), scene, exit_handle, output_filename);
         });
         let rt = Self {
             thread,
@@ -77,9 +78,10 @@ impl RenderThreadHandle {
     }
 
     pub fn routine(
-        memory: TotallySafeSurfaceWrapper,
+        surface: TotallySafeSurfaceWrapper,
         scene: TotallySafeSceneWrapper,
         exit_handle: std::sync::mpsc::Receiver<bool>,
+        output_filename: PathBuf
     ) -> anyhow::Result<Duration> {
         let start_frame_time = std::time::Instant::now();
 
@@ -90,15 +92,15 @@ impl RenderThreadHandle {
 
             let mut task_queue = Queue::new();
 
-            let total_pixels = memory.width() * memory.height();
+            let total_pixels = surface.width() * surface.height();
             let total_tasks = (available_threads.get() * 20).min(total_pixels as usize);
-            let pixels_per_task: usize = (total_pixels as f32 / total_tasks as f32).ceil() as usize;
+            let pixels_per_task: usize = (total_pixels as f32 / total_tasks as f32).floor() as usize;
 
             for index in 0..(total_tasks - 1) {
                 let workload = Workload::new(
                     (index * pixels_per_task) as u32,
                     ((index + 1) * pixels_per_task) as u32,
-                    (memory.width(), memory.height()),
+                    (surface.width(), surface.height()),
                 );
                 task_queue.get().push(workload).unwrap();
             }
@@ -107,7 +109,7 @@ impl RenderThreadHandle {
                 let workload = Workload::new(
                     (index * pixels_per_task) as u32,
                     total_pixels,
-                    (memory.width(), memory.height()),
+                    (surface.width(), surface.height()),
                 );
                 task_queue.get().push(workload).unwrap();
             }
@@ -116,7 +118,7 @@ impl RenderThreadHandle {
 
             for _ in 0..available_threads.get() {
                 worker_thread_handles.push(WorkerThreadHandle::run(
-                    memory.clone(),
+                    surface.clone(),
                     task_queue.clone(),
                     scene.clone(),
                 ));
@@ -148,6 +150,18 @@ impl RenderThreadHandle {
 
         let end_frame_time = std::time::Instant::now();
         let frame_time_diff = end_frame_time - start_frame_time;
+
+        let memory = unsafe { std::slice::from_raw_parts(surface.get() as *mut u8, surface.size_pixels() * 4) };
+
+        println!("Saving to {}", output_filename.display());
+        image::save_buffer(
+            output_filename,
+            memory,
+            surface.width() * surface.scale(),
+            surface.height() * surface.scale(),
+            image::ColorType::Rgba8,
+        )?;
+
         return Ok(frame_time_diff);
     }
 }

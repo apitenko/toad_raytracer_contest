@@ -1,3 +1,5 @@
+use std::mem::size_of;
+
 use crate::math::Vec3;
 use palette::*;
 
@@ -26,12 +28,14 @@ impl TotallySafeSurfaceWrapper {
         // Convert sRGB -> Linear
         let pixel_color = LinSrgb::new(pixel_color.x(), pixel_color.y(), pixel_color.z());
         let pixel_color: Srgb<f32> = Srgb::from_linear(pixel_color);
+        // let pixel_color = GammaSrgb::from_linear(pixel_color);
+
 
         let red: u32 = (255.99 * pixel_color.red) as u32;
         let green: u32 = (255.99 * pixel_color.green) as u32;
         let blue: u32 = (255.99 * pixel_color.blue) as u32;
 
-        let data = blue | (green << 8) | (red << 16);
+        let data = red | (green << 8) | (blue << 16) | (0xFF << 24);
 
         let render_scale = self.render_scale;
 
@@ -43,7 +47,7 @@ impl TotallySafeSurfaceWrapper {
         for i in 0..render_scale {
             for j in 0..render_scale {
                 unsafe {
-                    let y = self.surface_size.1 - (scaled_position.1 + j) - 1;
+                    let y = self.surface_size.1 - (scaled_position.1 + j);
                     let x = (scaled_position.0 + i);
                     let index = y * self.surface_size.0 + x;
                     *(self.memory).add(index as usize) = data;
@@ -57,5 +61,19 @@ impl TotallySafeSurfaceWrapper {
     }
     pub fn height(&self) -> u32 {
         self.render_size.1
+    }
+
+    pub fn scale(&self) -> u32 {
+        self.render_scale
+    }
+    pub fn get(&self) -> *mut u32 {
+        self.memory
+    }
+
+    pub fn size_pixels(&self) -> usize {
+        self.render_size.0 as usize
+            * self.render_size.1 as usize
+            * self.render_scale as usize
+            * self.render_scale as usize
     }
 }

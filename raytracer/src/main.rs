@@ -28,6 +28,7 @@ use winit::{
 };
 
 pub mod async_util;
+pub mod cli_api;
 pub mod constants;
 pub mod fps_counter;
 pub mod math;
@@ -38,7 +39,6 @@ pub mod surface;
 pub mod tracing;
 pub mod util;
 pub mod worker_thread;
-pub mod cli_api;
 
 use constants::*;
 use render_thread::*;
@@ -51,7 +51,7 @@ use crate::primitives::sphere::Sphere;
 use crate::primitives::triangle::Triangle;
 use crate::scene::gltf_importer::read_into_scene;
 use crate::scene::lights::directional::DirectionalLight;
-use crate::scene::lights::point::{PointLightRadius, PointLight};
+use crate::scene::lights::point::{PointLight, PointLightRadius};
 use crate::scene::material::{Material, MaterialShared};
 use crate::scene::scene::Scene;
 use crate::scene::scene_defaults::add_scene_defaults;
@@ -61,12 +61,14 @@ use crate::util::fill_gradient::fill_gradient_black_to_white;
 use crate::util::fresnel_constants::FresnelConstants;
 
 fn main() -> anyhow::Result<()> {
-    
     // CLI
     let cli = cli_api::cli_parse();
-    
+
     let height = cli.height.parse::<u32>().unwrap_or_else(|e| {
-        println!("Can't parse height, using default height of {}. Encountered error: {}", DEFAULT_HEIGHT, e);
+        println!(
+            "Can't parse height, using default height of {}. Encountered error: {}",
+            DEFAULT_HEIGHT, e
+        );
         DEFAULT_HEIGHT
     });
     let input = cli.input.to_str().unwrap();
@@ -254,7 +256,6 @@ fn main() -> anyhow::Result<()> {
     //     floor_checkerboard.clone(),
     // )));
 
-
     // for shape in &shapes_list {
     //     scene.push_shape(shape.as_ref() as *const dyn Shape);
     // }
@@ -288,7 +289,7 @@ fn main() -> anyhow::Result<()> {
 
     #[allow(unused_mut)]
     let mut render_thread: Cell<Option<RenderThreadHandle>> = Cell::new(Some(
-        RenderThreadHandle::run(surface_wrapper.clone(), unsafe_scene_ptr)
+        RenderThreadHandle::run(surface_wrapper.clone(), unsafe_scene_ptr, output)
             .expect("RenderThreadHandle cannot start"),
     ));
     let mut fps_counter = FpsCounter::new();
@@ -326,9 +327,15 @@ fn main() -> anyhow::Result<()> {
                             }
                             IsFinished::Finished(data) => {
                                 let duration = match data {
-                                    Err(e) => return (),
+                                    Err(e) => {
+                                        println!("{:?}", e);
+                                        return;
+                                    }
                                     Ok(r) => match r {
-                                        Err(e) => return (),
+                                        Err(e) => {
+                                            println!("{}", e);
+                                            return;
+                                        }
                                         Ok(duration) => duration,
                                     },
                                 };

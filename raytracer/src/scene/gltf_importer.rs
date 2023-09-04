@@ -7,7 +7,7 @@ use gltf::{buffer, camera::Projection, image, scene::Transform, Document, Gltf};
 
 use crate::{
     math::{Mat44, Vec3},
-    primitives::{self, mesh::Mesh, sphere::Sphere, triangle::Triangle},
+    primitives::{self, mesh::Mesh, sphere::Sphere, triangle::Triangle, bounding_box::BoundingBox},
 };
 use itertools::Itertools;
 
@@ -155,6 +155,8 @@ fn import_node(
     match node.mesh() {
         Some(mesh) => {
             for primitive in mesh.primitives() {
+                let material = import_material(app_scene, imported, primitive.material())?;
+
                 let bbox = primitive.bounding_box();
                 let positions = primitive
                     .get(&gltf::Semantic::Positions)
@@ -273,13 +275,13 @@ fn import_node(
                     final_positions.push(Triangle {
                         vertices: [p0, p1, p2],
                         uv: [uv0, uv1, uv2],
-                        normals: [n0, n1, n2]
+                        normals: [n0, n1, n2],
+                        material: material.clone()
                     });
                 }
 
-                let aabb = primitives::mesh::BoundingBox::from_gltf(primitive.bounding_box());
+                let aabb = BoundingBox::from_gltf(primitive.bounding_box());
                 let bounding_sphere = aabb.bounding_sphere();
-                let material = import_material(app_scene, imported, primitive.material())?;
 
                 app_scene.add_mesh(Mesh {
                     triangles: final_positions,
@@ -398,6 +400,7 @@ fn import_material(
 ) -> anyhow::Result<MaterialShared> {
     let pbr_info = material.pbr_metallic_roughness();
     let color_factor = pbr_info.base_color_factor();
+    let metallic_factor = pbr_info.metallic_factor();
     let color_texture = match pbr_info.base_color_texture() {
         None => Texture::make_default_texture()?,
         Some(t) => {
@@ -460,6 +463,7 @@ fn import_material(
     let mat = Material {
         color_factor: Vec3::from_f32(color_factor),
         color_albedo: color_texture,
+        // metallic_factor,
         ..Default::default()
     };
 

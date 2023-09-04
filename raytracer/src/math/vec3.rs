@@ -2,19 +2,6 @@ use std::{arch::x86_64::*, fmt::Debug, mem::MaybeUninit};
 
 use super::Mat44;
 
-const unsafe fn make_m128(x: f32, y: f32, z: f32, w: f32) -> __m128 {
-    unsafe {
-        let x: u128 = std::mem::transmute::<f32, u32>(x) as u128;
-        let y: u128 = std::mem::transmute::<f32, u32>(y) as u128;
-        let z: u128 = std::mem::transmute::<f32, u32>(z) as u128;
-        let w: u128 = std::mem::transmute::<f32, u32>(w) as u128;
-
-        let output: u128 = x << 0 | y << 32 | z << 64 | w << 96;
-        let output: __m128 = std::mem::transmute(output);
-        return output;
-    }
-}
-
 #[derive(Clone, Copy)]
 pub union Vec3 {
     pub(super) data: [f32; 4],
@@ -44,30 +31,14 @@ impl Vec3 {
     #[inline]
     #[must_use]
     pub const fn from_f32(data: [f32; 4]) -> Self {
-        #[cfg(target_feature = "sse")]
-        unsafe {
-            // let data_vectorized: __m128 = make_m128(data[0], data[1], data[2], data[3]);
-
-            Self { data }
-        }
-        #[cfg(not(target_feature = "sse"))]
-        {
-            Self { data }
-        }
+        Self { data }
     }
 
     #[inline]
     #[must_use]
     pub const fn from_f32_3(data: [f32; 3], data3: f32) -> Self {
-        #[cfg(target_feature = "sse")]
-        unsafe {
-            let data_vectorized: __m128 = make_m128(data[0], data[1], data[2], data3);
-
-            Self { data_vectorized }
-        }
-        #[cfg(not(target_feature = "sse"))]
-        {
-            Self { data }
+        Self {
+            data: [data[0], data[1], data[2], data3]
         }
     }
 
@@ -100,14 +71,7 @@ impl Vec3 {
     }
 
     pub fn extract(&self) -> [f32; 4] {
-        unsafe {
-            [
-                f32::from_bits(_mm_extract_ps::<0>(self.data_vectorized) as u32),
-                f32::from_bits(_mm_extract_ps::<1>(self.data_vectorized) as u32),
-                f32::from_bits(_mm_extract_ps::<2>(self.data_vectorized) as u32),
-                f32::from_bits(_mm_extract_ps::<3>(self.data_vectorized) as u32),
-            ]
-        }
+        unsafe { self.data }
     }
 
     #[inline]

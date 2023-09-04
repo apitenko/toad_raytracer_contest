@@ -4,7 +4,7 @@ use rand::Rng;
 use raytracer_lib::generate_multisample_positions;
 
 use crate::{
-    constants::{MISS_COLOR_VEC3, COLOR_RED, COLOR_WHITE},
+    constants::{MISS_COLOR_VEC3, COLOR_RED, COLOR_WHITE, COLOR_SKY_BLUE},
     math::{Saturatable, Vec3, ray::{RayRefractionState, reflect}, RayBounce, Ray},
     primitives::cast_result::CastResult,
     scene::{lights::light::Light, material::Material, scene::Scene},
@@ -13,16 +13,17 @@ use crate::{
 
 // ? づ｀･ω･)づ it's compile time o'clock
 
-generate_multisample_positions!(4);
+generate_multisample_positions!(1);
 
-pub const MULTISAMPLE_OFFSETS: [(f32, f32); 4] = generated_samples();
+pub const MULTISAMPLE_OFFSETS: [(f32, f32); 1] = generated_samples();
 pub const MULTISAMPLE_SIZE: usize = MULTISAMPLE_OFFSETS.len();
 
-pub const MAX_BOUNCES: i32 = 10;
+pub const MAX_BOUNCES: i32 = 1;
 // pub const MAX_DEPTH: f32 = 20.0;
 
 // todo: move to skybox
-pub const SKYBOX_LIGHT_INTENSITY: f32 = 0.0;
+pub const SKYBOX_LIGHT_INTENSITY: f32 = 100.0;
+pub const SKYBOX_COLOR: Vec3 = COLOR_SKY_BLUE;
 
 pub const AMBIENT_LIGHT_INTENSITY: f32 = 100.0;//1000.0;
 pub const AMBIENT_LIGHT_COLOR: Vec3 = COLOR_WHITE;
@@ -63,8 +64,6 @@ fn fresnel_reflect_amount(n1: f32, n2: f32, normal: Vec3, incident: Vec3) -> f32
 //     return F0 + (1.0 - F0) * pow(1.0 - saturate(cosTheta), 5.0);
 // }
 
-// regular cast
-// RETURNS indirect_lighting
 pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
     if current_bounce.remaining_bounces < 0 {
         // stop recursion by limit
@@ -78,9 +77,10 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
         current_bounce.ray,
         current_bounce.refraction_state == RayRefractionState::TraversingAir,
     );
-    if cast_result.is_missed() {
+    if cast_result.has_missed() {
         // every miss is a skybox hit
-        return MISS_COLOR_VEC3 * SKYBOX_LIGHT_INTENSITY;
+        // miss after bounce
+        return SKYBOX_COLOR * SKYBOX_LIGHT_INTENSITY;
         // let unit_direction = current_bounce.ray.direction().normalized();
         // let skybox_color = scene.skybox.sample_from_direction(unit_direction);
         // return skybox_color * current_bounce.multiplier;
@@ -326,7 +326,7 @@ fn shadow_ray_visibility(
         false,
     );
 
-    if !light_cast_result.is_missed() {
+    if !light_cast_result.has_missed() {
         return Vec3::ZERO;
     } else {
         return Vec3::ONE;

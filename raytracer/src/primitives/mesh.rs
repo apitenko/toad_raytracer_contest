@@ -1,27 +1,9 @@
 use crate::{math::Vec3, scene::material::MaterialShared};
 
-use super::{cast_result::CastResult, shape::Shape, sphere::Sphere, triangle::Triangle};
-
-pub struct BoundingBox {
-    pub min: Vec3,
-    pub max: Vec3,
-}
-
-impl BoundingBox {
-    pub fn from_gltf(aabb: gltf::mesh::BoundingBox) -> Self {
-        Self {
-            min: Vec3::new(aabb.min),
-            max: Vec3::new(aabb.max),
-        }
-    }
-    pub fn bounding_sphere(&self) -> Sphere {
-        let min = self.min;
-        let max = self.max;
-        let position = min + (max - min) / 2.0;
-        let radius = (max - position).length();
-        Sphere { position, radius, material: MaterialShared::null() }
-    }
-}
+use super::{
+    bounding_box::BoundingBox, cast_result::CastResult, shape::Shape, sphere::Sphere,
+    triangle::Triangle,
+};
 
 pub struct Mesh {
     pub material: MaterialShared,
@@ -62,7 +44,7 @@ impl Shape for Mesh {
                 }
             });
 
-        if cast_result.is_missed() {
+        if cast_result.has_missed() {
             return None;
         } else {
             return Some(CastResult {

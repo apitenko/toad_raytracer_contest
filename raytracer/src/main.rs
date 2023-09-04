@@ -43,24 +43,14 @@ pub mod worker_thread;
 use constants::*;
 use render_thread::*;
 
-use crate::math::{Mat44, Vec3};
-use crate::primitives::mesh::{BoundingBox, Mesh};
-use crate::primitives::quad::Quad;
-use crate::primitives::shape::Shape;
-use crate::primitives::sphere::Sphere;
-use crate::primitives::triangle::Triangle;
 use crate::scene::gltf_importer::read_into_scene;
-use crate::scene::lights::directional::DirectionalLight;
-use crate::scene::lights::point::{PointLight, PointLightRadius};
-use crate::scene::material::{Material, MaterialShared};
 use crate::scene::scene::Scene;
 use crate::scene::scene_defaults::add_scene_defaults;
-use crate::scene::texture::{Texture, TextureShared};
 use crate::surface::TotallySafeSurfaceWrapper;
 use crate::util::fill_gradient::fill_gradient_black_to_white;
-use crate::util::fresnel_constants::FresnelConstants;
 
 fn main() -> anyhow::Result<()> {
+    println!("Raytracer init...");
     // CLI
     let cli = cli_api::cli_parse();
 
@@ -73,6 +63,7 @@ fn main() -> anyhow::Result<()> {
     });
     let input = cli.input.to_str().unwrap();
     let output = cli.output;
+    let stay_after_complete = cli.stay_after_complete;
 
     // Scene
     let mut scene = Box::new(Scene::new()?);
@@ -89,7 +80,8 @@ fn main() -> anyhow::Result<()> {
 
     let mut event_loop = EventLoop::new();
     let window = WindowBuilder::new()
-        .with_inner_size(winit::dpi::PhysicalSize::new(window_size.0, window_size.1))
+        .with_title("A duck is fine too")
+        .with_inner_size(winit::dpi::PhysicalSize::new(window_size.0, window_size.1))        
         .build(&event_loop)
         .unwrap();
 
@@ -341,6 +333,9 @@ fn main() -> anyhow::Result<()> {
                                 };
 
                                 println!("Frame rendered in {:?}", duration);
+                                if !stay_after_complete {
+                                    std::process::exit(0);
+                                }
                             }
                         }
                     }

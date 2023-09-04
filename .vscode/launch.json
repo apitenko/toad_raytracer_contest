@@ -54,9 +54,10 @@
                 "./res/toad/Duck.glb",
                 // "./res/duck_embedded.gltf",
                 "--height",
-                "100",
-                "--out",
-                "duck.png"
+                "250",
+                // "--out",
+                // "duck.png"
+                "--stay-after-complete",
             ],
             // cargo run --release -- --in "./res/toad/Duck.glb" --height 400
             "cwd": "${workspaceFolder}"

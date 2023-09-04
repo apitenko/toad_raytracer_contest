@@ -7,7 +7,7 @@ use crate::{
         workload::Workload,
     },
     surface::TotallySafeSurfaceWrapper,
-    tracing::{ray_cast, MAX_BOUNCES, MULTISAMPLE_OFFSETS, MULTISAMPLE_SIZE},
+    tracing::{ray_cast, MAX_BOUNCES, MULTISAMPLE_OFFSETS, MULTISAMPLE_SIZE, SKYBOX_COLOR, SKYBOX_LIGHT_INTENSITY},
     util::queue::Queue,
 };
 
@@ -43,13 +43,15 @@ impl WorkerThreadHandle {
                             // }
                             let starting_ray = scene.camera.ray(u, v);
 
+                            // TODO: skybox
                             // Hit skybox (so it doesn't affect the lighting)
-                            if scene.geometry.single_cast(starting_ray, true).is_missed() {
+                            if scene.geometry.single_cast(starting_ray, true).has_missed() {
                                 // first ray missed, get skybox color
                                 // let unit_direction = starting_ray.direction().normalized();
                                 // let skybox_color = scene.skybox.sample_from_direction(unit_direction);
                                 // pixel_color += skybox_color;
                                 // ray_color = MISS_COLOR_VEC3;
+                                // pixel_color += SKYBOX_COLOR * 10000.0;
                                 continue;
                             }
 

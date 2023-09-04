@@ -28,8 +28,6 @@ impl TotallySafeSurfaceWrapper {
         // Convert sRGB -> Linear
         let pixel_color = LinSrgb::new(pixel_color.x(), pixel_color.y(), pixel_color.z());
         let pixel_color: Srgb<f32> = Srgb::from_linear(pixel_color);
-        // let pixel_color = GammaSrgb::from_linear(pixel_color);
-
 
         let red: u32 = (255.99 * pixel_color.red) as u32;
         let green: u32 = (255.99 * pixel_color.green) as u32;

@@ -16,6 +16,10 @@ pub(crate) struct Cli {
     /// Rendered image height
     #[arg(long = "height", default_value = DEFAULT_HEIGHT_STRING)]
     pub(crate) height: String,
+
+    /// Rendered image height
+    #[arg(long)]
+    pub(crate) stay_after_complete: bool,
 }
 
 pub(crate) fn cli_parse() -> Cli {

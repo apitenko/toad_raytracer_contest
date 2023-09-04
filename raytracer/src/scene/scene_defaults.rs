@@ -1,11 +1,7 @@
 use crate::{
     constants::COLOR_SKY_BLUE,
     math::{Mat44, Vec3},
-    primitives::{
-        mesh::{BoundingBox, Mesh},
-        quad::Quad,
-        triangle::Triangle,
-    },
+    primitives::{mesh::Mesh, quad::Quad, triangle::Triangle, bounding_box::BoundingBox},
 };
 
 use super::{
@@ -24,7 +20,7 @@ pub fn add_scene_defaults(scene: &mut Scene) -> anyhow::Result<()> {
     }
 
     // Plane
-    if true {
+    if false {
         println!("Adding default plane");
         let aabb = BoundingBox {
             min: Quad::DEFAULT_GEOMETRY[0],

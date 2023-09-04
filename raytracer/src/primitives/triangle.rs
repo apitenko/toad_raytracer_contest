@@ -2,14 +2,13 @@ use std::f32::consts::{PI, TAU};
 
 use crate::{
     math::{Ray, RayBounce, Vec3},
-    scene::material::MaterialShared,
+    scene::material::{MaterialShared, MATERIAL_DEFAULT},
 };
 
 use super::{cast_result::CastResult, shape::Shape};
 
 pub struct Triangle {
-    // pub position: Vec3,
-    // pub material: MaterialShared,
+    pub material: MaterialShared,
     pub vertices: [Vec3; 3],
     pub uv: [[f32; 2]; 3],
     pub normals: [Vec3; 3],
@@ -32,6 +31,7 @@ impl Triangle {
             vertices: [p0, p1, p2],
             uv: [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]],
             normals: [normal, normal, normal],
+            material: MATERIAL_DEFAULT.clone()
         }
     }
 }

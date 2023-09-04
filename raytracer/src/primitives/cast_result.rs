@@ -19,7 +19,7 @@ impl CastResult {
     };
 
     #[inline]
-    pub fn is_missed(&self) -> bool {
+    pub fn has_missed(&self) -> bool {
         return self.distance_traversed == f32::INFINITY;
     }
 }

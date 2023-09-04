@@ -5,7 +5,7 @@ use rand::Rng;
 use crate::{
     math::{random::random_in_unit_sphere, Ray, Vec3},
     primitives::{
-        cast_result::CastResult, mesh::Mesh, shape::Shape, sphere::Sphere, triangle::Triangle,
+        cast_result::CastResult, mesh::Mesh, shape::Shape, sphere::Sphere, triangle::Triangle, bounding_box::BoundingBox,
     },
     util::unresizable_array::UnresizableArray,
 };
@@ -32,6 +32,9 @@ impl SVORoot {
     const MESHES_MAX: usize = 2000;
     const NODES_MAX: usize = 2000;
 
+    const ROOT_RESOLUTION: f32 = 4096.0;
+    const MAX_DEPTH: usize = 16;
+
     pub fn empty() -> Self {
         Self {
             memory: UnresizableArray::<SVONode, { Self::NODES_MAX }>::with_capacity(),
@@ -47,9 +50,20 @@ impl SVORoot {
     }
 
     // pub fn push_triangle(&mut self, triangle: Triangle) {
-    //     self.root.shapes.push(triangle);
+    //     let aabb = BoundingBox::from_triangle(&triangle);
+    //     let ceiled_size = {
+    //         let delta = aabb.max - aabb.min;
+    //         let max_size = f32::max(f32::max(delta.x(), delta.y()), delta.z());
+    //         let level = f32::log2(max_size).ceil();
+    //         let 
+            
+    //     }
+    //     let index_min = aabb.min
     // }
 
+    // fn insert_if_able() -> Option<()> {
+
+    // }
     // pub fn traverse(&self, ray: Ray) -> SVOIterator {
     //     return SVOIterator {
     //         current_ray: ray,

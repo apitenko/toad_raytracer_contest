@@ -15,7 +15,8 @@ pub struct Material {
     pub emission_color: Vec3, // TODO: texture?
     pub emission_power: f32,
     // pub subsurface: f32,
-    // pub metallic: f32,
+    // pub metallic_factor: f32, // TODO: Metallic/Roughness workflow; unused at the moment
+    // pub metallic: TextureShared,
     pub specular: Vec3, // TODO: texture
     // pub specular_tint: f32,
     pub roughness: f32, // TODO: texture
@@ -36,6 +37,14 @@ lazy_static::lazy_static! {
     };
     static ref TEXTURE_DEFAULT: TextureShared = {
         TextureShared::new(TEXTURE_DATA_DEFAULT.as_ref() as *const Texture)
+    };
+    static ref MATERIAL_DATA_DEFAULT: Box<Material> = {
+        Box::new(Material {
+            ..Default::default()
+        })
+    };
+    pub static ref MATERIAL_DEFAULT: MaterialShared = {
+        MaterialShared::new(MATERIAL_DATA_DEFAULT.as_ref() as *const Material)
     };
 }
 

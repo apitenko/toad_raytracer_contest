@@ -51,6 +51,7 @@ use crate::util::fill_gradient::fill_gradient_black_to_white;
 
 fn main() -> anyhow::Result<()> {
     println!("Raytracer init...");
+    println!("Parsing CLI...");
     // CLI
     let cli = cli_api::cli_parse();
 
@@ -65,10 +66,12 @@ fn main() -> anyhow::Result<()> {
     let output = cli.output;
     let stay_after_complete = cli.stay_after_complete;
 
+    println!("Parsing scene from {input}...");
     // Scene
     let mut scene = Box::new(Scene::new()?);
     read_into_scene(scene.as_mut(), input)?;
     add_scene_defaults(scene.as_mut())?;
+    println!("Scene read! Creating window...");
 
     // Render target setup
     let aspect_ratio = scene.aspect_ratio();
@@ -85,6 +88,7 @@ fn main() -> anyhow::Result<()> {
         .build(&event_loop)
         .unwrap();
 
+    println!("Creating window surface...");
     let context = unsafe { softbuffer::Context::new(&window) }.unwrap();
     let mut surface = unsafe { softbuffer::Surface::new(&context, &window) }.unwrap();
 
@@ -102,6 +106,7 @@ fn main() -> anyhow::Result<()> {
     let surface_wrapper =
         TotallySafeSurfaceWrapper::new(unsafe_buffer_ptr, render_size, render_scale);
 
+    println!("Filling surface with pain and sadness...");
     fill_gradient_black_to_white(surface_wrapper.clone());
 
     // ! TEXTURES //////////////////////////////////////////
@@ -279,6 +284,7 @@ fn main() -> anyhow::Result<()> {
     // notice the intentional lack of thread synchronization. for the moment.
     let unsafe_scene_ptr: *const Scene = scene.as_ref();
 
+    println!("Starting render threads...");
     #[allow(unused_mut)]
     let mut render_thread: Cell<Option<RenderThreadHandle>> = Cell::new(Some(
         RenderThreadHandle::run(surface_wrapper.clone(), unsafe_scene_ptr, output)
@@ -288,6 +294,7 @@ fn main() -> anyhow::Result<()> {
     const TRY_INTERVAL_MAX: f32 = 1.0;
     let mut try_interval: f32 = 0.0;
 
+    println!("Event loop reached...");
     event_loop.run_return(move |event, _, control_flow| {
         control_flow.set_poll();
 

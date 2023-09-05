@@ -17,7 +17,7 @@ pub struct Scene {
     pub camera: Camera,
     pub geometry: SVORoot,
     pub lights: Vec<Box<dyn Light>>,
-    pub skybox: Skybox,
+    // pub skybox: Skybox,
     pub material_storage: MaterialStorage,
     pub aspect_ratio: f32,
 }
@@ -25,13 +25,13 @@ pub struct Scene {
 impl Scene {
     pub fn new() -> anyhow::Result<Self> {
         let mut material_storage = MaterialStorage::new();
-        let skybox_texture =  material_storage.push_texture(Texture::new_from_file(&Path::new("./res/skybox.png"))?);
+        // let skybox_texture =  material_storage.push_texture(Texture::new_from_file(&Path::new("./res/skybox.png"))?);
 
         Ok(Self {
             camera: Camera::new(),
             geometry: SVORoot::empty(),
             lights: Vec::new(),
-            skybox: Skybox::new(skybox_texture),
+            // skybox: Skybox::new(skybox_texture),
             material_storage,
             aspect_ratio: DEFAULT_ASPECT_RATIO
         })

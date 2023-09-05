@@ -41,7 +41,9 @@ impl From<GltfImport> for ImportedGltfScene {
 }
 
 pub fn read_into_scene(app_scene: &mut Scene, path: &str) -> anyhow::Result<()> {
+    println!("gltf::import start");
     let imported: ImportedGltfScene = gltf::import(path)?.into();
+    println!("gltf::import successful");
     // let gltf = Gltf::open("./res/sponza/sponza_json_all.gltf")?;
     // 1. Find gltf camera
 

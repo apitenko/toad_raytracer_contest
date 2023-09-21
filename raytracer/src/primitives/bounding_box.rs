@@ -63,4 +63,94 @@ impl BoundingBox {
 
         Self { min, max }
     }
+
+    #[must_use]
+    pub fn intersects(a: &Self, b: &Self) -> bool {
+        (a.min.x() < b.max.x() && a.max.x() > b.min.x()) && // .
+        (a.min.y() < b.max.y() && a.max.y() > b.min.y()) && // .
+        (a.min.z() < b.max.z() && a.max.z() > b.min.z())    // .
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{math::Vec3, primitives::bounding_box::BoundingBox};
+
+    #[test]
+    fn bbox_intersect() {
+        assert_eq!(
+            {
+                let a = BoundingBox {
+                    min: Vec3::new([0.0, 0.0, 0.0]),
+                    max: Vec3::new([1.0, 1.0, 1.0]),
+                };
+                let b = BoundingBox {
+                    min: Vec3::new([0.0, 0.0, 0.0]),
+                    max: Vec3::new([2.0, 2.0, 2.0]),
+                };
+                BoundingBox::intersects(&a, &b)
+            },
+            true
+        );
+
+        assert_eq!(
+            {
+                let a = BoundingBox {
+                    min: Vec3::new([-1.0, -1.0, -1.0]),
+                    max: Vec3::new([6.0, 6.0, 6.0]),
+                };
+                let b = BoundingBox {
+                    min: Vec3::new([0.0, 0.0, 0.0]),
+                    max: Vec3::new([2.0, 2.0, 2.0]),
+                };
+                BoundingBox::intersects(&a, &b)
+            },
+            true
+        );
+
+        assert_eq!(
+            {
+                let a = BoundingBox {
+                    min: Vec3::new([0.0, 0.0, 0.0]),
+                    max: Vec3::new([1.0, 1.0, 1.0]),
+                };
+                let b = BoundingBox {
+                    min: Vec3::new([0.4, 0.4, 0.4]),
+                    max: Vec3::new([0.6, 0.6, 0.6]),
+                };
+                BoundingBox::intersects(&a, &b)
+            },
+            true
+        );
+
+        assert_eq!(
+            {
+                let a = BoundingBox {
+                    min: Vec3::new([0.0, 0.0, 0.0]),
+                    max: Vec3::new([1.0, 1.0, 1.0]),
+                };
+                let b = BoundingBox {
+                    min: Vec3::new([1.4, 1.4, 1.4]),
+                    max: Vec3::new([1.6, 1.6, 1.6]),
+                };
+                BoundingBox::intersects(&a, &b)
+            },
+            false
+        );
+        
+        assert_eq!(
+            {
+                let a = BoundingBox {
+                    min: Vec3::new([0.0, 0.0, 0.0]),
+                    max: Vec3::new([1.0, 1.0, 1.0]),
+                };
+                let b = BoundingBox {
+                    min: Vec3::new([-1.4, -1.4, 1.4]),
+                    max: Vec3::new([-1.6, -1.6, 1.6]),
+                };
+                BoundingBox::intersects(&a, &b)
+            },
+            false
+        );
+    }
 }

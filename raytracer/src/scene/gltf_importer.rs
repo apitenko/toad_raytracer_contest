@@ -252,7 +252,7 @@ fn import_node(
                 assert!(input_uv.len() == input_positions.len());
 
                 let inverse_transposed_matrix = accumulated_transform.inverse().transposed();
-                let mut final_positions = Vec::with_capacity(input_positions.len() * 2); // guesstimating the total size
+                // let mut final_positions = Vec::with_capacity(input_positions.len() * 2); // guesstimating the total size
 
                 for ((i0, i1, i2)) in index_iter {
                     // transform position
@@ -274,7 +274,7 @@ fn import_node(
                     let uv1 = input_uv[i1 as usize];
                     let uv2 = input_uv[i2 as usize];
 
-                    final_positions.push(Triangle {
+                    app_scene.push_triangle(Triangle {
                         vertices: [p0, p1, p2],
                         uv: [uv0, uv1, uv2],
                         normals: [n0, n1, n2],
@@ -282,15 +282,15 @@ fn import_node(
                     });
                 }
 
-                let aabb = BoundingBox::from_gltf(primitive.bounding_box());
-                let bounding_sphere = aabb.bounding_sphere();
+                // let aabb = BoundingBox::from_gltf(primitive.bounding_box());
+                // let bounding_sphere = aabb.bounding_sphere();
 
-                app_scene.add_mesh(Mesh {
-                    triangles: final_positions,
-                    aabb,
-                    bounding_sphere,
-                    material,
-                })
+                // app_scene.add_mesh(Mesh {
+                //     triangles: final_positions,
+                //     aabb,
+                //     bounding_sphere,
+                //     material,
+                // })
             }
         }
         None => (),

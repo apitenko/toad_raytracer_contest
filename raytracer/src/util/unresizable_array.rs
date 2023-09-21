@@ -24,7 +24,7 @@ where
         }
     }
 
-    pub fn push(&mut self, mut item: T) -> *const T {
+    pub fn push(&mut self, mut item: T) -> *mut T {
         if self.current_index >= Self::MAX_SIZE {
             panic!("UnresizableArray is out of memory");
         }
@@ -32,7 +32,7 @@ where
         std::mem::swap(&mut self.data[self.current_index], &mut item);
         std::mem::forget(item);
 
-        let ptr = &self.data[self.current_index] as *const T;
+        let ptr = &mut self.data[self.current_index] as *mut T;
         self.current_index += 1;
         return ptr;
     }

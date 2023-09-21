@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::{
     math::Vec3,
-    primitives::{mesh::Mesh, shape::Shape, skybox::Skybox, sphere::Sphere}, constants::DEFAULT_ASPECT_RATIO,
+    primitives::{mesh::Mesh, shape::Shape, skybox::Skybox, sphere::Sphere, triangle::Triangle}, constants::DEFAULT_ASPECT_RATIO,
 };
 
 use super::{
@@ -49,8 +49,8 @@ impl Scene {
         self.aspect_ratio
     }
 
-    pub fn add_mesh(&mut self, mesh: Mesh) {
-        self.geometry.add_mesh(mesh);
+    pub fn push_triangle(&mut self, tri: Triangle) {
+        self.geometry.push_triangle(tri);
     }
 }
 

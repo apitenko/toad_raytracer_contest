@@ -7,3 +7,4 @@ pub mod triangle;
 pub mod mesh;
 pub mod bounding_sphere;
 pub mod bounding_box;
+pub mod plane;

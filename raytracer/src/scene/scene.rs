@@ -6,7 +6,7 @@ use crate::{
 };
 
 use super::{
-    acceleration_structure::SVORoot,
+    acceleration_structure::OctreeRoot,
     camera::Camera,
     lights::light::Light,
     material::MaterialStorage,
@@ -15,7 +15,7 @@ use super::{
 
 pub struct Scene {
     pub camera: Camera,
-    pub geometry: SVORoot,
+    pub geometry: OctreeRoot,
     pub lights: Vec<Box<dyn Light>>,
     // pub skybox: Skybox,
     pub material_storage: MaterialStorage,
@@ -29,7 +29,7 @@ impl Scene {
 
         Ok(Self {
             camera: Camera::new(),
-            geometry: SVORoot::empty(),
+            geometry: OctreeRoot::empty(),
             lights: Vec::new(),
             // skybox: Skybox::new(skybox_texture),
             material_storage,

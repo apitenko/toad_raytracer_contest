@@ -22,11 +22,11 @@ pub fn add_scene_defaults(scene: &mut Scene) -> anyhow::Result<()> {
     // Plane
     if false {
         println!("Adding default plane");
-        let aabb = BoundingBox {
-            min: Quad::DEFAULT_GEOMETRY[0],
-            max: Quad::DEFAULT_GEOMETRY[2],
-        };
-        let bounding_sphere = aabb.bounding_sphere();
+        // let aabb = BoundingBox::new(
+        //     Quad::DEFAULT_GEOMETRY[0],
+        //     Quad::DEFAULT_GEOMETRY[2],
+        // );
+        // let bounding_sphere = aabb.bounding_sphere();
 
         let color_texture = Texture::make_default_texture()?;
         let color_albedo = scene.material_storage.push_texture(color_texture);
@@ -39,23 +39,18 @@ pub fn add_scene_defaults(scene: &mut Scene) -> anyhow::Result<()> {
         let mat_shared = scene.material_storage.push_material(mat);
         let translation_matrix = Mat44::from_translation([0.0, -0.2, 0.0]);
 
-        scene.add_mesh(Mesh {
-            aabb,
-            bounding_sphere,
-            material: mat_shared,
-            triangles: vec![
-                Triangle::from_vertices(
-                    translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[0]),
-                    translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[1]),
-                    translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[2]),
-                ),
-                Triangle::from_vertices(
-                    translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[0]),
-                    translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[2]),
-                    translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[3]),
-                ),
-            ],
-        });
+        scene.push_triangle(Triangle::from_vertices(
+            translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[0]),
+            translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[1]),
+            translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[2]),
+            mat_shared.clone()
+        ));
+        scene.push_triangle(Triangle::from_vertices(
+            translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[0]),
+            translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[2]),
+            translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[3]),
+            mat_shared.clone()
+        ));
     }
     Ok(())
 }

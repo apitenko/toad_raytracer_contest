@@ -7,6 +7,7 @@ use crate::{
 
 use super::{cast_result::CastResult, shape::Shape};
 
+#[derive(Clone, Debug)]
 pub struct Triangle {
     pub material: MaterialShared,
     pub vertices: [Vec3; 3],
@@ -25,13 +26,13 @@ pub struct Triangle {
 // }
 
 impl Triangle {
-    pub fn from_vertices(p0: Vec3, p1: Vec3, p2: Vec3) -> Self {
+    pub fn from_vertices(p0: Vec3, p1: Vec3, p2: Vec3, material: MaterialShared) -> Self {
         let normal = Vec3::calculate_normal_from_points(p0, p1, p2);
         Self {
             vertices: [p0, p1, p2],
             uv: [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]],
             normals: [normal, normal, normal],
-            material: MATERIAL_DEFAULT.clone()
+            material
         }
     }
 }

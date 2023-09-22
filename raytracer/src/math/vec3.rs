@@ -96,6 +96,18 @@ impl Vec3 {
 
     #[inline]
     #[must_use]
+    pub const fn add_constexpr(left: Vec3, right: Vec3) -> Self {
+        {
+            return Self::new([
+                left.x() + right.x(),
+                left.y() + right.y(),
+                left.z() + right.z(),
+            ]);
+        }
+    }
+
+    #[inline]
+    #[must_use]
     pub fn subtract(left: Vec3, right: Vec3) -> Self {
         #[cfg(target_feature = "sse")]
         unsafe {
@@ -104,6 +116,18 @@ impl Vec3 {
             };
         }
         #[cfg(not(target_feature = "sse"))]
+        {
+            return Self::new([
+                left.x() - right.x(),
+                left.y() - right.y(),
+                left.z() - right.z(),
+            ]);
+        }
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn subtract_constexpr(left: Vec3, right: Vec3) -> Self {
         {
             return Self::new([
                 left.x() - right.x(),
@@ -159,6 +183,14 @@ impl Vec3 {
             };
         }
         #[cfg(not(target_feature = "sse"))]
+        {
+            return Self::new([left.x() / right, left.y() / right, left.z() / right]);
+        }
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn divide_by_f32_constexpr(left: Vec3, right: f32) -> Self {
         {
             return Self::new([left.x() / right, left.y() / right, left.z() / right]);
         }

@@ -98,7 +98,7 @@ impl Material {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MaterialShared {
     mat: *const Material,
 }

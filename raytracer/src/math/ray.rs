@@ -2,7 +2,7 @@ use crate::{tracing::MAX_BOUNCES, util::fresnel_constants::FresnelConstants};
 
 use super::vec3::Vec3;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Ray {
     origin: Vec3,
     direction: Vec3,

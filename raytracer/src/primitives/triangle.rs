@@ -87,7 +87,7 @@ impl Shape for Triangle {
                 distance_traversed: (ray.direction() * t).length(),
                 normal,
                 uv,
-                material: MaterialShared::null(),
+                material: self.material.clone(),
             });
         } else {
             // This means that there is a line intersection but not a ray intersection.

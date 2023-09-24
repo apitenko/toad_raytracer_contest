@@ -27,7 +27,18 @@
             //     // "RUST_BACKTRACE": "1",
             //     // "DISABLE_VK_LAYER_VALVE_steam_overlay_1": "1"
             // },
-            "args": [],
+            "args": [
+                "--in",
+                // "./res/scene2_embedded.gltf",
+                // "./res/octree_test.glb",
+                "./res/toad/Duck.glb",
+                // "./res/duck_embedded.gltf",
+                "--height",
+                "800",
+                // "--out",
+                // "duck.png"
+                "--stay-after-complete",
+            ],
             "cwd": "${workspaceFolder}"
         },
         {
@@ -50,16 +61,17 @@
             },
             "args": [
                 "--in",
-                // "./res/scene2_2_embedded.gltf",
-                "./res/toad/Duck.glb",
+                "./res/scene2_embedded.gltf",
+                // "./res/octree_test.glb",
+                // "./res/toad/Duck.glb",
                 // "./res/duck_embedded.gltf",
                 "--height",
-                "250",
+                "400",
                 // "--out",
                 // "duck.png"
                 "--stay-after-complete",
             ],
-            // cargo run --release -- --in "./res/toad/Duck.glb" --height 400
+            // cargo run --release -- --in "./res/toad/Duck.glb" --height 1000
             "cwd": "${workspaceFolder}"
         },
         {

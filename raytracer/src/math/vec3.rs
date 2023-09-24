@@ -322,6 +322,12 @@ impl Vec3 {
 
     #[inline]
     #[must_use]
+    pub fn as_vector(&self) -> Self {
+        Self::from_f32([self.x(), self.y(), self.z(), 0.0])
+    }
+
+    #[inline]
+    #[must_use]
     pub fn clamp(&self, min: f32, max: f32) -> Self {
         return Vec3::new([
             self.x().clamp(min, max),

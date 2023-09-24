@@ -99,7 +99,7 @@ impl OctreeRoot {
     const NODES_MEMORY_ALLOCATED_BYTES: usize = Self::NODES_MAX * size_of::<OctreeNode>();
 
     const ROOT_DEPTH: i32 = 12;
-    const MIN_DEPTH: i32 = -4;
+    const MIN_DEPTH: i32 = -8;
 
     pub fn empty() -> Self {
         let mut memory = UnresizableArray::<OctreeNode, { Self::NODES_MAX }>::with_capacity();
@@ -131,7 +131,7 @@ impl OctreeRoot {
             current_node,
             Self::ROOT_DEPTH,
             &insert_triangle,
-            // &insert_bbox,
+            &insert_bbox,
             level,
         );
 
@@ -145,12 +145,12 @@ impl OctreeRoot {
         current_node: *mut OctreeNode,
         current_level: i32,
         insert_triangle: &Triangle,
-        // insert_bbox: &BoundingBox,
+        insert_bbox: &BoundingBox,
         insert_level: i32,
     ) -> anyhow::Result<()> {
         debug_assert!(!current_node.is_null());
         unsafe {
-            if insert_level <= current_level {
+            if current_level <= insert_level {
                 // insert to the current node
                 (*current_node).triangles.push(insert_triangle.clone());
                 return Ok(());
@@ -168,12 +168,12 @@ impl OctreeRoot {
             }
             // intersect with each, go recursive if true
             for child in (*current_node).children {
-                if BoundingBox::intersects(&(*current_node).bbox, &(*child).bbox) {
+                if BoundingBox::intersects(insert_bbox, &(*child).bbox) {
                     self.tree_traversal_insert(
                         child,
                         current_level - 1,
                         &insert_triangle,
-                        // &insert_bbox,
+                        &insert_bbox,
                         insert_level,
                     )?;
                 }
@@ -211,11 +211,15 @@ impl OctreeRoot {
     fn intersect_triangles(node: *mut OctreeNode, ray: Ray) -> CastResult {
         debug_assert!(!node.is_null());
         unsafe {
-            let node = &*node;
             let inside = false;
 
+            // println!("-- intersection -- {:?} \n -- {:?} ", (*node).bbox, ray);
+            // if ! ((*node).triangles.is_empty()) {
+            //     println!("FSDFSDF");
+            // }
+
             // intersect with all triangles, return nearest CastResult or None
-            let cast_result = node
+            let cast_result = (*node)
                 .triangles
                 .iter()
                 .filter_map(|item| unsafe {
@@ -225,7 +229,7 @@ impl OctreeRoot {
                 .fold(CastResult::MISS, |acc, item| {
                     if acc.distance_traversed > item.distance_traversed
                         && item.distance_traversed > 0.001
-                        && item.distance_traversed <= ray.max_distance()
+                        // && item.distance_traversed <= ray.max_distance()
                     {
                         return item;
                     } else {
@@ -243,6 +247,10 @@ impl OctreeRoot {
                 return CastResult::MISS;
             }
             let current_cast_result = Self::intersect_triangles(node, ray);
+            // return current_cast_result;
+            // if !current_cast_result.has_missed() {
+            //     println!("HIT");
+            // }
 
             // keep intersecting children by nearest, until any intersection is found
             // return nearest of children_cast_result and current_cast_result
@@ -261,14 +269,14 @@ impl OctreeRoot {
 
             let mut side = {
                 _Sides {
-                    X: Vec3::dot(origin, planes[2].normal) - planes[2].distance >= 0.0,
+                    X: Vec3::dot(origin, planes[0].normal) - planes[0].distance >= 0.0,
                     Y: Vec3::dot(origin, planes[1].normal) - planes[1].distance >= 0.0,
-                    Z: Vec3::dot(origin, planes[0].normal) - planes[0].distance >= 0.0,
+                    Z: Vec3::dot(origin, planes[2].normal) - planes[2].distance >= 0.0,
                 }
             };
 
             let mut xDist: f32 = if side.X == (direction.x() < 0.0) {
-                planes[2].RayDistance(origin, direction)
+                planes[0].RayDistance(origin, direction)
             } else {
                 f32::INFINITY
             };
@@ -278,15 +286,15 @@ impl OctreeRoot {
                 f32::INFINITY
             };
             let mut zDist: f32 = if side.Z == (direction.z() < 0.0) {
-                planes[0].RayDistance(origin, direction)
+                planes[2].RayDistance(origin, direction)
             } else {
                 f32::INFINITY
             };
 
             fn side_to_index(side: &_Sides) -> usize {
-                (if side.Z { 1 } else { 0 }
+                (if side.Z { 4 } else { 0 }
                     | if side.Y { 2 } else { 0 }
-                    | if side.X { 4 } else { 0 })
+                    | if side.X { 1 } else { 0 })
             }
 
             fn minimum_of_two_cast_results(left: CastResult, right: CastResult) -> CastResult {
@@ -297,7 +305,7 @@ impl OctreeRoot {
                 }
             }
 
-            for i in 0..3 {
+            for i in 0..4 {
                 let idx = side_to_index(&side);
 
                 let ret = Self::recursive_intersection(
@@ -310,13 +318,13 @@ impl OctreeRoot {
 
                 let minDist = f32::min(f32::min(xDist, yDist), zDist);
                 if f32::is_infinite(minDist) {
-                    return CastResult::MISS;
+                    return current_cast_result;
                 }
 
                 origin = ray.origin() + direction * minDist;
 
                 if !bbox.contains(origin) {
-                    return CastResult::MISS;
+                    return current_cast_result;
                 }
 
                 if minDist == xDist {
@@ -330,12 +338,12 @@ impl OctreeRoot {
                     zDist = f32::INFINITY;
                 }
             }
+            return current_cast_result;
         }
-
-        CastResult::MISS
     }
 
     pub fn single_cast(&self, ray: Ray, inside: bool) -> CastResult {
+        // println!("----------------");
         return Self::recursive_intersection(self.root, ray);
     }
 }

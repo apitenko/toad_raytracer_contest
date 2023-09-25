@@ -86,9 +86,9 @@ impl Mat44 {
     }
 
     pub fn from_decomposed(translation: [f32; 3], rotation: [f32; 4], scale: [f32; 3]) -> Self {
-        Self::from_translation(translation)
-            * Self::from_rotation_quaternion(rotation)
-            * Self::from_scale(scale)
+        Self::from_scale(scale)
+        * Self::from_rotation_quaternion(rotation)
+        * Self::from_translation(translation)
     }
 
     pub fn from_4x4(matrix: [[f32; 4]; 4]) -> Self {

@@ -10,6 +10,7 @@ use crate::{
     scene::{lights::light::Light, material::Material, scene::Scene},
     util::fresnel_constants::FresnelConstants,
 };
+use crate::scene::acceleration_structure::acceleration_structure::AccelerationStructure;
 
 // ? づ｀･ω･)づ it's compile time o'clock
 

@@ -10,6 +10,7 @@ use crate::{
     tracing::{ray_cast, MAX_BOUNCES, MULTISAMPLE_OFFSETS, MULTISAMPLE_SIZE, SKYBOX_COLOR, SKYBOX_LIGHT_INTENSITY},
     util::queue::Queue,
 };
+use crate::scene::acceleration_structure::acceleration_structure::AccelerationStructure;
 
 pub struct WorkerThreadHandle {
     pub thread: JoinHandle<()>,

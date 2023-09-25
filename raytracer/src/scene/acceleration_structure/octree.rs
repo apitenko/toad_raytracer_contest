@@ -11,10 +11,23 @@ use crate::{
     util::unresizable_array::UnresizableArray,
 };
 
+use super::acceleration_structure::AccelerationStructure;
+
 pub struct OctreeNode {
     pub triangles: Vec<Triangle>,
     pub children: [*mut OctreeNode; 8],
     pub bbox: BoundingBox,
+}
+
+impl AccelerationStructure for Octree {
+    
+    fn push_triangle(&mut self, insert_triangle: Triangle) {
+        self.push_triangle_(insert_triangle);
+    }
+    fn single_cast(&self, ray: Ray, inside: bool) -> CastResult {
+        // println!("----------------");
+        return Self::recursive_intersection(self.root, ray);
+    }
 }
 
 impl OctreeNode {
@@ -66,7 +79,7 @@ impl OctreeNode {
     }
 }
 
-pub struct OctreeRoot {
+pub struct Octree {
     // meshes: UnresizableArray<Mesh, { Self::MESHES_MAX }>, // mesh memory
     memory: UnresizableArray<OctreeNode, { Self::NODES_MAX }>, // node memory
     root: *mut OctreeNode,                                     // tree root node
@@ -74,7 +87,7 @@ pub struct OctreeRoot {
 
 lazy_static::lazy_static! {
     static ref ROOT_RESOLUTION: f32 = {
-        f32::powi(2.0, OctreeRoot::ROOT_DEPTH)
+        f32::powi(2.0, Octree::ROOT_DEPTH)
     };
 
     static ref ROOT_BBOX: BoundingBox = BoundingBox::new(
@@ -91,7 +104,7 @@ lazy_static::lazy_static! {
     );
 }
 
-impl OctreeRoot {
+impl Octree {
     const MESHES_MAX: usize = 4000;
     const NODES_MAX: usize = 3200000;
 
@@ -113,7 +126,7 @@ impl OctreeRoot {
         Self { memory, root }
     }
 
-    pub fn push_triangle(&mut self, insert_triangle: Triangle) {
+    pub fn push_triangle_(&mut self, insert_triangle: Triangle) {
         let insert_bbox = BoundingBox::from_triangle(&insert_triangle);
 
         // find size
@@ -340,10 +353,5 @@ impl OctreeRoot {
             }
             return current_cast_result;
         }
-    }
-
-    pub fn single_cast(&self, ray: Ray, inside: bool) -> CastResult {
-        // println!("----------------");
-        return Self::recursive_intersection(self.root, ray);
     }
 }

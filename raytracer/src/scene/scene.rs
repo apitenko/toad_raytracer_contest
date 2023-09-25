@@ -1,21 +1,27 @@
 use std::path::Path;
 
+use crate::scene::acceleration_structure::acceleration_structure::AccelerationStructure;
 use crate::{
+    constants::DEFAULT_ASPECT_RATIO,
     math::Vec3,
-    primitives::{mesh::Mesh, shape::Shape, skybox::Skybox, sphere::Sphere, triangle::Triangle}, constants::DEFAULT_ASPECT_RATIO,
+    primitives::{mesh::Mesh, shape::Shape, skybox::Skybox, sphere::Sphere, triangle::Triangle},
 };
 
+use super::acceleration_structure::flat_array::FlatArray;
 use super::{
-    acceleration_structure::OctreeRoot,
+    acceleration_structure::octree::Octree,
     camera::Camera,
     lights::light::Light,
     material::MaterialStorage,
     texture::{Texture, TextureShared},
 };
 
+type AccelerationStructureType = Octree;
+// type AccelerationStructureType = FlatArray;
+
 pub struct Scene {
     pub camera: Camera,
-    pub geometry: OctreeRoot,
+    pub geometry: AccelerationStructureType,
     pub lights: Vec<Box<dyn Light>>,
     // pub skybox: Skybox,
     pub material_storage: MaterialStorage,
@@ -29,11 +35,11 @@ impl Scene {
 
         Ok(Self {
             camera: Camera::new(),
-            geometry: OctreeRoot::empty(),
+            geometry: AccelerationStructureType::empty(),
             lights: Vec::new(),
             // skybox: Skybox::new(skybox_texture),
             material_storage,
-            aspect_ratio: DEFAULT_ASPECT_RATIO
+            aspect_ratio: DEFAULT_ASPECT_RATIO,
         })
     }
 

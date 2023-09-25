@@ -7,7 +7,7 @@ pub const UPDATE_INTERVAL: f32 = 1.0 / 10.0;
 pub const DEFAULT_ASPECT_RATIO: f32 = 1.3333333;
 pub const DEFAULT_HEIGHT: u32 = 200;
 pub const DEFAULT_HEIGHT_STRING: &str = const_str::to_str!(DEFAULT_HEIGHT);
-pub const RENDER_SCALE: u32 = 1;
+pub const RENDER_SCALE: u32 = 2;
 
 
 pub const MISS_COLOR_VEC3: Vec3 = Vec3::new([144.0 / 256.0, 185.0 / 256.0, 224.0 / 256.0]);

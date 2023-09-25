@@ -7,7 +7,7 @@ pub enum UriResolved<'a> {
 }
 
 pub fn resolve_uri<'a>(uri_input: &'a str) -> anyhow::Result<UriResolved> {
-    let uri = uri::URI::try_from(uri_input).expect(format!("Uri is corrupted {}", uri_input).as_str());
+    let uri = uri::URI::try_from(uri_input).expect(format!("Uri is corrupted {}", &uri_input[0..100]).as_str());
     let scheme = uri.scheme();
     match scheme.as_str() {
         "data" => {

@@ -105,6 +105,7 @@ fn interpolate_uv(uvw: [f32; 3], triangle_uv: [[f32; 2]; 3]) -> (f32, f32) {
     ])
 }
 
+#[inline]
 fn interpolate_normals(uvw: [f32; 3], normals: [Vec3; 3]) -> Vec3 {
     uvw[0] * normals[0] + uvw[1] * normals[1] + uvw[2] * normals[2]
 }

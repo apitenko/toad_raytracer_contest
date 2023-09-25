@@ -18,7 +18,7 @@ pub(crate) struct Cli {
     pub(crate) height: String,
 
     /// Rendered image height
-    #[arg(long)]
+    #[arg(long, short = 'P')]
     pub(crate) stay_after_complete: bool,
 }
 

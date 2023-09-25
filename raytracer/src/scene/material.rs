@@ -144,7 +144,7 @@ pub struct MaterialStorage {
 }
 
 impl MaterialStorage {
-    const MATERIALS_MAX: usize = 200;
+    const MATERIALS_MAX: usize = 600;
     const TEXTURES_MAX: usize = 600;
 
     pub fn new() -> Self {

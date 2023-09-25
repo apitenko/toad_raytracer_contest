@@ -15,7 +15,7 @@ use super::{
     camera::Camera,
     lights::{
         directional::DirectionalLight,
-        point::{PointLight, PointLightRadius},
+        point::{PointLight, PointLightRadius}, spot::{SpotLight, SpotLightRange},
     },
     material::{Material, MaterialShared},
     scene::Scene,
@@ -92,11 +92,11 @@ pub fn read_into_scene(app_scene: &mut Scene, path: &str) -> anyhow::Result<()> 
 
     for node in scene.nodes() {
         import_node(app_scene, &node, &Mat44::IDENTITY, &imported)?;
-        println!(
-            "Node #{} has {} children",
-            node.index(),
-            node.children().count(),
-        );
+        // println!(
+        //     "Node #{} has {} children",
+        //     node.index(),
+        //     node.children().count(),
+        // );
     }
 
     Ok(())
@@ -328,11 +328,22 @@ fn import_node(
                 gltf::khr_lights_punctual::Kind::Spot {
                     inner_cone_angle,
                     outer_cone_angle,
-                } => {
-                    let range = light
-                        .range()
-                        .expect("Spot Light must have a non-default range");
-                    todo!();
+                } => match light.range() {
+                    None => app_scene.lights.push(Box::new(SpotLight {
+                        color,
+                        intensity,
+                        position,
+                        inner_cone_angle,
+                        outer_cone_angle,
+                    })),
+                    Some(range) => app_scene.lights.push(Box::new(SpotLightRange {
+                        color,
+                        intensity,
+                        position,
+                        inner_cone_angle,
+                        outer_cone_angle,
+                        range
+                    })),
                 }
             }
         }

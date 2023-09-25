@@ -1,4 +1,5 @@
 **/target
 /res/sponza
+/res/**
 out.png
 _trash

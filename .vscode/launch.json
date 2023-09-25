@@ -29,9 +29,11 @@
             // },
             "args": [
                 "--in",
+                // "./res/sponza/sponza.glb",
                 // "./res/scene2_embedded.gltf",
+                "./res/scene2_3.glb",
                 // "./res/octree_test.glb",
-                "./res/toad/Duck.glb",
+                // "./res/toad/Duck.glb",
                 // "./res/duck_embedded.gltf",
                 "--height",
                 "800",
@@ -61,7 +63,9 @@
             },
             "args": [
                 "--in",
-                "./res/scene2_embedded.gltf",
+                // "./res/sponza/sponza.glb",
+                // "./res/scene2_embedded.gltf",
+                "./res/scene2_3.glb",
                 // "./res/octree_test.glb",
                 // "./res/toad/Duck.glb",
                 // "./res/duck_embedded.gltf",

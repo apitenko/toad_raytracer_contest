@@ -93,7 +93,7 @@ lazy_static::lazy_static! {
 
 impl OctreeRoot {
     const MESHES_MAX: usize = 4000;
-    const NODES_MAX: usize = 32000;
+    const NODES_MAX: usize = 3200000;
 
     // unused; rust-analyzer will show the size of the memory allocated
     const NODES_MEMORY_ALLOCATED_BYTES: usize = Self::NODES_MAX * size_of::<OctreeNode>();
@@ -321,7 +321,7 @@ impl OctreeRoot {
                     return current_cast_result;
                 }
 
-                origin = ray.origin() + direction * minDist;
+                origin = ray.origin() + direction * (minDist - 0.001);
 
                 if !bbox.contains(origin) {
                     return current_cast_result;

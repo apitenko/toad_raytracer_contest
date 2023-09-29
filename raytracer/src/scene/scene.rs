@@ -1,23 +1,11 @@
 use std::path::Path;
 
 use crate::scene::acceleration_structure::acceleration_structure::AccelerationStructure;
-use crate::{
-    constants::DEFAULT_ASPECT_RATIO,
-    math::Vec3,
-    primitives::{mesh::Mesh, shape::Shape, skybox::Skybox, sphere::Sphere, triangle::Triangle},
-};
+use crate::{constants::DEFAULT_ASPECT_RATIO, primitives::triangle::Triangle};
 
-use super::acceleration_structure::flat_array::FlatArray;
-use super::{
-    acceleration_structure::octree::Octree,
-    camera::Camera,
-    lights::light::Light,
-    material::MaterialStorage,
-    texture::{Texture, TextureShared},
-};
+use super::acceleration_structure::AccelerationStructureType;
 
-type AccelerationStructureType = Octree;
-// type AccelerationStructureType = FlatArray;
+use super::{camera::Camera, lights::light::Light, material::MaterialStorage};
 
 pub struct Scene {
     pub camera: Camera,

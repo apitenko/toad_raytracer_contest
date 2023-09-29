@@ -43,58 +43,67 @@ impl BoundingBox {
 
     // todo: vectorize
     pub fn from_triangle(tri: &Triangle) -> Self {
-        let min = {
-            let min_x = f32::min(
-                f32::min(tri.vertices[0].x(), tri.vertices[1].x()),
-                tri.vertices[2].x(),
-            );
-            let min_y = f32::min(
-                f32::min(tri.vertices[0].y(), tri.vertices[1].y()),
-                tri.vertices[2].y(),
-            );
-            let min_z = f32::min(
-                f32::min(tri.vertices[0].z(), tri.vertices[1].z()),
-                tri.vertices[2].z(),
-            );
+        let mut min_x = f32::min(
+            f32::min(tri.vertices[0].x(), tri.vertices[1].x()),
+            tri.vertices[2].x(),
+        );
+        let mut min_y = f32::min(
+            f32::min(tri.vertices[0].y(), tri.vertices[1].y()),
+            tri.vertices[2].y(),
+        );
+        let mut min_z = f32::min(
+            f32::min(tri.vertices[0].z(), tri.vertices[1].z()),
+            tri.vertices[2].z(),
+        );
 
-            Vec3::from_f32([min_x, min_y, min_z, 0.0])
-        };
-        let max = {
-            let mut max_x = f32::max(
-                f32::max(tri.vertices[0].x(), tri.vertices[1].x()),
-                tri.vertices[2].x(),
-            );
-            let mut max_y = f32::max(
-                f32::max(tri.vertices[0].y(), tri.vertices[1].y()),
-                tri.vertices[2].y(),
-            );
-            let mut max_z = f32::max(
-                f32::max(tri.vertices[0].z(), tri.vertices[1].z()),
-                tri.vertices[2].z(),
-            );
+        let mut max_x = f32::max(
+            f32::max(tri.vertices[0].x(), tri.vertices[1].x()),
+            tri.vertices[2].x(),
+        );
+        let mut max_y = f32::max(
+            f32::max(tri.vertices[0].y(), tri.vertices[1].y()),
+            tri.vertices[2].y(),
+        );
+        let mut max_z = f32::max(
+            f32::max(tri.vertices[0].z(), tri.vertices[1].z()),
+            tri.vertices[2].z(),
+        );
 
-            const EPSILON: f32 = 0.0001;
-            if max_x - min.x() < EPSILON {
-                max_x += EPSILON;
-            }
-            if max_y - min.y() < EPSILON {
-                max_y += EPSILON;
-            }
-            if max_z - min.z() < EPSILON {
-                max_z += EPSILON;
-            }
+        const EPSILON: f32 = 0.001;
+        if max_x - min_x < EPSILON {
+            max_x += EPSILON;
+            min_x -= EPSILON;
+        }
+        if max_y - min_y < EPSILON {
+            max_y += EPSILON;
+            min_y -= EPSILON;
+        }
+        if max_z - min_z < EPSILON {
+            max_z += EPSILON;
+            min_z -= EPSILON;
+        }
 
-            Vec3::from_f32([max_x, max_y, max_z, 0.0])
-        };
+        const TRI_PADDING_EPSILON: f32 = 0.001;
+        const PADDING: Vec3 = Vec3::new([TRI_PADDING_EPSILON, TRI_PADDING_EPSILON, TRI_PADDING_EPSILON]);
+
+        let min = Vec3::from_f32([min_x, min_y, min_z, 0.0]) - PADDING;
+        let max = Vec3::from_f32([max_x, max_y, max_z, 0.0]) + PADDING;
 
         Self::new(min, max)
     }
 
     #[must_use]
     pub fn intersects(a: &Self, b: &Self) -> bool {
-        (a.min.x() < b.max.x() && a.max.x() > b.min.x()) && // .
-        (a.min.y() < b.max.y() && a.max.y() > b.min.y()) && // .
-        (a.min.z() < b.max.z() && a.max.z() > b.min.z()) // .
+        (a.min.x() <= b.max.x() && a.max.x() >= b.min.x()) && // .
+        (a.min.y() <= b.max.y() && a.max.y() >= b.min.y()) && // .
+        (a.min.z() <= b.max.z() && a.max.z() >= b.min.z()) // .
+    }
+    #[must_use]
+    pub fn intersects_padded(a: &Self, b: &Self, padding: Vec3) -> bool {
+        (a.min.x() - padding.x() <= b.max.x() && a.max.x() + padding.x() >= b.min.x()) && // .
+        (a.min.y() - padding.y() <= b.max.y() && a.max.y() + padding.y() >= b.min.y()) && // .
+        (a.min.z() - padding.z() <= b.max.z() && a.max.z() + padding.z() >= b.min.z())
+        // .
     }
 
     pub fn from_gltf(aabb: gltf::mesh::BoundingBox) -> Self {

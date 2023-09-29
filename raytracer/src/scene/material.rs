@@ -56,8 +56,8 @@ impl Default for Material {
             fresnel_coefficient: 4.0,
             emission_color: Vec3::ONE,
             emission_power: 0.0,
-            specular: 0.00 * Vec3::ONE,
-            roughness: 1.0,
+            specular: 0.25 * Vec3::ONE,
+            roughness: 0.80,
             color_albedo: TEXTURE_DEFAULT.clone(),
         }
     }

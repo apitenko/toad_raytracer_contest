@@ -1,4 +1,4 @@
-use crate::{tracing::MAX_BOUNCES, util::fresnel_constants::FresnelConstants};
+use crate::{tracing::{MAX_BOUNCES, MONTE_CARLO_THRESHOLD_BOUNCES}, util::fresnel_constants::FresnelConstants};
 
 use super::vec3::Vec3;
 
@@ -66,7 +66,7 @@ pub enum RayRefractionState {
 
 pub struct RayBounce {
     pub ray: Ray,
-    pub remaining_bounces: i32,
+    pub current_bounces: i32,
     // pub remaining_depth: f32,
     pub refraction_state: RayRefractionState,
 }
@@ -75,12 +75,17 @@ impl RayBounce {
     pub fn default_from_ray(ray: Ray) -> Self {
         Self {
             ray,
-            remaining_bounces: MAX_BOUNCES,
+            current_bounces: 0,
             // remaining_depth: MAX_DEPTH,
             refraction_state: RayRefractionState::InsideMaterial {
                 current_outside_fresnel_coefficient: 9.9,
             },
         }
+    }
+
+    #[inline]
+    pub fn monte_carlo_reached(&self) -> bool {
+        self.current_bounces > MONTE_CARLO_THRESHOLD_BOUNCES
     }
 }
 

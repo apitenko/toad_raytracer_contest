@@ -9,13 +9,25 @@ use crate::math::Vec3;
 pub struct Texture {
     width: usize,
     height: usize,
+    width1: f32, // width - 1
+    height1: f32,
     image: RawTextureData,
 }
 
 impl Texture {
+    pub fn new(image: RawTextureData, width: usize, height: usize) -> Self {
+        Self {
+            image,
+            width,
+            height,
+            width1: width as f32 - f32::EPSILON,
+            height1: height as f32 - f32::EPSILON,
+        }
+    }
+
     pub fn sample(&self, u: f32, v: f32) -> Vec3 {
-        let x: usize = (u.fract() * 0.99 * self.width as f32) as usize;
-        let y: usize = (v.fract() * 0.99 * self.height as f32) as usize;
+        let x: usize = (u.fract() * self.width1) as usize;
+        let y: usize = (v.fract() * self.height1) as usize;
         let sample = unsafe { self.image.unsafe_get_pixel(x as u32, y as u32) };
         return Vec3::from_f32(sample.0);
     }
@@ -54,11 +66,11 @@ impl Texture {
     pub fn new_from_image(image: RawTextureData) -> anyhow::Result<Self> {
         let height = image.height();
         let width = image.width();
-        Ok(Self {
-            width: width as usize, // wtf rust? casting should be unnecessary
-            height: height as usize,
+        Ok(Self::new(
             image,
-        })
+            width as usize, // wtf rust? casting should be unnecessary
+            height as usize,
+        ))
     }
 
     pub fn new_from_raw_bytes(data: &[u8]) -> anyhow::Result<Self> {

@@ -20,7 +20,6 @@ pub struct OctreeNode {
 }
 
 impl AccelerationStructure for Octree {
-    
     fn push_triangle(&mut self, insert_triangle: Triangle) {
         self.push_triangle_(insert_triangle);
     }
@@ -48,7 +47,7 @@ impl OctreeNode {
         }
     }
 
-    pub fn empty_bbox_split_by_index(bbox: BoundingBox, index: i32) -> Self {
+    pub fn make_child_bbox<const CHILD_INDEX: i32>(bbox: BoundingBox) -> Self {
         let len = bbox.max - bbox.min;
         let len_h = len / 2.0;
         let len_h_x = Vec3::new([len_h.x(), 0.0, 0.0]);
@@ -56,8 +55,7 @@ impl OctreeNode {
         let len_h_z = Vec3::new([0.0, 0.0, len_h.z()]);
         let middle = bbox.min + len_h;
 
-        // TODO: fix plane order
-        let bbox_min_max = match index {
+        let bbox_min_max = match CHILD_INDEX {
             0 => (bbox.min, middle),
             1 => (bbox.min + len_h_x, middle + len_h_x),
             2 => (bbox.min + len_h_y, middle + len_h_y),
@@ -69,7 +67,7 @@ impl OctreeNode {
                 bbox.min + len_h_x + len_h_y + len_h_z,
                 middle + len_h_x + len_h_y + len_h_z,
             ),
-            _ => panic!("empty_bbox_split_by_index"),
+            _ => panic!("wrong index"),
         };
         Self {
             triangles: Vec::with_capacity(0),
@@ -112,7 +110,7 @@ impl Octree {
     const NODES_MEMORY_ALLOCATED_BYTES: usize = Self::NODES_MAX * size_of::<OctreeNode>();
 
     const ROOT_DEPTH: i32 = 12;
-    const MIN_DEPTH: i32 = -8;
+    const MIN_DEPTH: i32 = -30;
 
     pub fn empty() -> Self {
         let mut memory = UnresizableArray::<OctreeNode, { Self::NODES_MAX }>::with_capacity();
@@ -200,21 +198,21 @@ impl Octree {
             if (*node).children[0].is_null() {
                 (*node).children = [
                     self.memory
-                        .push(OctreeNode::empty_bbox_split_by_index((*node).bbox, 0)),
+                        .push(OctreeNode::make_child_bbox::<0>((*node).bbox)),
                     self.memory
-                        .push(OctreeNode::empty_bbox_split_by_index((*node).bbox, 1)),
+                        .push(OctreeNode::make_child_bbox::<1>((*node).bbox)),
                     self.memory
-                        .push(OctreeNode::empty_bbox_split_by_index((*node).bbox, 2)),
+                        .push(OctreeNode::make_child_bbox::<2>((*node).bbox)),
                     self.memory
-                        .push(OctreeNode::empty_bbox_split_by_index((*node).bbox, 3)),
+                        .push(OctreeNode::make_child_bbox::<3>((*node).bbox)),
                     self.memory
-                        .push(OctreeNode::empty_bbox_split_by_index((*node).bbox, 4)),
+                        .push(OctreeNode::make_child_bbox::<4>((*node).bbox)),
                     self.memory
-                        .push(OctreeNode::empty_bbox_split_by_index((*node).bbox, 5)),
+                        .push(OctreeNode::make_child_bbox::<5>((*node).bbox)),
                     self.memory
-                        .push(OctreeNode::empty_bbox_split_by_index((*node).bbox, 6)),
+                        .push(OctreeNode::make_child_bbox::<6>((*node).bbox)),
                     self.memory
-                        .push(OctreeNode::empty_bbox_split_by_index((*node).bbox, 7)),
+                        .push(OctreeNode::make_child_bbox::<7>((*node).bbox)),
                 ];
             }
         }
@@ -242,7 +240,7 @@ impl Octree {
                 .fold(CastResult::MISS, |acc, item| {
                     if acc.distance_traversed > item.distance_traversed
                         && item.distance_traversed > 0.001
-                        // && item.distance_traversed <= ray.max_distance()
+                    // && item.distance_traversed <= ray.max_distance()
                     {
                         return item;
                     } else {
@@ -318,7 +316,7 @@ impl Octree {
                 }
             }
 
-            for i in 0..4 {
+            for _ in 0..4 {
                 let idx = side_to_index(&side);
 
                 let ret = Self::recursive_intersection(
@@ -334,7 +332,7 @@ impl Octree {
                     return current_cast_result;
                 }
 
-                origin = ray.origin() + direction * (minDist - 0.001);
+                origin = ray.origin() + direction * minDist;
 
                 if !bbox.contains(origin) {
                     return current_cast_result;

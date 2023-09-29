@@ -20,13 +20,14 @@ pub const MULTISAMPLE_OFFSETS: [(f32, f32); 1] = generated_samples();
 pub const MULTISAMPLE_SIZE: usize = MULTISAMPLE_OFFSETS.len();
 
 pub const MAX_BOUNCES: i32 = 1;
+pub const MONTE_CARLO_THRESHOLD_BOUNCES: i32 = 0;
 // pub const MAX_DEPTH: f32 = 20.0;
 
 // todo: move to skybox
-pub const SKYBOX_LIGHT_INTENSITY: f32 = 100.0;
+pub const SKYBOX_LIGHT_INTENSITY: f32 = 180.0;
 pub const SKYBOX_COLOR: Vec3 = COLOR_SKY_BLUE;
 
-pub const AMBIENT_LIGHT_INTENSITY: f32 = 100.0;//1000.0;
+pub const AMBIENT_LIGHT_INTENSITY: f32 = 0.0;//1000.0;
 pub const AMBIENT_LIGHT_COLOR: Vec3 = COLOR_WHITE;
 
 // Cook-Torrance F term
@@ -66,7 +67,7 @@ fn fresnel_reflect_amount(n1: f32, n2: f32, normal: Vec3, incident: Vec3) -> f32
 // }
 
 pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
-    if current_bounce.remaining_bounces < 0 {
+    if current_bounce.current_bounces > MAX_BOUNCES {
         // stop recursion by limit
         return Vec3::ZERO;
     }
@@ -107,6 +108,7 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
             material_albedo,
             material_specular,
             material_roughness,
+            &current_bounce,
         )
     } else {
         Vec3::ZERO
@@ -264,50 +266,66 @@ fn ggx_direct(
     material_albedo: Vec3,
     material_specular: Vec3,
     material_roughness: f32,
+    current_bounce: &RayBounce
 ) -> Vec3 {
     let V = current_ray_direction;
     let N = cast_result.normal;
     let spec = material_specular;
     let hit = cast_result.intersection_point;
 
-    let random_light = {
-        // Pick a random light from our scene to shoot a shadow ray towards
-        let lights_count = scene.lights.len();
-        let random_light_index = rand::thread_rng().gen_range(0..lights_count);
-        let random_light = scene.lights[random_light_index].as_ref();
-        random_light
-    };
     //////
-    let light_source = random_light;
-    let (distance_to_light, normal_into_light) =
-        light_source.normal_from(cast_result.intersection_point);
+    let fn_sample_light = |light_source: &dyn Light| {
 
-    let L = normal_into_light;
-    // Compute our lambertion term (N dot L)
-    let NdotL = Vec3::dot(cast_result.normal, L).clamp(0.0, 1.0);
+        let (distance_to_light, normal_into_light) =
+            light_source.normal_from(cast_result.intersection_point);
 
-    let light_intensity = random_light.get_emission(hit);
-    let light_visibility = shadow_ray_visibility(light_source, scene, cast_result);
+        let L = normal_into_light;
+        // Compute our lambertion term (N dot L)
+        let NdotL = Vec3::dot(cast_result.normal, L).clamp(0.0, 1.0);
 
-    // Compute half vectors and additional dot products for GGX
-    let H: Vec3 = (V + L).normalized();
-    let NdotH = (Vec3::dot(N, H)).clamp(f32::EPSILON, 1.0 - f32::EPSILON);
-    let LdotH = (Vec3::dot(L, H)).clamp(f32::EPSILON, 1.0 - f32::EPSILON);
-    let NdotV = (Vec3::dot(N, V)).clamp(f32::EPSILON, 1.0 - f32::EPSILON);
+        let light_intensity = light_source.get_emission(hit);
+        let light_visibility = shadow_ray_visibility(light_source, scene, cast_result);
 
-    // Evaluate terms for our GGX BRDF model
-    let D = ggx_normal_distribution(NdotH, material_roughness);
-    let G = ggx_schlick_masking_term(NdotL, NdotV, material_roughness);
-    let F: Vec3 = schlick_fresnel(spec, LdotH);
+        // Compute half vectors and additional dot products for GGX
+        let H: Vec3 = (V + L).normalized();
+        let NdotH = (Vec3::dot(N, H)).clamp(f32::EPSILON, 1.0 - f32::EPSILON);
+        let LdotH = (Vec3::dot(L, H)).clamp(f32::EPSILON, 1.0 - f32::EPSILON);
+        let NdotV = (Vec3::dot(N, V)).clamp(f32::EPSILON, 1.0 - f32::EPSILON);
 
-    // Evaluate the Cook-Torrance Microfacet BRDF model
-    //     Cancel NdotL here to avoid catastrophic numerical precision issues.
-    let ggxTerm: Vec3 = D * G * F / (4.0 * NdotV/* * NdotL */);
+        // Evaluate terms for our GGX BRDF model
+        let D = ggx_normal_distribution(NdotH, material_roughness);
+        let G = ggx_schlick_masking_term(NdotL, NdotV, material_roughness);
+        let F: Vec3 = schlick_fresnel(spec, LdotH);
 
-    // Compute our final color (combining diffuse lobe plus specular GGX lobe)
-    return light_visibility
-        * light_intensity
-        * (/* NdotL * */ggxTerm + NdotL * material_albedo / PI);
+        // Evaluate the Cook-Torrance Microfacet BRDF model
+        //     Cancel NdotL here to avoid catastrophic numerical precision issues.
+        let ggxTerm: Vec3 = D * G * F / (4.0 * NdotV/* * NdotL */);
+
+        // Compute our final color (combining diffuse lobe plus specular GGX lobe)
+        return light_visibility
+            * light_intensity
+            * (/* NdotL * */ggxTerm + NdotL * material_albedo / PI);
+    };
+
+    if current_bounce.monte_carlo_reached() {
+        let random_light = {
+            // Pick a random light from our scene to shoot a shadow ray towards
+            let lights_count = scene.lights.len();
+            let random_light_index = rand::thread_rng().gen_range(0..lights_count);
+            let random_light = scene.lights[random_light_index].as_ref();
+            random_light
+        };
+        return fn_sample_light(random_light);
+    }
+    else {
+        let mut color = Vec3::ZERO;
+        for light in &scene.lights {
+            color += fn_sample_light(light.as_ref());
+        }
+        return color / scene.lights.len() as f32;
+    }
+    
+
 }
 
 fn shadow_ray_visibility(
@@ -351,16 +369,15 @@ fn ggx_indirect(
 
     let mut rng = rand::thread_rng();
     let probDiffuse = probabilityToSampleDiffuse(material_albedo, material_specular);
-    let chooseDiffuse = (rng.gen::<f32>() < probDiffuse);
 
-    if chooseDiffuse {
+    let fn_diffuse_ray = || {
         // return Vec3::ZERO;
         // Shoot a randomly selected cosine-sampled diffuse ray.
         let random_direction: Vec3 = (random_cosine_weighted_point() * N).normalized();
         let bounceColor: Vec3 = ray_cast(
             RayBounce {
                 ray: Ray::new(hit, random_direction, f32::MAX),
-                remaining_bounces: current_bounce.remaining_bounces - 1,
+                current_bounces: current_bounce.current_bounces + 1,
                 // remaining_depth: current_bounce.remaining_depth - cast_result.distance_traversed,
                 refraction_state: RayRefractionState::TraversingAir,
             },
@@ -375,7 +392,9 @@ fn ggx_indirect(
         //     println!("{:?} ", result_color);
         // }
         return result_color;
-    } else {
+    };
+    let fn_specular_ray = || {
+
         // return Vec3::ZERO;
         // Randomly sample the NDF to get a microfacet in our BRDF
         let H: Vec3 = getGGXMicrofacet(rough, N).normalized();
@@ -387,7 +406,7 @@ fn ggx_indirect(
         let bounceColor: Vec3 = ray_cast(
             RayBounce {
                 ray: Ray::new(hit, reflected_ray, f32::MAX),
-                remaining_bounces: current_bounce.remaining_bounces - 1,
+                current_bounces: current_bounce.current_bounces + 1,
                 // remaining_depth: current_bounce.remaining_depth - cast_result.distance_traversed,
                 refraction_state: RayRefractionState::TraversingAir,
             },
@@ -413,6 +432,34 @@ fn ggx_indirect(
         // Accumulate color:  ggx-BRDF * lightIn * NdotL / probability-of-sampling
         //    -> Note: Should really cancel and simplify the math above
         return NdotL * bounceColor * ggxTerm / (ggxProb * (1.0 - probDiffuse));
+    };
+
+    if current_bounce.monte_carlo_reached() {
+        let chooseDiffuse = (rng.gen::<f32>() < probDiffuse);
+        if chooseDiffuse {
+            return fn_diffuse_ray();
+        } else {
+            return fn_specular_ray();
+        }
+    }
+    else {
+
+        // const USE_MULTIPLE_DIFFUSE_RAYS: bool = true;
+        // if USE_MULTIPLE_DIFFUSE_RAYS {
+        //     const DIFFUSE_REFLECTIONS_NUMBER: usize = 2;
+        //     let mut color_diffuse = Vec3::ZERO;
+        //     for _ in 0..DIFFUSE_REFLECTIONS_NUMBER {
+        //         color_diffuse += fn_diffuse_ray();
+        //     }
+        //     color_diffuse = color_diffuse / DIFFUSE_REFLECTIONS_NUMBER as f32;
+        //     let color_specular = fn_specular_ray();
+        //     return (color_diffuse + color_specular) / 2.0;
+        // }
+        // else {
+            let color_diffuse = fn_diffuse_ray();
+            let color_specular = fn_specular_ray();
+            return (color_diffuse + color_specular) / 2.0;
+        // }
     }
 }
 

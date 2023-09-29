@@ -41,9 +41,17 @@ impl From<GltfImport> for ImportedGltfScene {
 }
 
 pub fn read_into_scene(app_scene: &mut Scene, path: &str) -> anyhow::Result<()> {
-    println!("gltf::import start");
-    let imported: ImportedGltfScene = gltf::import(path)?.into();
-    println!("gltf::import successful");
+    let imported: ImportedGltfScene = {
+        println!("gltf::import start");
+        let time_start = std::time::Instant::now();
+        let imported = gltf::import(path)?.into();
+        let time_spent = std::time::Instant::now() - time_start;
+        println!("gltf::import successful, took {:?}", time_spent);
+        imported
+    };
+
+    let mut gltf_root_folder = PathBuf::from(path);
+    gltf_root_folder.pop();
     // let gltf = Gltf::open("./res/sponza/sponza_json_all.gltf")?;
     // 1. Find gltf camera
 
@@ -91,7 +99,7 @@ pub fn read_into_scene(app_scene: &mut Scene, path: &str) -> anyhow::Result<()> 
     // println!("{:?}", test_point.divided_by_w());
 
     for node in scene.nodes() {
-        import_node(app_scene, &node, &Mat44::IDENTITY, &imported)?;
+        import_node(app_scene, &node, &Mat44::IDENTITY, &imported, &gltf_root_folder)?;
         // println!(
         //     "Node #{} has {} children",
         //     node.index(),
@@ -150,6 +158,7 @@ fn import_node(
     node: &gltf::Node,
     parent_transform: &Mat44,
     imported: &ImportedGltfScene,
+    gltf_folder: &Path,
 ) -> anyhow::Result<()> {
     let own_transform: Mat44 = node.transform().into();
     let accumulated_transform = *parent_transform * own_transform;
@@ -157,7 +166,7 @@ fn import_node(
     match node.mesh() {
         Some(mesh) => {
             for primitive in mesh.primitives() {
-                let material = import_material(app_scene, imported, primitive.material())?;
+                let material = import_material(app_scene, imported, gltf_folder, primitive.material())?;
 
                 let bbox = primitive.bounding_box();
                 let positions = primitive
@@ -350,7 +359,7 @@ fn import_node(
     }
 
     for child in node.children() {
-        import_node(app_scene, &child, &accumulated_transform, imported)?;
+        import_node(app_scene, &child, &accumulated_transform, imported, gltf_folder)?;
     }
 
     Ok(())
@@ -409,8 +418,10 @@ pub fn from_gltf_projection(projection: Projection) -> (Mat44, f32) {
 fn import_material(
     app_scene: &mut Scene,
     imported: &ImportedGltfScene,
+    gltf_folder: &Path,
     material: gltf::material::Material,
 ) -> anyhow::Result<MaterialShared> {
+    
     let pbr_info = material.pbr_metallic_roughness();
     let color_factor = pbr_info.base_color_factor();
     let metallic_factor = pbr_info.metallic_factor();
@@ -429,8 +440,13 @@ fn import_material(
             let texture = match image.source() {
                 image::Source::Uri { uri, mime_type } => match resolve_uri(uri)? {
                     UriResolved::Base64(base64_slice) => Texture::new_from_base64_str(base64_slice),
+                    UriResolved::Filename(filename) => {
+                        let resolved_path = gltf_folder.join(filename);
+                        let read_data = std::fs::read(resolved_path)?;
+                        Texture::new_from_raw_bytes(&read_data)
+                    },
                     _ => {
-                        panic!("non-base64 uri not implemented")
+                        panic!("not implemented")
                     }
                 },
                 image::Source::View { view, mime_type } => {
@@ -456,7 +472,12 @@ fn import_material(
                                 let offset = view.offset();
                                 let length = view.length();
                                 Texture::new_from_raw_bytes(&bytes[offset..offset+length])
-                            }
+                            },
+                            UriResolved::Filename(filename) => {
+                                let resolved_path = gltf_folder.join(filename);
+                                let read_data = std::fs::read(resolved_path)?;
+                                Texture::new_from_raw_bytes(&read_data)
+                            },
                             _ => {
                                 panic!("non-base64 uri not implemented")
                             }

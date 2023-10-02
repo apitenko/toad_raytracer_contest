@@ -9,7 +9,7 @@ use crate::math::Vec3;
 pub struct Texture {
     width: usize,
     height: usize,
-    width1: f32, // width - 1
+    width1: f32, // width - epsilon
     height1: f32,
     image: RawTextureData,
 }
@@ -31,6 +31,10 @@ impl Texture {
         let sample = unsafe { self.image.unsafe_get_pixel(x as u32, y as u32) };
         return Vec3::from_f32(sample.0);
     }
+
+    pub fn get_raw_data(&self) -> &RawTextureData {
+        return &self.image;
+    } 
 }
 
 #[derive(Clone, Copy)]

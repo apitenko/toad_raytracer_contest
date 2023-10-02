@@ -8,3 +8,4 @@ pub mod gltf_importer;
 pub mod camera;
 pub mod uri;
 pub mod scene_defaults;
+pub mod sampler;

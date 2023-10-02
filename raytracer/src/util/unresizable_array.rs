@@ -1,7 +1,7 @@
 
 pub struct UnresizableArray<T, const TCAPACITY: usize>
 where
-    T: Sized,
+    T: Sized
 {
     data: Box<[T; TCAPACITY]>,
     current_index: usize,
@@ -14,7 +14,7 @@ where
     const MAX_SIZE: usize = TCAPACITY;
     pub fn with_capacity() -> Self
     where
-        [(); Self::MAX_SIZE]:,
+        [(); TCAPACITY]:,
     {
         unsafe {
             Self {

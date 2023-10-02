@@ -37,7 +37,7 @@ impl Texture {
     } 
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct TextureShared {
     mat: *const Texture,
 }

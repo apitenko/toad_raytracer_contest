@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use crate::{math::Vec3, scene::texture::TextureShared, constants::MISS_COLOR_VEC3};
+use crate::{math::Vec3, constants::MISS_COLOR_VEC3, scene::texture::texture::TextureShared};
 
 const SKYBOX_EMISSION_INTENSITY: f32 = 0.1;
 pub struct Skybox {

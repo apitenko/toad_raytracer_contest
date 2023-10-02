@@ -2,7 +2,7 @@ use std::f32::consts::{PI, TAU};
 
 use crate::{
     math::{Ray, RayBounce, Vec3},
-    scene::material::{MaterialShared, MATERIAL_DEFAULT},
+    scene::material::{MaterialShared},
 };
 
 use super::{cast_result::CastResult, shape::Shape};

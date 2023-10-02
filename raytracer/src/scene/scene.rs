@@ -1,10 +1,14 @@
 use std::path::Path;
 
+use crate::math::Vec3;
 use crate::scene::acceleration_structure::acceleration_structure::AccelerationStructure;
 use crate::{constants::DEFAULT_ASPECT_RATIO, primitives::triangle::Triangle};
 
 use super::acceleration_structure::AccelerationStructureType;
 
+use super::material::{IMaterialStorage, Material, MaterialShared};
+use super::texture::sampler::Sampler;
+use super::texture::texture::Texture;
 use super::{camera::Camera, lights::light::Light, material::MaterialStorage};
 
 pub struct Scene {
@@ -14,11 +18,30 @@ pub struct Scene {
     // pub skybox: Skybox,
     pub material_storage: MaterialStorage,
     pub aspect_ratio: f32,
+    pub default_material: MaterialShared,
 }
 
 impl Scene {
     pub fn new() -> anyhow::Result<Self> {
         let mut material_storage = MaterialStorage::new();
+
+        // let default_texture = material_storage.push_texture(Texture::make_default_texture()?);
+        let default_sampler = Sampler::new(
+            &mut material_storage,
+            Texture::make_default_texture()?,
+            super::texture::sampler::MinFilter::Nearest,
+            super::texture::sampler::MagFilter::Nearest,
+        );
+        let default_material = material_storage.push_material(Material {
+            uv_scale: 1.0,
+            color_factor: Vec3::ONE,
+            fresnel_coefficient: 4.0,
+            emission_color: Vec3::ONE,
+            emission_power: 0.0,
+            specular: 0.00 * Vec3::ONE,
+            roughness: 1.00,
+            color_albedo: default_sampler.clone(),
+        });
         // let skybox_texture =  material_storage.push_texture(Texture::new_from_file(&Path::new("./res/skybox.png"))?);
 
         Ok(Self {
@@ -28,6 +51,7 @@ impl Scene {
             // skybox: Skybox::new(skybox_texture),
             material_storage,
             aspect_ratio: DEFAULT_ASPECT_RATIO,
+            default_material,
         })
     }
 

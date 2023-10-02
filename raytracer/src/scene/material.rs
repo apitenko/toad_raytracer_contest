@@ -1,13 +1,13 @@
+use crate::scene::texture::samplable::Samplable;
+use crate::{math::Vec3, util::unresizable_array::UnresizableArray};
 use std::{
-    mem::{zeroed, MaybeUninit},
+    mem::{transmute, zeroed, MaybeUninit},
     sync::Arc,
 };
 
-use crate::{math::Vec3, scene::texture::Texture, util::unresizable_array::UnresizableArray};
+use super::texture::{sampler::Sampler, texture::Texture, texture::TextureShared};
 
-use super::texture::TextureShared;
-
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Material {
     pub uv_scale: f32,
     pub color_factor: Vec3, // non-PBR parameter; use Vec3::ONE to disable it
@@ -25,8 +25,10 @@ pub struct Material {
     // pub sheen_tint: f32,
     // pub clearcoat: f32,
     // pub clearcoat_gloss: f32,
-    pub color_albedo: TextureShared,
+    pub color_albedo: Sampler,
 }
+
+type MaterialStorageForDefault = MaterialStorageSized<6, 6>;
 
 lazy_static::lazy_static! {
     static ref TEXTURE_DATA_DEFAULT: Box<Texture> = {
@@ -38,30 +40,48 @@ lazy_static::lazy_static! {
     static ref TEXTURE_DEFAULT: TextureShared = {
         TextureShared::new(TEXTURE_DATA_DEFAULT.as_ref() as *const Texture)
     };
-    static ref MATERIAL_DATA_DEFAULT: Box<Material> = {
-        Box::new(Material {
-            ..Default::default()
-        })
-    };
-    pub static ref MATERIAL_DEFAULT: MaterialShared = {
-        MaterialShared::new(MATERIAL_DATA_DEFAULT.as_ref() as *const Material)
-    };
+    // static ref MATERIAL_DATA_DEFAULT: Box<Material> = {
+    //     Box::new(Material {
+    //         ..Default::default()
+    //     })
+    // };
+    // pub static ref MATERIAL_DEFAULT: MaterialShared = {
+    //     MaterialShared::new(MATERIAL_DATA_DEFAULT.as_ref() as *const Material)
+    // };
+
+    // static ref MATERIAL_STORAGE_FOR_DEFAULTS: Box<dyn IMaterialStorage> = {
+    //     Box::new(MaterialStorageForDefault::new())
+    // };
+
+    // pub static ref SAMPLER_DEFAULT: Sampler = unsafe {
+    //     let im_shooting_myself_in_the_leg =
+    //     MATERIAL_STORAGE_FOR_DEFAULTS.as_ref();
+
+        
+    //     Sampler::new(
+    //         im_shooting_myself_in_the_leg,
+    //         TEXTURE_DATA_DEFAULT.as_ref().clone(),
+    //         crate::scene::texture::sampler::MinFilter::Nearest,
+    //         crate::scene::texture::sampler::MagFilter::Nearest,
+    //     )
+    // };
+
 }
 
-impl Default for Material {
-    fn default() -> Self {
-        Self {
-            uv_scale: 1.0,
-            color_factor: Vec3::ONE,
-            fresnel_coefficient: 4.0,
-            emission_color: Vec3::ONE,
-            emission_power: 0.0,
-            specular: 0.25 * Vec3::ONE,
-            roughness: 0.80,
-            color_albedo: TEXTURE_DEFAULT.clone(),
-        }
-    }
-}
+// impl Default for Material {
+//     fn default() -> Self {
+//         Self {
+//             uv_scale: 1.0,
+//             color_factor: Vec3::ONE,
+//             fresnel_coefficient: 4.0,
+//             emission_color: Vec3::ONE,
+//             emission_power: 0.0,
+//             specular: 0.00 * Vec3::ONE,
+//             roughness: 1.00,
+//             color_albedo: SAMPLER_DEFAULT.clone(),
+//         }
+//     }
+// }
 
 impl Material {
     // pub fn empty() -> Self {
@@ -71,11 +91,11 @@ impl Material {
     //     }
     // }
 
-    fn sample_uv_scaled(&self, texture: &TextureShared, uv: (f32, f32)) -> Vec3 {
+    fn sample_uv_scaled(&self, texture: &Sampler, uv: (f32, f32)) -> Vec3 {
         let material_albedo = {
             let u = (uv.0 * self.uv_scale).fract();
             let v = (uv.1 * self.uv_scale).fract();
-            texture.get().sample(u, v)
+            texture.sample(u, v, 0.0)
         };
         return material_albedo;
     }
@@ -138,32 +158,48 @@ impl MaterialShared {
 
 // pub fn default_materials_map() {}
 
-pub struct MaterialStorage {
-    materials: UnresizableArray<Material, { Self::MATERIALS_MAX }>,
-    textures: UnresizableArray<Texture, { Self::TEXTURES_MAX }>,
+pub trait IMaterialStorage {
+    fn push_material(&mut self, mat: Material) -> MaterialShared;
+    fn push_texture(&mut self, tex: Texture) -> TextureShared;
 }
 
-impl MaterialStorage {
-    const MATERIALS_MAX: usize = 600;
-    const TEXTURES_MAX: usize = 600;
+pub struct MaterialStorageSized<const MATERIALS_MAX: usize, const TEXTURES_MAX: usize> {
+    materials: UnresizableArray<Material, { MATERIALS_MAX }>,
+    textures: UnresizableArray<Texture, { TEXTURES_MAX }>,
+}
 
+pub type MaterialStorage = MaterialStorageSized<600, 600>;
+
+impl<const MATERIALS_MAX: usize, const TEXTURES_MAX: usize>
+    MaterialStorageSized<{ MATERIALS_MAX }, { TEXTURES_MAX }>
+{
     pub fn new() -> Self {
         Self {
-            materials: UnresizableArray::<Material, { Self::MATERIALS_MAX }>::with_capacity(),
-            textures: UnresizableArray::<Texture, { Self::TEXTURES_MAX }>::with_capacity(),
+            materials: UnresizableArray::<Material, { MATERIALS_MAX }>::with_capacity(),
+            textures: UnresizableArray::<Texture, { TEXTURES_MAX }>::with_capacity(),
         }
     }
+}
 
-    pub fn push_material(&mut self, mat: Material) -> MaterialShared {
+impl<const MATERIALS_MAX: usize, const TEXTURES_MAX: usize> IMaterialStorage
+    for MaterialStorageSized<{ MATERIALS_MAX }, { TEXTURES_MAX }>
+{
+    fn push_material(&mut self, mat: Material) -> MaterialShared {
         let ptr = self.materials.push(mat);
         MaterialShared::new(ptr)
     }
 
-    pub fn push_texture(&mut self, tex: Texture) -> TextureShared {
+    fn push_texture(&mut self, tex: Texture) -> TextureShared {
         let ptr = self.textures.push(tex);
         TextureShared::new(ptr)
     }
 }
 
-unsafe impl Send for MaterialStorage {}
-unsafe impl Sync for MaterialStorage {}
+unsafe impl<const MATERIALS_MAX: usize, const TEXTURES_MAX: usize> Send
+    for MaterialStorageSized<{ MATERIALS_MAX }, { TEXTURES_MAX }>
+{
+}
+unsafe impl<const MATERIALS_MAX: usize, const TEXTURES_MAX: usize> Sync
+    for MaterialStorageSized<{ MATERIALS_MAX }, { TEXTURES_MAX }>
+{
+}

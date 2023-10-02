@@ -1,9 +1,9 @@
-use crate::math::Vec3;
+use crate::{math::Vec3, scene::material::MaterialStorage};
 use image::GenericImageView;
+use crate::scene::material::IMaterialStorage;
 
 use super::{
-    material::MaterialStorage,
-    texture::{RawTextureData, Texture, TextureShared},
+    texture::{RawTextureData, Texture, TextureShared}, samplable::Samplable,
 };
 
 /// Minification filter.
@@ -28,19 +28,16 @@ pub enum MinFilter {
     LinearMipmapLinear,
 }
 
-impl From<gltf::texture::MinFilter> for MinFilter {
-    fn from(value: gltf::texture::MinFilter) -> Self {
-        match value {
-            gltf::texture::MinFilter::Nearest => MinFilter::Nearest,
-            gltf::texture::MinFilter::Linear => MinFilter::Linear,
-            gltf::texture::MinFilter::NearestMipmapNearest => MinFilter::NearestMipmapNearest,
-            gltf::texture::MinFilter::LinearMipmapNearest => MinFilter::LinearMipmapNearest,
-            gltf::texture::MinFilter::NearestMipmapLinear => MinFilter::NearestMipmapLinear,
-            gltf::texture::MinFilter::LinearMipmapLinear => MinFilter::LinearMipmapLinear,
-        }
-    }
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum MagFilter {
+    /// Corresponds to `GL_NEAREST`.
+    Nearest = 1,
+
+    /// Corresponds to `GL_LINEAR`.
+    Linear,
 }
 
+#[derive(Clone, Debug)]
 pub struct TextureMips {
     texture_with_mips: TextureShared,
     input_width: u32,
@@ -140,33 +137,33 @@ impl TextureMips {
 
         match filter {
             MinFilter::LinearMipmapLinear | MinFilter::LinearMipmapNearest => unsafe {
-                for x in coordinates.start_x..(coordinates.start_x + coordinates.width) {
-                    for y in coordinates.start_y..(coordinates.start_y + coordinates.height) {
+                for (x_index, x_target) in (coordinates.start_x..(coordinates.start_x + coordinates.width)).enumerate() {
+                    for (y_index, y_target) in (coordinates.start_y..(coordinates.start_y + coordinates.height)).enumerate() {
                         let p00 = texture
                             .get_pixel(
-                                previous_coordinates.start_x + x * 2,
-                                previous_coordinates.start_y + y * 2,
+                                previous_coordinates.start_x + x_index as u32 * 2,
+                                previous_coordinates.start_y + y_index as u32 * 2,
                             )
                             .0;
                         let p10 = texture
                             .get_pixel(
-                                previous_coordinates.start_x + x * 2 + 1,
-                                previous_coordinates.start_y + y * 2,
+                                previous_coordinates.start_x + x_index as u32 * 2 + 1,
+                                previous_coordinates.start_y + y_index as u32 * 2,
                             )
                             .0;
                         let p01 = texture
                             .get_pixel(
-                                previous_coordinates.start_x + x * 2,
-                                previous_coordinates.start_y + y * 2 + 1,
+                                previous_coordinates.start_x + x_index as u32 * 2,
+                                previous_coordinates.start_y + y_index as u32 * 2 + 1,
                             )
                             .0;
                         let p11 = texture
                             .get_pixel(
-                                previous_coordinates.start_x + x * 2 + 1,
-                                previous_coordinates.start_y + y * 2 + 1,
+                                previous_coordinates.start_x + x_index as u32 * 2 + 1,
+                                previous_coordinates.start_y + y_index as u32 * 2 + 1,
                             )
                             .0;
-                        let current_pixel = texture.get_pixel_mut(x, y);
+                        let current_pixel = texture.get_pixel_mut(x_target, y_target);
 
                         // linear interpolation
                         let interpolated_pixel_color = {
@@ -182,15 +179,15 @@ impl TextureMips {
                 }
             },
             _ => {
-                for x in coordinates.start_x..(coordinates.start_x + coordinates.width) {
-                    for y in coordinates.start_y..(coordinates.start_y + coordinates.height) {
+                for (x_index, x_target) in (coordinates.start_x..(coordinates.start_x + coordinates.width)).enumerate() {
+                    for (y_index, y_target) in (coordinates.start_y..(coordinates.start_y + coordinates.height)).enumerate() {
                         let p00 = texture
                             .get_pixel(
-                                previous_coordinates.start_x + x * 2,
-                                previous_coordinates.start_y + y * 2,
+                                previous_coordinates.start_x + x_index as u32 * 2,
+                                previous_coordinates.start_y + y_index as u32 * 2,
                             )
                             .0;
-                        let current_pixel = texture.get_pixel_mut(x, y);
+                        let current_pixel = texture.get_pixel_mut(x_target, y_target);
                         current_pixel.0 = p00;
                     }
                 }
@@ -211,11 +208,10 @@ impl TextureMips {
     }
 
     pub unsafe fn generate_mips(
-        storage: &mut MaterialStorage,
-        input_texture: &TextureShared,
+        storage: &mut dyn IMaterialStorage,
+        input_texture: &Texture,
         filter: MinFilter,
     ) -> Self {
-        let input_texture = input_texture.get();
         let input_raw = input_texture.get_raw_data();
 
         fn ceil_to_power_of_2(value: u32) -> u32 {
@@ -223,8 +219,8 @@ impl TextureMips {
             let ceiled = f32::log2(value).ceil() as u32;
             u32::pow(2, ceiled)
         }
-        let normalized_width = ceil_to_power_of_2(input_raw.width());
-        let normalized_height = ceil_to_power_of_2(input_raw.height());
+        let normalized_width = u32::max(2, ceil_to_power_of_2(input_raw.width()));
+        let normalized_height = u32::max(2, ceil_to_power_of_2(input_raw.height()));
 
         let texture_width = normalized_width + normalized_width / 2;
         let texture_height = normalized_height;
@@ -301,11 +297,36 @@ impl TextureMips {
     }
 }
 
-// pub struct Sampler {
-//     base_texture: TextureShared,
+#[derive(Clone, Debug)]
+pub struct Sampler {
+    texture_mips: TextureMips,
+    min_filter: MinFilter,
+    mag_filter: MagFilter,
+}
 
-// }
+impl Sampler {
+    pub fn new(
+        storage: &mut dyn IMaterialStorage,
+        texture: Texture,
+        min_filter: MinFilter,
+        mag_filter: MagFilter,
 
-// impl Sampler {
+    ) -> Self {
+        unsafe {
+            let texture_mips = TextureMips::generate_mips(storage, &texture, min_filter);
+            Self {
+                texture_mips,
+                min_filter,
+                mag_filter,
+            }
+        }
+    }
+}
 
-// }
+impl Samplable for Sampler {
+    fn sample(&self, u: f32, v: f32, mip: f32) -> Vec3 {
+        // TODO: cross-layer sampling (bilinear/aniso)
+        let mip = f32::clamp(mip, 0.0, (self.texture_mips.max_mip - 1) as f32);
+        self.texture_mips.sample(u, v, mip.floor() as usize)
+    }
+}

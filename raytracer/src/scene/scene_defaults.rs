@@ -1,11 +1,12 @@
 use crate::{
     constants::COLOR_SKY_BLUE,
     math::{Mat44, Vec3},
-    primitives::{mesh::Mesh, quad::Quad, triangle::Triangle, bounding_box::BoundingBox},
+    primitives::{mesh::Mesh, quad::Quad, triangle::Triangle, bounding_box::BoundingBox}, scene::texture::sampler::{MinFilter, MagFilter, Sampler},
 };
+use crate::scene::material::IMaterialStorage;
 
 use super::{
-    lights::directional::DirectionalLight, material::Material, scene::Scene, texture::Texture,
+    lights::directional::DirectionalLight, material::Material, scene::Scene, texture::texture::Texture,
 };
 
 pub fn add_scene_defaults(scene: &mut Scene) -> anyhow::Result<()> {
@@ -29,11 +30,12 @@ pub fn add_scene_defaults(scene: &mut Scene) -> anyhow::Result<()> {
         // let bounding_sphere = aabb.bounding_sphere();
 
         let color_texture = Texture::make_default_texture()?;
-        let color_albedo = scene.material_storage.push_texture(color_texture);
+        // let color_albedo = scene.material_storage.push_texture(color_texture);
+        let color_albedo = Sampler::new(&mut scene.material_storage, color_texture, MinFilter::Nearest, MagFilter::Nearest);
         let mat = Material {
             color_factor: Vec3::ONE,
             color_albedo,
-            ..Default::default()
+            ..scene.default_material.get().clone()
         };
 
         let mat_shared = scene.material_storage.push_material(mat);

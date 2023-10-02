@@ -1,25 +1,27 @@
-use std::{
-    f32::consts::PI,
-    path::{Path, PathBuf}, iter,
+use crate::scene::material::IMaterialStorage;
+use crate::{
+    math::{Mat44, Vec3},
+    primitives::{self, bounding_box::BoundingBox, mesh::Mesh, sphere::Sphere, triangle::Triangle},
 };
 use base64::Engine;
 use gltf::{buffer, camera::Projection, image, scene::Transform, Document, Gltf};
-
-use crate::{
-    math::{Mat44, Vec3},
-    primitives::{self, mesh::Mesh, sphere::Sphere, triangle::Triangle, bounding_box::BoundingBox},
-};
 use itertools::Itertools;
+use std::{
+    f32::consts::PI,
+    iter,
+    path::{Path, PathBuf},
+};
 
 use super::{
     camera::Camera,
     lights::{
         directional::DirectionalLight,
-        point::{PointLight, PointLightRadius}, spot::{SpotLight, SpotLightRange},
+        point::{PointLight, PointLightRadius},
+        spot::{SpotLight, SpotLightRange},
     },
-    material::{Material, MaterialShared},
+    material::{Material, MaterialShared, MaterialStorage},
     scene::Scene,
-    texture::Texture,
+    texture::texture::Texture,
     uri::{resolve_uri, UriResolved},
 };
 
@@ -77,7 +79,8 @@ pub fn read_into_scene(app_scene: &mut Scene, path: &str) -> anyhow::Result<()> 
                 .expect("No camera found in the gltf scene: something's wrong with the code");
             println!("Camera found");
             let camera_view_matrix: Mat44 = transform.inverse();
-            let (camera_projection_matrix, aspect_ratio) = from_gltf_projection(camera.projection());
+            let (camera_projection_matrix, aspect_ratio) =
+                from_gltf_projection(camera.projection());
 
             (camera_view_matrix, camera_projection_matrix, aspect_ratio)
         }
@@ -99,7 +102,13 @@ pub fn read_into_scene(app_scene: &mut Scene, path: &str) -> anyhow::Result<()> 
     // println!("{:?}", test_point.divided_by_w());
 
     for node in scene.nodes() {
-        import_node(app_scene, &node, &Mat44::IDENTITY, &imported, &gltf_root_folder)?;
+        import_node(
+            app_scene,
+            &node,
+            &Mat44::IDENTITY,
+            &imported,
+            &gltf_root_folder,
+        )?;
         // println!(
         //     "Node #{} has {} children",
         //     node.index(),
@@ -166,7 +175,8 @@ fn import_node(
     match node.mesh() {
         Some(mesh) => {
             for primitive in mesh.primitives() {
-                let material = import_material(app_scene, imported, gltf_folder, primitive.material())?;
+                let material =
+                    import_material(app_scene, imported, gltf_folder, primitive.material())?;
 
                 let bbox = primitive.bounding_box();
                 let positions = primitive
@@ -191,7 +201,7 @@ fn import_node(
                 };
 
                 let index_iter = index_iter.tuple_windows().step_by(3);
-                
+
                 // let uv_iter: Box<dyn Iterator<Item = [f32;2]>> = {
                 //     let uv = reader.read_tex_coords(0);
                 //     let uv: Box<dyn Iterator<Item = [f32;2]>> = match uv {
@@ -217,22 +227,15 @@ fn import_node(
                     Some(p) => p,
                 };
 
-                
-
-
                 let input_positions: Vec<_> = positions_reader.collect();
 
                 let input_uv: Vec<_> = {
                     let uv_reader = reader.read_tex_coords(0);
                     match uv_reader {
-                        None => {
-                            (0..input_positions.len()/2).map(|huynya| {
-                                [huynya as f32, huynya as f32]
-                            }).collect()
-                        },
-                        Some(uv_reader) => {
-                            uv_reader.into_f32().collect()
-                        }
+                        None => (0..input_positions.len() / 2)
+                            .map(|huynya| [huynya as f32, huynya as f32])
+                            .collect(),
+                        Some(uv_reader) => uv_reader.into_f32().collect(),
                     }
                 };
 
@@ -240,14 +243,18 @@ fn import_node(
                     let normals_reader = reader.read_normals();
                     match normals_reader {
                         None => {
-                            let boxed_closure = Box::new(|index: usize, inv_tr_mat: Mat44, fallback_geometry_normal: Vec3| {
-                                fallback_geometry_normal
-                            });
+                            let boxed_closure = Box::new(
+                                |index: usize,
+                                 inv_tr_mat: Mat44,
+                                 fallback_geometry_normal: Vec3| {
+                                    fallback_geometry_normal
+                                },
+                            );
                             boxed_closure
-                        },
+                        }
                         Some(fuckme) => {
                             let data: Vec<_> = fuckme.collect();
-                            
+
                             let boxed_closure = Box::new(move |index: usize, inv_tr_mat: Mat44, fallback_geometry_normal: Vec3| {
                                 let normal = Vec3::from_f32_3(data[index], 0.0);
                                 let normal = inv_tr_mat * normal;
@@ -274,10 +281,22 @@ fn import_node(
 
                     // transform normals
                     let fallback_geometry_normal = Vec3::calculate_normal_from_points(p0, p1, p2);
-                    
-                    let n0 = read_normal_for_triangle(i0 as usize, inverse_transposed_matrix, fallback_geometry_normal);
-                    let n1 = read_normal_for_triangle(i1 as usize, inverse_transposed_matrix, fallback_geometry_normal);
-                    let n2 = read_normal_for_triangle(i2 as usize, inverse_transposed_matrix, fallback_geometry_normal);
+
+                    let n0 = read_normal_for_triangle(
+                        i0 as usize,
+                        inverse_transposed_matrix,
+                        fallback_geometry_normal,
+                    );
+                    let n1 = read_normal_for_triangle(
+                        i1 as usize,
+                        inverse_transposed_matrix,
+                        fallback_geometry_normal,
+                    );
+                    let n2 = read_normal_for_triangle(
+                        i2 as usize,
+                        inverse_transposed_matrix,
+                        fallback_geometry_normal,
+                    );
 
                     let uv0 = input_uv[i0 as usize];
                     let uv1 = input_uv[i1 as usize];
@@ -287,7 +306,7 @@ fn import_node(
                         vertices: [p0, p1, p2],
                         uv: [uv0, uv1, uv2],
                         normals: [n0, n1, n2],
-                        material: material.clone()
+                        material: material.clone(),
                     });
                 }
 
@@ -351,15 +370,21 @@ fn import_node(
                         position,
                         inner_cone_angle,
                         outer_cone_angle,
-                        range
+                        range,
                     })),
-                }
+                },
             }
         }
     }
 
     for child in node.children() {
-        import_node(app_scene, &child, &accumulated_transform, imported, gltf_folder)?;
+        import_node(
+            app_scene,
+            &child,
+            &accumulated_transform,
+            imported,
+            gltf_folder,
+        )?;
     }
 
     Ok(())
@@ -379,7 +404,6 @@ impl From<Transform> for Mat44 {
     }
 }
 
-
 pub fn from_gltf_projection(projection: Projection) -> (Mat44, f32) {
     match projection {
         gltf::camera::Projection::Orthographic(ortho) => {
@@ -388,10 +412,7 @@ pub fn from_gltf_projection(projection: Projection) -> (Mat44, f32) {
             let xmag = ortho.xmag();
             let ymag = ortho.ymag();
 
-            return (
-                Mat44::from_orthographic(xmag, ymag, near, far), 
-                1.0
-            )
+            return (Mat44::from_orthographic(xmag, ymag, near, far), 1.0);
         }
         gltf::camera::Projection::Perspective(persp) => {
             let yfov = persp.yfov();
@@ -403,17 +424,22 @@ pub fn from_gltf_projection(projection: Projection) -> (Mat44, f32) {
                 Some(far) => {
                     // Far plane exist
                     // GLTF default is Right Handed (forward is -z)
-                    return (Mat44::from_perspective_rh(yfov, 1.0 / aspect_ratio, near, far), aspect_ratio)
+                    return (
+                        Mat44::from_perspective_rh(yfov, 1.0 / aspect_ratio, near, far),
+                        aspect_ratio,
+                    );
                 }
                 None => {
                     // Infinite far
-                    return (Mat44::from_perspective_infinite(yfov, 1.0 / aspect_ratio, near), aspect_ratio)
+                    return (
+                        Mat44::from_perspective_infinite(yfov, 1.0 / aspect_ratio, near),
+                        aspect_ratio,
+                    );
                 }
             }
         }
     }
 }
-
 
 fn import_material(
     app_scene: &mut Scene,
@@ -421,21 +447,83 @@ fn import_material(
     gltf_folder: &Path,
     material: gltf::material::Material,
 ) -> anyhow::Result<MaterialShared> {
-    
     let pbr_info = material.pbr_metallic_roughness();
     let color_factor = pbr_info.base_color_factor();
     let metallic_factor = pbr_info.metallic_factor();
-    let color_texture = match pbr_info.base_color_texture() {
-        None => Texture::make_default_texture()?,
+
+    let color_texture = import_texture(
+        pbr_info.base_color_texture(),
+        &mut app_scene.material_storage,
+        gltf_folder,
+        imported,
+    )?;
+
+    let mat = Material {
+        color_factor: Vec3::from_f32(color_factor),
+        color_albedo: color_texture,
+        // metallic_factor,
+        ..app_scene.default_material.get().clone()
+    };
+
+    let mat_shared = app_scene.material_storage.push_material(mat);
+    Ok(mat_shared)
+}
+
+impl From<gltf::texture::MagFilter> for super::texture::sampler::MagFilter {
+    fn from(value: gltf::texture::MagFilter) -> Self {
+        match value {
+            gltf::texture::MagFilter::Nearest => super::texture::sampler::MagFilter::Nearest,
+            gltf::texture::MagFilter::Linear => super::texture::sampler::MagFilter::Linear,
+        }
+    }
+}
+
+impl From<gltf::texture::MinFilter> for super::texture::sampler::MinFilter {
+    fn from(value: gltf::texture::MinFilter) -> Self {
+        match value {
+            gltf::texture::MinFilter::Nearest => super::texture::sampler::MinFilter::Nearest,
+            gltf::texture::MinFilter::Linear => super::texture::sampler::MinFilter::Linear,
+            gltf::texture::MinFilter::NearestMipmapNearest => {
+                super::texture::sampler::MinFilter::NearestMipmapNearest
+            }
+            gltf::texture::MinFilter::LinearMipmapNearest => {
+                super::texture::sampler::MinFilter::LinearMipmapNearest
+            }
+            gltf::texture::MinFilter::NearestMipmapLinear => {
+                super::texture::sampler::MinFilter::NearestMipmapLinear
+            }
+            gltf::texture::MinFilter::LinearMipmapLinear => {
+                super::texture::sampler::MinFilter::LinearMipmapLinear
+            }
+        }
+    }
+}
+
+fn import_texture(
+    texture: Option<gltf::texture::Info>,
+    material_storage: &mut MaterialStorage,
+    gltf_folder: &Path,
+    imported: &ImportedGltfScene,
+) -> anyhow::Result<super::texture::sampler::Sampler> {
+    match texture {
+        None => {
+            let texture = Texture::make_default_texture()?;
+            let sampler = super::texture::sampler::Sampler::new(
+                material_storage,
+                texture,
+                super::texture::sampler::MinFilter::Nearest,
+                super::texture::sampler::MagFilter::Nearest,
+            );
+
+            Ok(sampler)
+        }
         Some(t) => {
             let texture_uv_index = t.tex_coord();
             if texture_uv_index != 0 {
                 todo!("texture_uv_index != 0; it is {}", texture_uv_index);
             }
-            let texture = t.texture();
-            let sampler = texture.sampler();
-            let image = texture.source();
-            // todo: sampler
+            let texture_ = t.texture();
+            let image = texture_.source();
 
             let texture = match image.source() {
                 image::Source::Uri { uri, mime_type } => match resolve_uri(uri)? {
@@ -444,7 +532,7 @@ fn import_material(
                         let resolved_path = gltf_folder.join(filename);
                         let read_data = std::fs::read(resolved_path)?;
                         Texture::new_from_raw_bytes(&read_data)
-                    },
+                    }
                     _ => {
                         panic!("not implemented")
                     }
@@ -457,27 +545,25 @@ fn import_material(
 
                     let texture = match buffer.source() {
                         buffer::Source::Bin => {
-                            
                             let buffer_data = &imported.buffers[buffer.index()];
                             let offset = view.offset();
                             let length = view.length();
-                            Texture::new_from_raw_bytes(&buffer_data.0[offset..offset+length])
+                            Texture::new_from_raw_bytes(&buffer_data.0[offset..offset + length])
                         }
                         buffer::Source::Uri(uri) => match resolve_uri(uri)? {
                             UriResolved::Base64(base64_str) => {
-
                                 let bytes = base64::engine::general_purpose::STANDARD_NO_PAD
                                     .decode(&base64_str[8..])?;
 
                                 let offset = view.offset();
                                 let length = view.length();
-                                Texture::new_from_raw_bytes(&bytes[offset..offset+length])
-                            },
+                                Texture::new_from_raw_bytes(&bytes[offset..offset + length])
+                            }
                             UriResolved::Filename(filename) => {
                                 let resolved_path = gltf_folder.join(filename);
                                 let read_data = std::fs::read(resolved_path)?;
                                 Texture::new_from_raw_bytes(&read_data)
-                            },
+                            }
                             _ => {
                                 panic!("non-base64 uri not implemented")
                             }
@@ -488,20 +574,27 @@ fn import_material(
                 }
             };
 
-            texture?
+            let texture = texture?;
+            let sampler = texture_.sampler();
+            let sampler = super::texture::sampler::Sampler::new(
+                material_storage,
+                texture,
+                sampler
+                    .min_filter()
+                    .unwrap_or(gltf::texture::MinFilter::Nearest)
+                    .into(),
+                sampler
+                    .mag_filter()
+                    .unwrap_or(gltf::texture::MagFilter::Nearest)
+                    .into(),
+                // sampler.wrap_s(),
+                // sampler.wrap_t(),
+            );
+            // sampler.mag_filter()
+
+            // let color_texture = app_scene.material_storage.push_texture(color_texture);
+
+            Ok(sampler)
         }
-    };
-
-    let color_texture = app_scene.material_storage.push_texture(color_texture);
-
-    let mat = Material {
-        color_factor: Vec3::from_f32(color_factor),
-        color_albedo: color_texture,
-        // metallic_factor,
-        ..Default::default()
-    };
-
-    let mat_shared = app_scene.material_storage.push_material(mat);
-    Ok(mat_shared)
+    }
 }
-

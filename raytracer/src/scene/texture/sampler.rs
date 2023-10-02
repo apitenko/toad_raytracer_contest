@@ -326,6 +326,7 @@ impl Sampler {
 impl Samplable for Sampler {
     fn sample(&self, u: f32, v: f32, mip: f32) -> Vec3 {
         // TODO: cross-layer sampling (bilinear/aniso)
+        // let mip: f32 = 8.0;
         let mip = f32::clamp(mip, 0.0, (self.texture_mips.max_mip - 1) as f32);
         self.texture_mips.sample(u, v, mip.floor() as usize)
     }

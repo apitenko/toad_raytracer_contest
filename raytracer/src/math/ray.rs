@@ -67,7 +67,7 @@ pub enum RayRefractionState {
 pub struct RayBounce {
     pub ray: Ray,
     pub current_bounces: i32,
-    // pub remaining_depth: f32,
+    pub distance: f32,
     pub refraction_state: RayRefractionState,
 }
 
@@ -76,6 +76,7 @@ impl RayBounce {
         Self {
             ray,
             current_bounces: 0,
+            distance: 0.0,
             // remaining_depth: MAX_DEPTH,
             refraction_state: RayRefractionState::InsideMaterial {
                 current_outside_fresnel_coefficient: 9.9,

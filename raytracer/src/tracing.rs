@@ -19,7 +19,7 @@ generate_multisample_positions!(1);
 pub const MULTISAMPLE_OFFSETS: [(f32, f32); 1] = generated_samples();
 pub const MULTISAMPLE_SIZE: usize = MULTISAMPLE_OFFSETS.len();
 
-pub const MAX_BOUNCES: i32 = 1;
+pub const MAX_BOUNCES: i32 = 0;
 pub const MONTE_CARLO_THRESHOLD_BOUNCES: i32 = 0;
 // pub const MAX_DEPTH: f32 = 20.0;
 
@@ -27,7 +27,7 @@ pub const MONTE_CARLO_THRESHOLD_BOUNCES: i32 = 0;
 pub const SKYBOX_LIGHT_INTENSITY: f32 = 180.0;
 pub const SKYBOX_COLOR: Vec3 = COLOR_SKY_BLUE;
 
-pub const AMBIENT_LIGHT_INTENSITY: f32 = 0.0;//1000.0;
+pub const AMBIENT_LIGHT_INTENSITY: f32 = 1000.0;
 pub const AMBIENT_LIGHT_COLOR: Vec3 = COLOR_WHITE;
 
 // Cook-Torrance F term
@@ -88,12 +88,14 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
         // return skybox_color * current_bounce.multiplier;
     }
     
+    let mip: f32 = current_bounce.distance / 20.0;
+
     let current_material = cast_result.material.get();
 
-    let material_albedo = current_material.sample_albedo(cast_result.uv);
-    let material_specular = current_material.sample_specular(cast_result.uv);
-    let material_roughness = current_material.sample_roughness(cast_result.uv);
-    let material_emission = current_material.sample_emission(cast_result.uv);
+    let material_albedo = current_material.sample_albedo(cast_result.uv, mip);
+    let material_specular = current_material.sample_specular(cast_result.uv, mip);
+    let material_roughness = current_material.sample_roughness(cast_result.uv, mip);
+    let material_emission = current_material.sample_emission(cast_result.uv, mip);
 
     // GGX
     const DO_DIRECT_LIGHTING: bool = true;
@@ -378,7 +380,7 @@ fn ggx_indirect(
             RayBounce {
                 ray: Ray::new(hit, random_direction, f32::MAX),
                 current_bounces: current_bounce.current_bounces + 1,
-                // remaining_depth: current_bounce.remaining_depth - cast_result.distance_traversed,
+                distance: current_bounce.distance + cast_result.distance_traversed,
                 refraction_state: RayRefractionState::TraversingAir,
             },
             scene,
@@ -407,7 +409,7 @@ fn ggx_indirect(
             RayBounce {
                 ray: Ray::new(hit, reflected_ray, f32::MAX),
                 current_bounces: current_bounce.current_bounces + 1,
-                // remaining_depth: current_bounce.remaining_depth - cast_result.distance_traversed,
+                distance: current_bounce.distance + cast_result.distance_traversed,
                 refraction_state: RayRefractionState::TraversingAir,
             },
             scene,

@@ -91,29 +91,29 @@ impl Material {
     //     }
     // }
 
-    fn sample_uv_scaled(&self, texture: &Sampler, uv: (f32, f32)) -> Vec3 {
+    fn sample_uv_scaled(&self, texture: &Sampler, uv: (f32, f32), mip: f32) -> Vec3 {
         let material_albedo = {
             let u = (uv.0 * self.uv_scale).fract();
             let v = (uv.1 * self.uv_scale).fract();
-            texture.sample(u, v, 0.0)
+            texture.sample(u, v, mip)
         };
         return material_albedo;
     }
 
-    pub fn sample_albedo(&self, uv: (f32, f32)) -> Vec3 {
+    pub fn sample_albedo(&self, uv: (f32, f32), mip: f32) -> Vec3 {
         // TEXTURE_DATA_DEFAULT.sample(uv.0, uv.1) * self.color_tint
-        self.sample_uv_scaled(&self.color_albedo, uv) * self.color_factor
+        self.sample_uv_scaled(&self.color_albedo, uv, mip) * self.color_factor
     }
 
-    pub fn sample_roughness(&self, uv: (f32, f32)) -> f32 {
+    pub fn sample_roughness(&self, uv: (f32, f32), mip: f32) -> f32 {
         return self.roughness;
     }
 
-    pub fn sample_specular(&self, uv: (f32, f32)) -> Vec3 {
+    pub fn sample_specular(&self, uv: (f32, f32), mip: f32) -> Vec3 {
         return self.specular;
     }
 
-    pub fn sample_emission(&self, uv: (f32, f32)) -> Vec3 {
+    pub fn sample_emission(&self, uv: (f32, f32), mip: f32) -> Vec3 {
         return self.emission_color * self.emission_power;
     }
 }

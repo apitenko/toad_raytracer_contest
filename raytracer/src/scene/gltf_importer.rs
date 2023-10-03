@@ -247,7 +247,7 @@ fn import_node(
                                 |index: usize,
                                  inv_tr_mat: Mat44,
                                  fallback_geometry_normal: Vec3| {
-                                    fallback_geometry_normal
+                                    fallback_geometry_normal.normalized()
                                 },
                             );
                             boxed_closure
@@ -258,7 +258,7 @@ fn import_node(
                             let boxed_closure = Box::new(move |index: usize, inv_tr_mat: Mat44, fallback_geometry_normal: Vec3| {
                                 let normal = Vec3::from_f32_3(data[index], 0.0);
                                 let normal = inv_tr_mat * normal;
-                                normal
+                                normal.normalized()
                             });
                             boxed_closure
                         }

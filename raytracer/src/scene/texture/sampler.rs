@@ -284,9 +284,9 @@ impl TextureMips {
         let coordinates = &self.mips[mip];
 
         let x: usize =
-            (coordinates.start_x + u.fract() * coordinates.scaled_width) as usize;
+            (coordinates.start_x + u.wrap_01() * coordinates.scaled_width) as usize;
         let y: usize =
-            (coordinates.start_y + v.fract() * coordinates.scaled_height) as usize;
+            (coordinates.start_y + v.wrap_01() * coordinates.scaled_height) as usize;
         let sample = unsafe {
             self.texture_with_mips
                 .get()
@@ -294,6 +294,16 @@ impl TextureMips {
                 .unsafe_get_pixel(x as u32, y as u32)
         };
         return Vec3::from_f32(sample.0);
+    }
+}
+
+trait FloatWrapTo01 {
+    fn wrap_01(self) -> Self;
+}
+
+impl FloatWrapTo01 for f32 {
+    fn wrap_01(self) -> Self {
+        self - Self::floor(self)
     }
 }
 
@@ -326,7 +336,7 @@ impl Sampler {
 impl Samplable for Sampler {
     fn sample(&self, u: f32, v: f32, mip: f32) -> Vec3 {
         // TODO: cross-layer sampling (bilinear/aniso)
-        // let mip: f32 = 8.0;
+        let mip: f32 = 4.0;
         let mip = f32::clamp(mip, 0.0, (self.texture_mips.max_mip - 1) as f32);
         self.texture_mips.sample(u, v, mip.floor() as usize)
     }

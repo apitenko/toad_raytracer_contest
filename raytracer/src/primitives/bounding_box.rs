@@ -1,6 +1,6 @@
 use crate::{math::Vec3, scene::material::MaterialShared};
 
-use super::{plane::Plane, sphere::Sphere, triangle::Triangle};
+use super::{plane::Plane, triangle::Triangle};
 
 #[derive(Clone, Copy, Debug)]
 pub struct BoundingBox {
@@ -109,17 +109,17 @@ impl BoundingBox {
     pub fn from_gltf(aabb: gltf::mesh::BoundingBox) -> Self {
         Self::new(Vec3::new(aabb.min), Vec3::new(aabb.max))
     }
-    pub fn bounding_sphere(&self) -> Sphere {
-        let min = self.min;
-        let max = self.max;
-        let position = min + (max - min) / 2.0;
-        let radius = (max - position).length();
-        Sphere {
-            position,
-            radius,
-            material: MaterialShared::null(),
-        }
-    }
+    // pub fn bounding_sphere(&self) -> Sphere {
+    //     let min = self.min;
+    //     let max = self.max;
+    //     let position = min + (max - min) / 2.0;
+    //     let radius = (max - position).length();
+    //     Sphere {
+    //         position,
+    //         radius,
+    //         material: MaterialShared::null(),
+    //     }
+    // }
 }
 
 #[cfg(test)]

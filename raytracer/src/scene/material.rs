@@ -9,7 +9,7 @@ use super::texture::{sampler::Sampler, texture::Texture, texture::TextureShared}
 
 #[derive(Clone)]
 pub struct Material {
-    pub uv_scale: f32,
+    // pub uv_scale: f32,
     pub color_factor: Vec3, // non-PBR parameter; use Vec3::ONE to disable it
     pub fresnel_coefficient: f32,
     pub emission_color: Vec3, // TODO: texture?
@@ -57,7 +57,7 @@ lazy_static::lazy_static! {
     //     let im_shooting_myself_in_the_leg =
     //     MATERIAL_STORAGE_FOR_DEFAULTS.as_ref();
 
-        
+
     //     Sampler::new(
     //         im_shooting_myself_in_the_leg,
     //         TEXTURE_DATA_DEFAULT.as_ref().clone(),
@@ -91,29 +91,30 @@ impl Material {
     //     }
     // }
 
-    fn sample_uv_scaled(&self, texture: &Sampler, uv: (f32, f32), mip: f32) -> Vec3 {
-        let material_albedo = {
-            let u = (uv.0 * self.uv_scale).fract();
-            let v = (uv.1 * self.uv_scale).fract();
-            texture.sample(u, v, mip)
-        };
+    #[inline]
+    fn sample_uv_scaled(&self, texture: &Sampler, uv: &[(f32, f32); 4], mip: f32) -> Vec3 {
+        let material_albedo = texture.sample(uv, mip);
         return material_albedo;
     }
 
-    pub fn sample_albedo(&self, uv: (f32, f32), mip: f32) -> Vec3 {
+    #[inline]
+    pub fn sample_albedo(&self, uv: &[(f32, f32); 4], mip: f32) -> Vec3 {
         // TEXTURE_DATA_DEFAULT.sample(uv.0, uv.1) * self.color_tint
         self.sample_uv_scaled(&self.color_albedo, uv, mip) * self.color_factor
     }
 
-    pub fn sample_roughness(&self, uv: (f32, f32), mip: f32) -> f32 {
+    #[inline]
+    pub fn sample_roughness(&self, uv: &[(f32, f32); 4], mip: f32) -> f32 {
         return self.roughness;
     }
 
-    pub fn sample_specular(&self, uv: (f32, f32), mip: f32) -> Vec3 {
+    #[inline]
+    pub fn sample_specular(&self, uv: &[(f32, f32); 4], mip: f32) -> Vec3 {
         return self.specular;
     }
 
-    pub fn sample_emission(&self, uv: (f32, f32), mip: f32) -> Vec3 {
+    #[inline]
+    pub fn sample_emission(&self, uv: &[(f32, f32); 4], mip: f32) -> Vec3 {
         return self.emission_color * self.emission_power;
     }
 }

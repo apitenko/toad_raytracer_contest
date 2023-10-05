@@ -21,7 +21,7 @@ impl Texture {
             width,
             height,
             width1: width as f32 - f32::EPSILON,
-            height1: height as f32 - f32::EPSILON,
+            height1: height as f32 - f32::EPSILON, 
         }
     }
 

@@ -1,7 +1,8 @@
+use crate::primitives::uv_set::UVSet;
 use crate::scene::material::IMaterialStorage;
 use crate::{
     math::{Mat44, Vec3},
-    primitives::{self, bounding_box::BoundingBox, mesh::Mesh, sphere::Sphere, triangle::Triangle},
+    primitives::triangle::Triangle,
 };
 use base64::Engine;
 use gltf::{buffer, camera::Projection, image, scene::Transform, Document, Gltf};
@@ -229,14 +230,17 @@ fn import_node(
 
                 let input_positions: Vec<_> = positions_reader.collect();
 
-                let input_uv: Vec<_> = {
-                    let uv_reader = reader.read_tex_coords(0);
-                    match uv_reader {
-                        None => (0..input_positions.len() / 2)
-                            .map(|huynya| [huynya as f32, huynya as f32])
-                            .collect(),
-                        Some(uv_reader) => uv_reader.into_f32().collect(),
-                    }
+                let input_uv: [Vec<_>; 4] = {
+                    let length = input_positions.len();
+                    let read_uv = |channel_index: u32| -> Vec<_> {
+                        let uv_reader = reader.read_tex_coords(channel_index);
+                        match uv_reader {
+                            None => (0..length).map(|huynya| [huynya as f32, huynya as f32]).collect(),
+                            Some(uv_reader) => uv_reader.into_f32().collect(),
+                        }
+                    };
+
+                    [read_uv(0), read_uv(1), read_uv(2), read_uv(3)]
                 };
 
                 let read_normal_for_triangle: Box<dyn Fn(usize, Mat44, Vec3) -> Vec3> = {
@@ -265,7 +269,10 @@ fn import_node(
                     }
                 };
 
-                assert!(input_uv.len() == input_positions.len());
+                assert!(input_uv[0].len() == input_positions.len());
+                assert!(input_uv[1].len() == input_positions.len());
+                assert!(input_uv[2].len() == input_positions.len());
+                assert!(input_uv[3].len() == input_positions.len());
 
                 let inverse_transposed_matrix = accumulated_transform.inverse().transposed();
                 // let mut final_positions = Vec::with_capacity(input_positions.len() * 2); // guesstimating the total size
@@ -298,13 +305,11 @@ fn import_node(
                         fallback_geometry_normal,
                     );
 
-                    let uv0 = input_uv[i0 as usize];
-                    let uv1 = input_uv[i1 as usize];
-                    let uv2 = input_uv[i2 as usize];
+                    let uv = UVSet::read(&input_uv, i0 as usize, i1 as usize, i2 as usize);
 
                     app_scene.push_triangle(Triangle {
                         vertices: [p0, p1, p2],
-                        uv: [uv0, uv1, uv2],
+                        uv,
                         normals: [n0, n1, n2],
                         material: material.clone(),
                     });
@@ -513,6 +518,7 @@ fn import_texture(
                 texture,
                 super::texture::sampler::MinFilter::Nearest,
                 super::texture::sampler::MagFilter::Nearest,
+                0,
             );
 
             Ok(sampler)
@@ -524,6 +530,7 @@ fn import_texture(
             }
             let texture_ = t.texture();
             let image = texture_.source();
+            let tex_coord_index = t.tex_coord();
 
             let texture = match image.source() {
                 image::Source::Uri { uri, mime_type } => match resolve_uri(uri)? {
@@ -587,8 +594,8 @@ fn import_texture(
                     .mag_filter()
                     .unwrap_or(gltf::texture::MagFilter::Nearest)
                     .into(),
-                // sampler.wrap_s(),
-                // sampler.wrap_t(),
+                tex_coord_index as usize, // sampler.wrap_s(),
+                                          // sampler.wrap_t(),
             );
             // sampler.mag_filter()
 

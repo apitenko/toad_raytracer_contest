@@ -276,7 +276,7 @@ impl TextureMips {
             width_scale,
             height_scale,
             mips,
-            max_mip,
+            max_mip
         }
     }
 
@@ -312,6 +312,7 @@ pub struct Sampler {
     texture_mips: TextureMips,
     min_filter: MinFilter,
     mag_filter: MagFilter,
+    tex_coord_index: usize,
 }
 
 impl Sampler {
@@ -320,7 +321,7 @@ impl Sampler {
         texture: Texture,
         min_filter: MinFilter,
         mag_filter: MagFilter,
-
+        tex_coord_index: usize
     ) -> Self {
         unsafe {
             let texture_mips = TextureMips::generate_mips(storage, &texture, min_filter);
@@ -328,16 +329,21 @@ impl Sampler {
                 texture_mips,
                 min_filter,
                 mag_filter,
+                tex_coord_index
             }
         }
     }
 }
 
 impl Samplable for Sampler {
-    fn sample(&self, u: f32, v: f32, mip: f32) -> Vec3 {
+    fn sample(&self, uv: &[(f32, f32); 4], mip: f32) -> Vec3 {
         // TODO: cross-layer sampling (bilinear/aniso)
-        let mip: f32 = 4.0;
+        // let mip: f32 = 0.0;
         let mip = f32::clamp(mip, 0.0, (self.texture_mips.max_mip - 1) as f32);
-        self.texture_mips.sample(u, v, mip.floor() as usize)
+        self.texture_mips.sample(
+            uv[self.tex_coord_index].0,
+            uv[self.tex_coord_index].1, 
+            mip.floor() as usize
+        )
     }
 }

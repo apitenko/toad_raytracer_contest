@@ -42,6 +42,9 @@ impl WorkerThreadHandle {
                             // if u < 0.9 || u > 0.94 || v < 0.9 || v > 0.94 {
                             //     continue;
                             // }
+                            // if u < 0.45 || u > 0.47 || v < 0.19 || v > 0.2 {
+                            //     continue;
+                            // }
                             let starting_ray = scene.camera.ray(u, v);
 
                             // TODO: skybox
@@ -65,7 +68,7 @@ impl WorkerThreadHandle {
                         pixel_color = pixel_color / MULTISAMPLE_SIZE as f32;
 
                         //scale??
-                        pixel_color = pixel_color / 15000.0;
+                        pixel_color = pixel_color / 10000.0;
                         pixel_color = pixel_color.clamp(0.0, 1.0);
 
                         surface.write((x, y), pixel_color);

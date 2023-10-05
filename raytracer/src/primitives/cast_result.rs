@@ -1,12 +1,17 @@
-use crate::{math::{Vec3, Ray}, constants::{MISS_COLOR_VEC3, COLOR_CALL_PARAMETERS}, scene::material::MaterialShared};
+use crate::{
+    constants::{COLOR_CALL_PARAMETERS, MISS_COLOR_VEC3},
+    math::{Ray, Vec3},
+    scene::material::MaterialShared,
+};
 
+use super::uv_set::UVSet;
 
 pub struct CastResult {
     pub distance_traversed: f32,
     pub intersection_point: Vec3,
     pub normal: Vec3,
-    pub uv: (f32, f32),
-    pub material: MaterialShared
+    pub uv: [(f32, f32); 4],
+    pub material: MaterialShared,
 }
 
 impl CastResult {
@@ -14,7 +19,7 @@ impl CastResult {
         intersection_point: Vec3::ZERO,
         normal: Vec3::ZERO,
         distance_traversed: f32::INFINITY,
-        uv: (0.0, 0.0),
+        uv: [(0.0, 0.0), (0.0, 0.0), (0.0, 0.0), (0.0, 0.0)],
         material: MaterialShared::null(),
     };
 
@@ -25,7 +30,7 @@ impl CastResult {
 }
 
 #[deprecated]
-fn skybox_color(ray: &Ray) {    
+fn skybox_color(ray: &Ray) {
     // "skybox"
     let ray_normalized = ray.direction().normalized();
     let t = 0.5 * (ray_normalized.y() + 1.0);

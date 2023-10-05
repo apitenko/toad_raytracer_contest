@@ -31,9 +31,9 @@ impl Scene {
             Texture::make_default_texture()?,
             super::texture::sampler::MinFilter::Nearest,
             super::texture::sampler::MagFilter::Nearest,
+            0
         );
         let default_material = material_storage.push_material(Material {
-            uv_scale: 1.0,
             color_factor: Vec3::ONE,
             fresnel_coefficient: 4.0,
             emission_color: Vec3::ONE,

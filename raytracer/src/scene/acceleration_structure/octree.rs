@@ -5,8 +5,8 @@ use rand::Rng;
 use crate::{
     math::{random::random_in_unit_sphere, Ray, Vec3},
     primitives::{
-        bounding_box::BoundingBox, cast_result::CastResult, mesh::Mesh, plane::Plane, shape::Shape,
-        sphere::Sphere, triangle::Triangle,
+        bounding_box::BoundingBox, cast_result::CastResult, plane::Plane, shape::Shape,
+        triangle::Triangle,
     },
     util::unresizable_array::UnresizableArray,
 };

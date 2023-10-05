@@ -2,16 +2,16 @@ use std::f32::consts::{PI, TAU};
 
 use crate::{
     math::{Ray, RayBounce, Vec3},
-    scene::material::{MaterialShared},
+    scene::material::MaterialShared,
 };
 
-use super::{cast_result::CastResult, shape::Shape};
+use super::{cast_result::CastResult, shape::Shape, uv_set::UVSet};
 
 #[derive(Clone, Debug)]
 pub struct Triangle {
     pub material: MaterialShared,
     pub vertices: [Vec3; 3],
-    pub uv: [[f32; 2]; 3],
+    pub uv: UVSet,
     pub normals: [Vec3; 3],
 }
 
@@ -30,9 +30,9 @@ impl Triangle {
         let normal = Vec3::calculate_normal_from_points(p0, p1, p2);
         Self {
             vertices: [p0, p1, p2],
-            uv: [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]],
+            uv: UVSet::empty(),
             normals: [normal, normal, normal],
-            material
+            material,
         }
     }
 }
@@ -69,7 +69,7 @@ impl Shape for Triangle {
 
         let w = 1.0 - u - v;
 
-        let uv = interpolate_uv([w, u, v], self.uv);
+        let uv = interpolate_uvs([w, u, v], &self.uv);
 
         // At this stage we can compute t to find out where the intersection point is on the line.
         let t = f * Vec3::dot(edge2, q);
@@ -97,7 +97,17 @@ impl Shape for Triangle {
 }
 
 #[inline]
-fn interpolate_uv(uvw: [f32; 3], triangle_uv: [[f32; 2]; 3]) -> (f32, f32) {
+fn interpolate_uvs(intersection_uvw: [f32; 3], self_uv: &UVSet) -> [(f32, f32); 4] {
+    [
+        interpolate_uv(intersection_uvw, &self_uv.channels[0].points),
+        interpolate_uv(intersection_uvw, &self_uv.channels[1].points),
+        interpolate_uv(intersection_uvw, &self_uv.channels[2].points),
+        interpolate_uv(intersection_uvw, &self_uv.channels[3].points),
+    ]
+}
+
+#[inline]
+fn interpolate_uv(uvw: [f32; 3], triangle_uv: &[[f32; 2]; 3]) -> (f32, f32) {
     add_f32([
         mul_f32(triangle_uv[0], uvw[0]),
         mul_f32(triangle_uv[1], uvw[1]),

@@ -1,12 +1,15 @@
+use crate::primitives::quad::QUAD_DEFAULT_GEOMETRY;
+use crate::scene::material::IMaterialStorage;
 use crate::{
     constants::COLOR_SKY_BLUE,
     math::{Mat44, Vec3},
-    primitives::{mesh::Mesh, quad::Quad, triangle::Triangle, bounding_box::BoundingBox}, scene::texture::sampler::{MinFilter, MagFilter, Sampler},
+    primitives::triangle::Triangle,
+    scene::texture::sampler::{MagFilter, MinFilter, Sampler},
 };
-use crate::scene::material::IMaterialStorage;
 
 use super::{
-    lights::directional::DirectionalLight, material::Material, scene::Scene, texture::texture::Texture,
+    lights::directional::DirectionalLight, material::Material, scene::Scene,
+    texture::texture::Texture,
 };
 
 pub fn add_scene_defaults(scene: &mut Scene) -> anyhow::Result<()> {
@@ -31,7 +34,13 @@ pub fn add_scene_defaults(scene: &mut Scene) -> anyhow::Result<()> {
 
         let color_texture = Texture::make_default_texture()?;
         // let color_albedo = scene.material_storage.push_texture(color_texture);
-        let color_albedo = Sampler::new(&mut scene.material_storage, color_texture, MinFilter::Nearest, MagFilter::Nearest);
+        let color_albedo = Sampler::new(
+            &mut scene.material_storage,
+            color_texture,
+            MinFilter::Nearest,
+            MagFilter::Nearest,
+            0,
+        );
         let mat = Material {
             color_factor: Vec3::ONE,
             color_albedo,
@@ -42,16 +51,16 @@ pub fn add_scene_defaults(scene: &mut Scene) -> anyhow::Result<()> {
         let translation_matrix = Mat44::from_translation([0.0, -0.2, 0.0]);
 
         scene.push_triangle(Triangle::from_vertices(
-            translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[0]),
-            translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[1]),
-            translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[2]),
-            mat_shared.clone()
+            translation_matrix.transform_point(QUAD_DEFAULT_GEOMETRY[0]),
+            translation_matrix.transform_point(QUAD_DEFAULT_GEOMETRY[1]),
+            translation_matrix.transform_point(QUAD_DEFAULT_GEOMETRY[2]),
+            mat_shared.clone(),
         ));
         scene.push_triangle(Triangle::from_vertices(
-            translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[0]),
-            translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[2]),
-            translation_matrix.transform_point(Quad::DEFAULT_GEOMETRY[3]),
-            mat_shared.clone()
+            translation_matrix.transform_point(QUAD_DEFAULT_GEOMETRY[0]),
+            translation_matrix.transform_point(QUAD_DEFAULT_GEOMETRY[2]),
+            translation_matrix.transform_point(QUAD_DEFAULT_GEOMETRY[3]),
+            mat_shared.clone(),
         ));
     }
     Ok(())

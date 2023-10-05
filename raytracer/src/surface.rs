@@ -14,6 +14,9 @@ pub struct TotallySafeSurfaceWrapper {
     surface_size: (u32, u32),
 }
 
+// true for correct PNG, false for correct windowed version
+const COLOR_INVERSION_ENABLED: bool = false;
+
 impl TotallySafeSurfaceWrapper {
     pub fn new(memory: *mut u32, render_size: (u32, u32), render_scale: u32) -> Self {
         Self {
@@ -33,7 +36,13 @@ impl TotallySafeSurfaceWrapper {
         let green: u32 = (255.99 * pixel_color.green) as u32;
         let blue: u32 = (255.99 * pixel_color.blue) as u32;
 
-        let data = red | (green << 8) | (blue << 16) | (0xFF << 24);
+        let data = if COLOR_INVERSION_ENABLED {
+            red | (green << 8) | (blue << 16) | (0xFF << 24)
+        }
+        else {
+            blue | (green << 8) | (red << 16) | (0xFF << 24)
+        };
+        
 
         let render_scale = self.render_scale;
 

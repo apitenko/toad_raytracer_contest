@@ -3,20 +3,23 @@ use std::f32::consts::PI;
 use rand::Rng;
 use raytracer_lib::generate_multisample_positions;
 
+use crate::scene::acceleration_structure::acceleration_structure::AccelerationStructure;
 use crate::{
-    constants::{MISS_COLOR_VEC3, COLOR_RED, COLOR_WHITE, COLOR_SKY_BLUE},
-    math::{Saturatable, Vec3, ray::{RayRefractionState, reflect}, RayBounce, Ray},
+    constants::{COLOR_RED, COLOR_SKY_BLUE, COLOR_WHITE, MISS_COLOR_VEC3},
+    math::{
+        ray::{reflect, RayRefractionState},
+        Ray, RayBounce, Saturatable, Vec3,
+    },
     primitives::cast_result::CastResult,
     scene::{lights::light::Light, material::Material, scene::Scene},
     util::fresnel_constants::FresnelConstants,
 };
-use crate::scene::acceleration_structure::acceleration_structure::AccelerationStructure;
 
 // ? づ｀･ω･)づ it's compile time o'clock
 
-generate_multisample_positions!(1);
+generate_multisample_positions!(2);
 
-pub const MULTISAMPLE_OFFSETS: [(f32, f32); 1] = generated_samples();
+pub const MULTISAMPLE_OFFSETS: [(f32, f32); 2] = generated_samples();
 pub const MULTISAMPLE_SIZE: usize = MULTISAMPLE_OFFSETS.len();
 
 pub const MAX_BOUNCES: i32 = 1;
@@ -87,26 +90,41 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
         // let skybox_color = scene.skybox.sample_from_direction(unit_direction);
         // return skybox_color * current_bounce.multiplier;
     }
-    
-    let mip: f32 = current_bounce.distance / 2.0;
+
+    // let mip: f32 = current_bounce.distance / 2.0;
+    let mip = 0.0;
 
     let current_material = cast_result.material.get();
-    let material_albedo = current_material.sample_albedo(&cast_result.uv, mip);
-    let material_specular = current_material.sample_specular(&cast_result.uv, mip);
-    let material_roughness = current_material.sample_roughness(&cast_result.uv, mip);
+
+    let material_color =
+        current_material.sample_albedo(&cast_result.uv, mip) * current_material.color_factor;
     let material_emission = current_material.sample_emission(&cast_result.uv, mip);
+
+    let material_roughness =
+        current_material.sample_roughness(&cast_result.uv, mip) * current_material.roughness_factor;
+    let material_metallic =
+        current_material.sample_roughness(&cast_result.uv, mip) * current_material.metallic_factor;
+
+    // TODO: replace Specular with Metallic
+    let material_specular =
+        Vec3::from_f32([material_metallic, material_metallic, material_metallic, 0.0]);
+
+    let material_normal = current_material.sample_normal(&cast_result.uv, mip);
+    // let surface_normal = (material_normal * cast_result.normal).normalized();
+    let surface_normal = cast_result.normal.normalized();
 
     // GGX
     const DO_DIRECT_LIGHTING: bool = true;
     const DO_INDIRECT_LIGHTING: bool = true;
 
     // Do explicit direct lighting to a random light in the scene
-    let component_direct = if (DO_DIRECT_LIGHTING) {
+    let component_direct = if DO_DIRECT_LIGHTING {
         ggx_direct(
             scene,
             &cast_result,
+            surface_normal,
             current_bounce.ray.direction(),
-            material_albedo,
+            material_color,
             material_specular,
             material_roughness,
             &current_bounce,
@@ -120,8 +138,9 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
         ggx_indirect(
             scene,
             &cast_result,
+            surface_normal,
             &current_bounce,
-            material_albedo,
+            material_color,
             material_specular,
             material_roughness,
         )
@@ -157,51 +176,16 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
     //     scene,
     // );
 
-    // direct lighting
-    // TODO: microfacets
-
-    // for light_source in &scene.lights {
-    //     let (distance_to_light, normal_into_light) =
-    //         light_source.normal_from(cast_result.intersection_point);
-
-    //     let light_cast_result = scene.geometry.single_cast(
-    //         Ray::new(
-    //             cast_result.intersection_point,
-    //             normal_into_light,
-    //             distance_to_light,
-    //         ),
-    //         false,
-    //     );
-    //     if light_cast_result.is_missed() {
-    //         let light_color = light_source.get_emission(cast_result.intersection_point);
-
-    //         let light_power = (Vec3::dot(cast_result.normal, normal_into_light)) * light_color;
-
-    //         let color = material_albedo * light_color * light_power;
-
-    //         direct_lighting = direct_lighting + color;
-    //     }
-    // }
-
     // TODO: Subsurface Scattering
 
     // ! Blend components  -------------------------
 
-    let final_color =
-        component_direct + component_indirect + AMBIENT_LIGHT_INTENSITY * AMBIENT_LIGHT_COLOR * material_albedo;
+    let final_color = component_direct
+        + component_indirect
+        + material_emission
+        + AMBIENT_LIGHT_INTENSITY * AMBIENT_LIGHT_COLOR * material_color;
     return final_color;
 }
-
-// cast inside object (refractive)
-pub fn inside_cast() {}
-
-// pub fn oren_nayar() {
-//     // each facet is Lambertian
-//     // raytrace the
-//     let l1_direct_illumination;
-
-//     let l0_microfacets;
-// }
 
 // Cook-Torrance D term
 fn ggx_normal_distribution(NdotH: f32, roughness: f32) -> f32 {
@@ -232,18 +216,21 @@ fn ggx_schlick_masking_term(NdotL: f32, NdotV: f32, roughness: f32) -> f32 {
     return g_v * g_l;
 }
 
+fn get_perpendicular_vector(vector: Vec3) -> Vec3 {
+    Vec3::cross(vector, Vec3::from_f32([1.0, 1.0, 1.0, 0.0])).normalized()
+}
+
 // When using this function to sample, the probability density is:
 //      pdf = D * NdotH / (4 * HdotV)
-fn getGGXMicrofacet(roughness: f32, hitNorm: Vec3) -> Vec3 {
+fn getGGXMicrofacet(roughness: f32, surface_normal: Vec3) -> Vec3 {
     let mut rng = rand::thread_rng();
 
     // Get our uniform random numbers
     let randVal: (f32, f32) = (rng.gen(), rng.gen());
 
     // Get an orthonormal basis from the normal
-    let B: Vec3 = hitNorm;
-    // let B: Vec3 = getPerpendicularVector(hitNorm); // ! ??????????????
-    let T: Vec3 = Vec3::cross(B, hitNorm);
+    let B: Vec3 = get_perpendicular_vector(surface_normal); // ! ??????????????
+    let T: Vec3 = Vec3::cross(B, surface_normal);
 
     // GGX NDF sampling
     let a2 = roughness * roughness;
@@ -257,32 +244,32 @@ fn getGGXMicrofacet(roughness: f32, hitNorm: Vec3) -> Vec3 {
     // Get our GGX NDF sample (i.e., the half vector)
     return T * (sinThetaH * f32::cos(phiH))
         + B * (sinThetaH * f32::sin(phiH))
-        + hitNorm * cosThetaH;
+        + surface_normal * cosThetaH;
 }
 
 fn ggx_direct(
     scene: &Scene,
     cast_result: &CastResult,
+    surface_normal: Vec3,
     current_ray_direction: Vec3,
-    material_albedo: Vec3,
+    material_color: Vec3,
     material_specular: Vec3,
     material_roughness: f32,
-    current_bounce: &RayBounce
+    current_bounce: &RayBounce,
 ) -> Vec3 {
     let V = current_ray_direction;
-    let N = cast_result.normal;
+    let N = surface_normal;
     let spec = material_specular;
     let hit = cast_result.intersection_point;
 
     //////
     let fn_sample_light = |light_source: &dyn Light| {
-
         let (distance_to_light, normal_into_light) =
             light_source.normal_from(cast_result.intersection_point);
 
         let L = normal_into_light;
         // Compute our lambertion term (N dot L)
-        let NdotL = Vec3::dot(cast_result.normal, L).clamp(0.0, 1.0);
+        let NdotL = Vec3::dot(surface_normal, L).clamp(0.0, 1.0);
 
         let light_intensity = light_source.get_emission(hit);
         let light_visibility = shadow_ray_visibility(light_source, scene, cast_result);
@@ -305,7 +292,7 @@ fn ggx_direct(
         // Compute our final color (combining diffuse lobe plus specular GGX lobe)
         return light_visibility
             * light_intensity
-            * (/* NdotL * */ggxTerm + NdotL * material_albedo / PI);
+            * (/* NdotL * */ggxTerm + NdotL * material_color / PI);
     };
 
     if current_bounce.monte_carlo_reached() {
@@ -317,16 +304,13 @@ fn ggx_direct(
             random_light
         };
         return fn_sample_light(random_light);
-    }
-    else {
+    } else {
         let mut color = Vec3::ZERO;
         for light in &scene.lights {
             color += fn_sample_light(light.as_ref());
         }
         return color / scene.lights.len() as f32;
     }
-    
-
 }
 
 fn shadow_ray_visibility(
@@ -356,6 +340,7 @@ fn shadow_ray_visibility(
 fn ggx_indirect(
     scene: &Scene,
     cast_result: &CastResult,
+    surface_normal: Vec3,
     current_bounce: &RayBounce,
     material_albedo: Vec3,
     material_specular: Vec3,
@@ -363,7 +348,7 @@ fn ggx_indirect(
 ) -> Vec3 {
     // ugh
     let V = current_bounce.ray.direction();
-    let N = cast_result.normal;
+    let N = surface_normal;
     let rough = material_roughness;
     let spec = material_specular;
     let hit = cast_result.intersection_point;
@@ -395,7 +380,6 @@ fn ggx_indirect(
         return result_color;
     };
     let fn_specular_ray = || {
-
         // return Vec3::ZERO;
         // Randomly sample the NDF to get a microfacet in our BRDF
         let H: Vec3 = getGGXMicrofacet(rough, N).normalized();
@@ -442,9 +426,7 @@ fn ggx_indirect(
         } else {
             return fn_specular_ray();
         }
-    }
-    else {
-
+    } else {
         // const USE_MULTIPLE_DIFFUSE_RAYS: bool = true;
         // if USE_MULTIPLE_DIFFUSE_RAYS {
         //     const DIFFUSE_REFLECTIONS_NUMBER: usize = 2;
@@ -457,9 +439,9 @@ fn ggx_indirect(
         //     return (color_diffuse + color_specular) / 2.0;
         // }
         // else {
-            let color_diffuse = fn_diffuse_ray();
-            let color_specular = fn_specular_ray();
-            return (color_diffuse + color_specular) / 2.0;
+        let color_diffuse = fn_diffuse_ray();
+        let color_specular = fn_specular_ray();
+        return (color_diffuse + color_specular) / 2.0;
         // }
     }
 }
@@ -486,18 +468,18 @@ fn random_cosine_weighted_point() -> Vec3 {
 }
 
 //====================================================================
-fn SmithGGXMasking(cast_result_normal: Vec3, wi: Vec3, wo: Vec3, a2: f32) -> f32 {
-    let dotNL: f32 = Vec3::dot(cast_result_normal, wi);
-    let dotNV: f32 = Vec3::dot(cast_result_normal, wo);
+fn SmithGGXMasking(surface_normal: Vec3, wi: Vec3, wo: Vec3, a2: f32) -> f32 {
+    let dotNL: f32 = Vec3::dot(surface_normal, wi);
+    let dotNV: f32 = Vec3::dot(surface_normal, wo);
     let denomC: f32 = (a2 + (1.0 - a2) * dotNV * dotNV).sqrt() + dotNV;
 
     return 2.0 * dotNV / denomC;
 }
 
 //====================================================================
-fn SmithGGXMaskingShadowing(cast_result_normal: Vec3, wi: Vec3, wo: Vec3, a2: f32) -> f32 {
-    let dotNL = Vec3::dot(cast_result_normal, wi);
-    let dotNV = Vec3::dot(cast_result_normal, wo);
+fn SmithGGXMaskingShadowing(surface_normal: Vec3, wi: Vec3, wo: Vec3, a2: f32) -> f32 {
+    let dotNL = Vec3::dot(surface_normal, wi);
+    let dotNV = Vec3::dot(surface_normal, wo);
 
     let denomA = dotNV * (a2 + (1.0 - a2) * dotNL * dotNL).sqrt();
     let denomB = dotNL * (a2 + (1.0 - a2) * dotNV * dotNV).sqrt();
@@ -543,6 +525,7 @@ fn GgxVndf(wo: Vec3, roughness: f32, u1: f32, u2: f32) -> Vec3 {
 //====================================================================
 fn ImportanceSampleGgxVdn(
     cast_result: &CastResult,
+    surface_normal: Vec3,
     specularColor: Vec3,
     roughness: f32,
     wg: Vec3,
@@ -550,8 +533,7 @@ fn ImportanceSampleGgxVdn(
     mut wi: Vec3,
 ) -> Vec3 //reflectance
 {
-    let cast_result_normal = cast_result.normal;
-    let NdotWI = Vec3::dot(cast_result_normal, wi);
+    let NdotWI = Vec3::dot(surface_normal, wi);
 
     let mut rng = rand::thread_rng();
     let a = roughness;
@@ -565,8 +547,8 @@ fn ImportanceSampleGgxVdn(
 
     if (NdotWI > 0.0) {
         let F: Vec3 = schlick_fresnel(specularColor, Vec3::dot(wi, wm));
-        let G1: f32 = SmithGGXMasking(cast_result_normal, wi, wo, a2);
-        let G2: f32 = SmithGGXMaskingShadowing(cast_result_normal, wi, wo, a2);
+        let G1: f32 = SmithGGXMasking(surface_normal, wi, wo, a2);
+        let G2: f32 = SmithGGXMaskingShadowing(surface_normal, wi, wo, a2);
 
         let reflectance = F * (G2 / G1);
         return reflectance;

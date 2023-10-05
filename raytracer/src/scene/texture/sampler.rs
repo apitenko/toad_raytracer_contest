@@ -1,9 +1,11 @@
-use crate::{math::Vec3, scene::material::MaterialStorage};
-use image::GenericImageView;
+use crate::math::Vec3;
 use crate::scene::material::IMaterialStorage;
+use image::GenericImageView;
+use crate::math::f32_util::FloatWrapTo01;
 
 use super::{
-    texture::{RawTextureData, Texture, TextureShared}, samplable::Samplable,
+    samplable::Samplable,
+    texture::{RawTextureData, Texture, TextureShared},
 };
 
 /// Minification filter.
@@ -137,8 +139,13 @@ impl TextureMips {
 
         match filter {
             MinFilter::LinearMipmapLinear | MinFilter::LinearMipmapNearest => unsafe {
-                for (x_index, x_target) in (coordinates.start_x..(coordinates.start_x + coordinates.width)).enumerate() {
-                    for (y_index, y_target) in (coordinates.start_y..(coordinates.start_y + coordinates.height)).enumerate() {
+                for (x_index, x_target) in
+                    (coordinates.start_x..(coordinates.start_x + coordinates.width)).enumerate()
+                {
+                    for (y_index, y_target) in (coordinates.start_y
+                        ..(coordinates.start_y + coordinates.height))
+                        .enumerate()
+                    {
                         let p00 = texture
                             .get_pixel(
                                 previous_coordinates.start_x + x_index as u32 * 2,
@@ -179,8 +186,13 @@ impl TextureMips {
                 }
             },
             _ => {
-                for (x_index, x_target) in (coordinates.start_x..(coordinates.start_x + coordinates.width)).enumerate() {
-                    for (y_index, y_target) in (coordinates.start_y..(coordinates.start_y + coordinates.height)).enumerate() {
+                for (x_index, x_target) in
+                    (coordinates.start_x..(coordinates.start_x + coordinates.width)).enumerate()
+                {
+                    for (y_index, y_target) in (coordinates.start_y
+                        ..(coordinates.start_y + coordinates.height))
+                        .enumerate()
+                    {
                         let p00 = texture
                             .get_pixel(
                                 previous_coordinates.start_x + x_index as u32 * 2,
@@ -276,17 +288,15 @@ impl TextureMips {
             width_scale,
             height_scale,
             mips,
-            max_mip
+            max_mip,
         }
     }
 
     pub fn sample(&self, u: f32, v: f32, mip: usize) -> Vec3 {
         let coordinates = &self.mips[mip];
 
-        let x: usize =
-            (coordinates.start_x + u.wrap_01() * coordinates.scaled_width) as usize;
-        let y: usize =
-            (coordinates.start_y + v.wrap_01() * coordinates.scaled_height) as usize;
+        let x: usize = (coordinates.start_x + u.wrap_01() * coordinates.scaled_width) as usize;
+        let y: usize = (coordinates.start_y + v.wrap_01() * coordinates.scaled_height) as usize;
         let sample = unsafe {
             self.texture_with_mips
                 .get()
@@ -294,16 +304,6 @@ impl TextureMips {
                 .unsafe_get_pixel(x as u32, y as u32)
         };
         return Vec3::from_f32(sample.0);
-    }
-}
-
-trait FloatWrapTo01 {
-    fn wrap_01(self) -> Self;
-}
-
-impl FloatWrapTo01 for f32 {
-    fn wrap_01(self) -> Self {
-        self - Self::floor(self)
     }
 }
 
@@ -321,7 +321,7 @@ impl Sampler {
         texture: Texture,
         min_filter: MinFilter,
         mag_filter: MagFilter,
-        tex_coord_index: usize
+        tex_coord_index: usize,
     ) -> Self {
         unsafe {
             let texture_mips = TextureMips::generate_mips(storage, &texture, min_filter);
@@ -329,7 +329,7 @@ impl Sampler {
                 texture_mips,
                 min_filter,
                 mag_filter,
-                tex_coord_index
+                tex_coord_index,
             }
         }
     }
@@ -342,8 +342,8 @@ impl Samplable for Sampler {
         let mip = f32::clamp(mip, 0.0, (self.texture_mips.max_mip - 1) as f32);
         self.texture_mips.sample(
             uv[self.tex_coord_index].0,
-            uv[self.tex_coord_index].1, 
-            mip.floor() as usize
+            uv[self.tex_coord_index].1,
+            mip.floor() as usize,
         )
     }
 }

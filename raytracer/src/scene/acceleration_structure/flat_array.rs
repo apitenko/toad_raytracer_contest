@@ -1,4 +1,4 @@
-use crate::primitives::{triangle::Triangle, cast_result::CastResult};
+use crate::{primitives::{triangle::Triangle, cast_result::{CastResult, ConeCastResult}}, math::{cone::Cone, Vec3}};
 
 use super::acceleration_structure::AccelerationStructure;
 use crate::primitives::shape::Shape;
@@ -41,5 +41,16 @@ impl AccelerationStructure for FlatArray {
         });
 
         return cast_result;
+    }
+
+    fn cone_cast(&self, cone: Cone) -> ConeCastResult {
+        // unimplementable
+        ConeCastResult {
+            accumulated_color: Vec3::ZERO,
+        }
+    }
+
+    fn inject_emittance_data(&mut self, ray: crate::math::Ray) {
+        // unimplementable
     }
 }

@@ -3,14 +3,18 @@ use std::f32::consts::PI;
 use rand::Rng;
 use raytracer_lib::generate_multisample_positions;
 
+use crate::scene::acceleration_structure::acceleration_structure::AccelerationStructure;
 use crate::{
-    constants::{MISS_COLOR_VEC3, COLOR_RED, COLOR_WHITE, COLOR_SKY_BLUE},
-    math::{Saturatable, Vec3, ray::{RayRefractionState, reflect}, RayBounce, Ray},
+    constants::{COLOR_RED, COLOR_SKY_BLUE, COLOR_WHITE, MISS_COLOR_VEC3},
+    math::{
+        f32_util::Saturatable,
+        ray::{reflect, RayRefractionState},
+        Ray, RayBounce, Vec3,
+    },
     primitives::cast_result::CastResult,
     scene::{lights::light::Light, material::Material, scene::Scene},
     util::fresnel_constants::FresnelConstants,
 };
-use crate::scene::acceleration_structure::acceleration_structure::AccelerationStructure;
 
 // ? づ｀･ω･)づ it's compile time o'clock
 
@@ -87,7 +91,7 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
         // let skybox_color = scene.skybox.sample_from_direction(unit_direction);
         // return skybox_color * current_bounce.multiplier;
     }
-    
+
     let mip: f32 = current_bounce.distance / 2.0;
 
     let current_material = cast_result.material.get();
@@ -187,8 +191,9 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
 
     // ! Blend components  -------------------------
 
-    let final_color =
-        component_direct + component_indirect + AMBIENT_LIGHT_INTENSITY * AMBIENT_LIGHT_COLOR * material_albedo;
+    let final_color = component_direct
+        + component_indirect
+        + AMBIENT_LIGHT_INTENSITY * AMBIENT_LIGHT_COLOR * material_albedo;
     return final_color;
 }
 
@@ -267,7 +272,7 @@ fn ggx_direct(
     material_albedo: Vec3,
     material_specular: Vec3,
     material_roughness: f32,
-    current_bounce: &RayBounce
+    current_bounce: &RayBounce,
 ) -> Vec3 {
     let V = current_ray_direction;
     let N = cast_result.normal;
@@ -276,7 +281,6 @@ fn ggx_direct(
 
     //////
     let fn_sample_light = |light_source: &dyn Light| {
-
         let (distance_to_light, normal_into_light) =
             light_source.normal_from(cast_result.intersection_point);
 
@@ -317,16 +321,13 @@ fn ggx_direct(
             random_light
         };
         return fn_sample_light(random_light);
-    }
-    else {
+    } else {
         let mut color = Vec3::ZERO;
         for light in &scene.lights {
             color += fn_sample_light(light.as_ref());
         }
         return color / scene.lights.len() as f32;
     }
-    
-
 }
 
 fn shadow_ray_visibility(
@@ -395,7 +396,6 @@ fn ggx_indirect(
         return result_color;
     };
     let fn_specular_ray = || {
-
         // return Vec3::ZERO;
         // Randomly sample the NDF to get a microfacet in our BRDF
         let H: Vec3 = getGGXMicrofacet(rough, N).normalized();
@@ -442,9 +442,7 @@ fn ggx_indirect(
         } else {
             return fn_specular_ray();
         }
-    }
-    else {
-
+    } else {
         // const USE_MULTIPLE_DIFFUSE_RAYS: bool = true;
         // if USE_MULTIPLE_DIFFUSE_RAYS {
         //     const DIFFUSE_REFLECTIONS_NUMBER: usize = 2;
@@ -457,9 +455,9 @@ fn ggx_indirect(
         //     return (color_diffuse + color_specular) / 2.0;
         // }
         // else {
-            let color_diffuse = fn_diffuse_ray();
-            let color_specular = fn_specular_ray();
-            return (color_diffuse + color_specular) / 2.0;
+        let color_diffuse = fn_diffuse_ray();
+        let color_specular = fn_specular_ray();
+        return (color_diffuse + color_specular) / 2.0;
         // }
     }
 }

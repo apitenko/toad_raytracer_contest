@@ -36,11 +36,14 @@ impl Scene {
         let default_material = material_storage.push_material(Material {
             color_factor: Vec3::ONE,
             fresnel_coefficient: 4.0,
-            emission_color: Vec3::ONE,
-            emission_power: 0.0,
-            specular: 0.00 * Vec3::ONE,
-            roughness: 1.00,
-            color_albedo: default_sampler.clone(),
+            emission_factor: Vec3::ONE,
+            specular: 0.20 * Vec3::ONE,
+            roughness_factor: 0.80,
+            metallic_factor: 0.00,
+            color_texture: default_sampler.clone(),
+            metallic_roughness_texture: default_sampler.clone(),
+            emission_texture: default_sampler.clone(),
+            normal_texture: default_sampler.clone()
         });
         // let skybox_texture =  material_storage.push_texture(Texture::new_from_file(&Path::new("./res/skybox.png"))?);
 

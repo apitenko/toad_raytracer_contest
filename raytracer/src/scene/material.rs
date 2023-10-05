@@ -9,23 +9,28 @@ use super::texture::{sampler::Sampler, texture::Texture, texture::TextureShared}
 
 #[derive(Clone)]
 pub struct Material {
-    // pub uv_scale: f32,
-    pub color_factor: Vec3, // non-PBR parameter; use Vec3::ONE to disable it
-    pub fresnel_coefficient: f32,
-    pub emission_color: Vec3, // TODO: texture?
-    pub emission_power: f32,
-    // pub subsurface: f32,
-    // pub metallic_factor: f32, // TODO: Metallic/Roughness workflow; unused at the moment
-    // pub metallic: TextureShared,
-    pub specular: Vec3, // TODO: texture
+    // ? PBR stuff:
+    pub color_factor: Vec3,
+    pub color_texture: Sampler,
+    pub specular: Vec3, // TODO: metallic workflow
     // pub specular_tint: f32,
-    pub roughness: f32, // TODO: texture
+    pub roughness_factor: f32,
+    pub metallic_factor: f32, // TODO: Metallic/Roughness workflow; unused at the moment
+    pub metallic_roughness_texture: Sampler,
+
+    // ? glass
+    pub fresnel_coefficient: f32,
+
+    // ? other
+    pub emission_factor: Vec3,
+    pub emission_texture: Sampler,
+    pub normal_texture: Sampler,
+    // pub subsurface: f32,
     // pub anisotropic: f32,
     // pub sheen: f32,
     // pub sheen_tint: f32,
     // pub clearcoat: f32,
     // pub clearcoat_gloss: f32,
-    pub color_albedo: Sampler,
 }
 
 type MaterialStorageForDefault = MaterialStorageSized<6, 6>;
@@ -100,22 +105,27 @@ impl Material {
     #[inline]
     pub fn sample_albedo(&self, uv: &[(f32, f32); 4], mip: f32) -> Vec3 {
         // TEXTURE_DATA_DEFAULT.sample(uv.0, uv.1) * self.color_tint
-        self.sample_uv_scaled(&self.color_albedo, uv, mip) * self.color_factor
+        self.sample_uv_scaled(&self.color_texture, uv, mip) * self.color_factor
+    }
+
+    #[inline]
+    pub fn sample_metallic(&self, uv: &[(f32, f32); 4], mip: f32) -> f32 {
+        self.sample_uv_scaled(&self.metallic_roughness_texture, uv, mip).x() * self.metallic_factor
     }
 
     #[inline]
     pub fn sample_roughness(&self, uv: &[(f32, f32); 4], mip: f32) -> f32 {
-        return self.roughness;
-    }
-
-    #[inline]
-    pub fn sample_specular(&self, uv: &[(f32, f32); 4], mip: f32) -> Vec3 {
-        return self.specular;
+        self.sample_uv_scaled(&self.metallic_roughness_texture, uv, mip).y() * self.roughness_factor
     }
 
     #[inline]
     pub fn sample_emission(&self, uv: &[(f32, f32); 4], mip: f32) -> Vec3 {
-        return self.emission_color * self.emission_power;
+        self.sample_uv_scaled(&self.emission_texture, uv, mip) * self.emission_factor
+    }
+
+    #[inline]
+    pub fn sample_normal(&self, uv: &[(f32, f32); 4], mip: f32) -> Vec3 {
+        self.sample_uv_scaled(&self.normal_texture, uv, mip)
     }
 }
 

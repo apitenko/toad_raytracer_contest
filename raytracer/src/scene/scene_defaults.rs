@@ -43,7 +43,7 @@ pub fn add_scene_defaults(scene: &mut Scene) -> anyhow::Result<()> {
         );
         let mat = Material {
             color_factor: Vec3::ONE,
-            color_albedo,
+            color_texture: color_albedo,
             ..scene.default_material.get().clone()
         };
 

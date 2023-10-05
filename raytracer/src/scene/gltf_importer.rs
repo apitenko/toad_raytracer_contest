@@ -455,6 +455,7 @@ fn import_material(
     let pbr_info = material.pbr_metallic_roughness();
     let color_factor = pbr_info.base_color_factor();
     let metallic_factor = pbr_info.metallic_factor();
+    let roughness_factor = pbr_info.roughness_factor();
 
     let color_texture = import_texture(
         pbr_info.base_color_texture(),
@@ -463,10 +464,37 @@ fn import_material(
         imported,
     )?;
 
+    let metallic_roughness_texture = import_texture(
+        pbr_info.metallic_roughness_texture(),
+        &mut app_scene.material_storage,
+        gltf_folder,
+        imported,
+    )?;
+
+    let emission_factor = material.emissive_factor();
+    let emission_texture = import_texture(
+        material.emissive_texture(),
+        &mut app_scene.material_storage,
+        gltf_folder,
+        imported,
+    )?;
+
+    let normal_texture = import_texture_normal(
+        material.normal_texture(),
+        &mut app_scene.material_storage,
+        gltf_folder,
+        imported,
+    )?;
+
     let mat = Material {
         color_factor: Vec3::from_f32(color_factor),
-        color_albedo: color_texture,
-        // metallic_factor,
+        color_texture,
+        metallic_roughness_texture,
+        roughness_factor,
+        metallic_factor,
+        emission_texture,
+        normal_texture,
+        emission_factor: Vec3::from_f32_3(emission_factor, 0.0),
         ..app_scene.default_material.get().clone()
     };
 
@@ -506,6 +534,108 @@ impl From<gltf::texture::MinFilter> for super::texture::sampler::MinFilter {
 
 fn import_texture(
     texture: Option<gltf::texture::Info>,
+    material_storage: &mut MaterialStorage,
+    gltf_folder: &Path,
+    imported: &ImportedGltfScene,
+) -> anyhow::Result<super::texture::sampler::Sampler> {
+    match texture {
+        None => {
+            let texture = Texture::make_default_texture()?;
+            let sampler = super::texture::sampler::Sampler::new(
+                material_storage,
+                texture,
+                super::texture::sampler::MinFilter::Nearest,
+                super::texture::sampler::MagFilter::Nearest,
+                0,
+            );
+
+            Ok(sampler)
+        }
+        Some(t) => {
+            let texture_uv_index = t.tex_coord();
+            if texture_uv_index != 0 {
+                todo!("texture_uv_index != 0; it is {}", texture_uv_index);
+            }
+            let texture_ = t.texture();
+            let image = texture_.source();
+            let tex_coord_index = t.tex_coord();
+
+            let texture = match image.source() {
+                image::Source::Uri { uri, mime_type } => match resolve_uri(uri)? {
+                    UriResolved::Base64(base64_slice) => Texture::new_from_base64_str(base64_slice),
+                    UriResolved::Filename(filename) => {
+                        let resolved_path = gltf_folder.join(filename);
+                        let read_data = std::fs::read(resolved_path)?;
+                        Texture::new_from_raw_bytes(&read_data)
+                    }
+                    _ => {
+                        panic!("not implemented")
+                    }
+                },
+                image::Source::View { view, mime_type } => {
+                    if let Some(_) = view.stride() {
+                        todo!("stride is not supported");
+                    }
+                    let buffer = view.buffer();
+
+                    let texture = match buffer.source() {
+                        buffer::Source::Bin => {
+                            let buffer_data = &imported.buffers[buffer.index()];
+                            let offset = view.offset();
+                            let length = view.length();
+                            Texture::new_from_raw_bytes(&buffer_data.0[offset..offset + length])
+                        }
+                        buffer::Source::Uri(uri) => match resolve_uri(uri)? {
+                            UriResolved::Base64(base64_str) => {
+                                let bytes = base64::engine::general_purpose::STANDARD_NO_PAD
+                                    .decode(&base64_str[8..])?;
+
+                                let offset = view.offset();
+                                let length = view.length();
+                                Texture::new_from_raw_bytes(&bytes[offset..offset + length])
+                            }
+                            UriResolved::Filename(filename) => {
+                                let resolved_path = gltf_folder.join(filename);
+                                let read_data = std::fs::read(resolved_path)?;
+                                Texture::new_from_raw_bytes(&read_data)
+                            }
+                            _ => {
+                                panic!("non-base64 uri not implemented")
+                            }
+                        },
+                    };
+
+                    texture
+                }
+            };
+
+            let texture = texture?;
+            let sampler = texture_.sampler();
+            let sampler = super::texture::sampler::Sampler::new(
+                material_storage,
+                texture,
+                sampler
+                    .min_filter()
+                    .unwrap_or(gltf::texture::MinFilter::Nearest)
+                    .into(),
+                sampler
+                    .mag_filter()
+                    .unwrap_or(gltf::texture::MagFilter::Nearest)
+                    .into(),
+                tex_coord_index as usize, // sampler.wrap_s(),
+                                          // sampler.wrap_t(),
+            );
+            // sampler.mag_filter()
+
+            // let color_texture = app_scene.material_storage.push_texture(color_texture);
+
+            Ok(sampler)
+        }
+    }
+}
+
+fn import_texture_normal(
+    texture: Option<gltf::material::NormalTexture>,
     material_storage: &mut MaterialStorage,
     gltf_folder: &Path,
     imported: &ImportedGltfScene,

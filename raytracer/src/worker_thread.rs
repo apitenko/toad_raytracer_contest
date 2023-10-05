@@ -1,5 +1,6 @@
 use std::thread::JoinHandle;
 
+use crate::scene::acceleration_structure::acceleration_structure::AccelerationStructure;
 use crate::{
     math::{RayBounce, Vec3},
     scene::{
@@ -7,10 +8,52 @@ use crate::{
         workload::Workload,
     },
     surface::TotallySafeSurfaceWrapper,
-    tracing::{ray_cast, MAX_BOUNCES, MULTISAMPLE_OFFSETS, MULTISAMPLE_SIZE, SKYBOX_COLOR, SKYBOX_LIGHT_INTENSITY},
+    tracing::{
+        ray_cast, MAX_BOUNCES, MULTISAMPLE_OFFSETS, MULTISAMPLE_SIZE, SKYBOX_COLOR,
+        SKYBOX_LIGHT_INTENSITY,
+    },
     util::queue::Queue,
 };
-use crate::scene::acceleration_structure::acceleration_structure::AccelerationStructure;
+
+// TODO: revisit tone mapping techniques
+fn hable(x: f32) -> f32 {
+    let A: f32 = 0.15;
+    let B: f32 = 0.50;
+    let C: f32 = 0.10;
+    let D: f32 = 0.20;
+    let E: f32 = 0.02;
+    let F: f32 = 0.30;
+
+    return ((x * (A * x + C * B) + D * E) / (x * (A * x + B) + D * F)) - E / F;
+}
+
+fn reinhard(x: f32) -> f32 { 
+    x / (x + 1.0)
+}
+
+fn f32_lerp(left: f32, right: f32, t: f32) -> f32 {
+    left + (right - left) * t
+}
+
+fn tone_mapping(color: Vec3) -> Vec3 {
+    let color = color / 100.0;
+    // https://computergraphics.stackexchange.com/questions/6307/tone-mapping-bright-images
+    // Calculate the desaturation coefficient based on the brightness
+    let sig = f32::max(color.x(), f32::max(color.y(), color.z()));
+    let luma = Vec3::dot(color, Vec3::from_f32([0.2126, 0.7152, 0.0722, 0.0]));
+    let coeff = f32::max(sig - 0.18, 1e-6) / f32::max(sig, 1e-6);
+    let coeff = f32::powi(coeff, 20);
+
+    // Update the original color and signal
+    let color = Vec3::lerp(color, Vec3::from_f32([luma, luma, luma, 0.0]), coeff);
+    let sig = f32_lerp(sig, luma, coeff);
+
+    // Perform tone-mapping
+    let mapping = hable(sig) / sig;
+    let color = color * mapping;
+    let color = color.clamp(0.0, 1.0);
+    return color;
+}
 
 pub struct WorkerThreadHandle {
     pub thread: JoinHandle<()>,
@@ -67,9 +110,7 @@ impl WorkerThreadHandle {
 
                         pixel_color = pixel_color / MULTISAMPLE_SIZE as f32;
 
-                        //scale??
-                        pixel_color = pixel_color / 10000.0;
-                        pixel_color = pixel_color.clamp(0.0, 1.0);
+                        pixel_color = tone_mapping(pixel_color);
 
                         surface.write((x, y), pixel_color);
                     }

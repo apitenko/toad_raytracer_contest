@@ -1,10 +1,8 @@
 use crate::{
-    constants::{COLOR_CALL_PARAMETERS, MISS_COLOR_VEC3},
+    constants::COLOR_CALL_PARAMETERS,
     math::{Ray, Vec3},
     scene::material::MaterialShared,
 };
-
-use super::uv_set::UVSet;
 
 pub struct CastResult {
     pub distance_traversed: f32,
@@ -26,6 +24,33 @@ impl CastResult {
     #[inline]
     pub fn has_missed(&self) -> bool {
         return self.distance_traversed == f32::INFINITY;
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct ConeCastResult {
+    pub accumulated_color: Vec3,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct ConeCastResultStep {
+    pub accumulated_color: Vec3,
+    pub accumulated_density: f32, // see nvidia vxgi
+}
+
+impl ConeCastResultStep {
+    pub fn empty() -> Self {
+        Self {
+            accumulated_color: Vec3::ZERO,
+            accumulated_density: 0.0,
+        }
+    }
+
+    pub fn merge(left: Self, right: Self) -> Self {
+        Self {
+            accumulated_color: left.accumulated_color + right.accumulated_color,
+            accumulated_density: left.accumulated_density + right.accumulated_density
+        }
     }
 }
 

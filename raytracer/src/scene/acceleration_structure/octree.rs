@@ -363,7 +363,7 @@ impl Octree {
 
                 origin = ray.origin() + direction * minDist;
 
-                if !bbox.contains(origin) {
+                if !bbox.padded(0.01).contains(origin) {
                     return current_cast_result;
                 }
 

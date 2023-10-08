@@ -109,6 +109,12 @@ impl BoundingBox {
     pub fn from_gltf(aabb: gltf::mesh::BoundingBox) -> Self {
         Self::new(Vec3::new(aabb.min), Vec3::new(aabb.max))
     }
+
+    #[inline]
+    pub fn padded(&self, pad: f32) -> Self {
+        let pad = Vec3::from_f32([pad, pad, pad, 0.0]);
+        Self::new(self.min - pad, self.max + pad)
+    }
     // pub fn bounding_sphere(&self) -> Sphere {
     //     let min = self.min;
     //     let max = self.max;

@@ -32,7 +32,7 @@ impl Light for PointLight {
 }
 
 /////////////////////////////////
-///
+//
 pub struct PointLightRadius {
     pub position: Vec3,
     pub radius: f32,

@@ -35,8 +35,17 @@ fn f32_lerp(left: f32, right: f32, t: f32) -> f32 {
     left + (right - left) * t
 }
 
+fn tone_mapping_v2(color: Vec3) -> Vec3 {
+    let color = color / 500.0;
+    let length = color.length();
+    let length = f32::clamp(length, 0.01, f32::INFINITY);
+    let newlength = reinhard(length);
+    let color = color / length * newlength;
+    color
+}
+
 fn tone_mapping(color: Vec3) -> Vec3 {
-    let color = color / 1000.0;
+    let color = color / 100.0;
     // https://computergraphics.stackexchange.com/questions/6307/tone-mapping-bright-images
     // Calculate the desaturation coefficient based on the brightness
     let sig = f32::max(color.x(), f32::max(color.y(), color.z()));
@@ -110,7 +119,7 @@ impl WorkerThreadHandle {
 
                         pixel_color = pixel_color / MULTISAMPLE_SIZE as f32;
 
-                        pixel_color = tone_mapping(pixel_color);
+                        pixel_color = tone_mapping_v2(pixel_color);
 
                         surface.write((x, y), pixel_color);
                     }

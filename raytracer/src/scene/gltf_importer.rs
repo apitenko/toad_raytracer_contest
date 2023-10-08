@@ -13,11 +13,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use super::lights::point::PointLightRadius;
 use super::{
     camera::Camera,
     lights::{
         directional::DirectionalLight,
-        point::{PointLight, PointLightRadius},
+        point::{PointLight},
         spot::{SpotLight, SpotLightRange},
     },
     material::{Material, MaterialShared, MaterialStorage},
@@ -45,6 +46,9 @@ impl From<GltfImport> for ImportedGltfScene {
 
 pub fn read_into_scene(app_scene: &mut Scene, path: &str) -> anyhow::Result<()> {
     let imported: ImportedGltfScene = {
+        if !std::path::Path::exists(&std::path::PathBuf::from(path)) {
+            panic!("gltf scene not found")
+        }
         println!("gltf::import start");
         let time_start = std::time::Instant::now();
         let imported = gltf::import(path)?.into();
@@ -129,7 +133,6 @@ pub fn scan_for_camera<'a>(
         let accumulated_transform = current_transform * parent_transform;
         match scan_for_camera(
             accumulated_transform,
-            // current_transform,
             &mut child.children(),
         ) {
             Some(transform_plus_camera) => return Some(transform_plus_camera),
@@ -171,24 +174,13 @@ fn import_node(
     gltf_folder: &Path,
 ) -> anyhow::Result<()> {
     let own_transform: Mat44 = node.transform().into();
-    let accumulated_transform = *parent_transform * own_transform;
+    let accumulated_transform = own_transform * *parent_transform; 
 
     match node.mesh() {
         Some(mesh) => {
             for primitive in mesh.primitives() {
                 let material =
                     import_material(app_scene, imported, gltf_folder, primitive.material())?;
-
-                let bbox = primitive.bounding_box();
-                let positions = primitive
-                    .get(&gltf::Semantic::Positions)
-                    .expect("No positions for primitive");
-                let tex_coords = primitive
-                    .get(&gltf::Semantic::TexCoords(0))
-                    .expect("No texcoord (channel 0) for primitive");
-                let normals = primitive
-                    .get(&gltf::Semantic::Normals)
-                    .expect("No normals for primitive");
 
                 let reader = primitive.reader(|buffer| Some(&imported.buffers[buffer.index()]));
 
@@ -202,16 +194,6 @@ fn import_node(
                 };
 
                 let index_iter = index_iter.tuple_windows().step_by(3);
-
-                // let uv_iter: Box<dyn Iterator<Item = [f32;2]>> = {
-                //     let uv = reader.read_tex_coords(0);
-                //     let uv: Box<dyn Iterator<Item = [f32;2]>> = match uv {
-                //         Some(uv) => Box::new(uv.into_f32()),
-                //         None => Box::new(iter::repeat([0.5f32, 0.5])),
-                //     };
-                //     uv
-                // };
-                // let uv_iter = uv_iter.tuple_windows().step_by(3);
 
                 let mode_ = primitive.mode();
 
@@ -243,7 +225,7 @@ fn import_node(
                     [read_uv(0), read_uv(1), read_uv(2), read_uv(3)]
                 };
 
-                let read_normal_for_triangle: Box<dyn Fn(usize, Mat44, Vec3) -> Vec3> = {
+                let read_normal_for_triangle: Box<dyn Fn(usize, Mat44, Vec3) -> Vec3> = {   
                     let normals_reader = reader.read_normals();
                     match normals_reader {
                         None => {
@@ -251,13 +233,13 @@ fn import_node(
                                 |index: usize,
                                  inv_tr_mat: Mat44,
                                  fallback_geometry_normal: Vec3| {
-                                    fallback_geometry_normal.normalized()
+                                    fallback_geometry_normal
                                 },
                             );
                             boxed_closure
                         }
-                        Some(fuckme) => {
-                            let data: Vec<_> = fuckme.collect();
+                        Some(normals_iter) => {
+                            let data: Vec<_> = normals_iter.collect();
 
                             let boxed_closure = Box::new(move |index: usize, inv_tr_mat: Mat44, fallback_geometry_normal: Vec3| {
                                 let normal = Vec3::from_f32_3(data[index], 0.0);
@@ -314,16 +296,6 @@ fn import_node(
                         material: material.clone(),
                     });
                 }
-
-                // let aabb = BoundingBox::from_gltf(primitive.bounding_box());
-                // let bounding_sphere = aabb.bounding_sphere();
-
-                // app_scene.add_mesh(Mesh {
-                //     triangles: final_positions,
-                //     aabb,
-                //     bounding_sphere,
-                //     material,
-                // })
             }
         }
         None => (),
@@ -335,7 +307,7 @@ fn import_node(
             let color = Vec3::new(light.color());
             let intensity = light.intensity();
             let direction = accumulated_transform * Vec3::from_f32([0.0, 0.0, -1.0, 0.0]);
-            let position = accumulated_transform * Vec3::from_f32([0.0, 0.0, 0.0, 1.0]);
+            let position = (accumulated_transform * Vec3::from_f32([0.0, 0.0, 0.0, 1.0])).divided_by_w();
 
             match light.kind() {
                 gltf::khr_lights_punctual::Kind::Directional => {

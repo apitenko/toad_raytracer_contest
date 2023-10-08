@@ -87,8 +87,8 @@ impl Mat44 {
 
     pub fn from_decomposed(translation: [f32; 3], rotation: [f32; 4], scale: [f32; 3]) -> Self {
         Self::from_scale(scale)
-        * Self::from_rotation_quaternion(rotation)
-        * Self::from_translation(translation)
+            * Self::from_rotation_quaternion(rotation)
+            * Self::from_translation(translation)
     }
 
     pub fn from_4x4(matrix: [[f32; 4]; 4]) -> Self {
@@ -119,8 +119,8 @@ impl Mat44 {
         let m = [
             [w, 0.0, 0.0, 0.0],
             [0.0, h, 0.0, 0.0],
-            [0.0, 0.0, r, r * z_near],
-            [0.0, 0.0, -1.0, 0.0],
+            [0.0, 0.0, r, -1.0],
+            [0.0, 0.0, r * z_near, 0.0],
         ];
         Self { m }
     }
@@ -157,7 +157,6 @@ impl Mat44 {
     }
 
     pub fn multiply_vec(&self, vector: Vec3) -> Vec3 {
-        
         #[cfg(target_feature = "sse")]
         unsafe {
             let vec_x: __m128 = _mm_permute_ps(vector.data_vectorized, 0x00);
@@ -420,6 +419,7 @@ unsafe fn GetTransformInverse(inM: &Mat44) -> Mat44 {
 // row major
 fn GetTransformInverse_glam(inM: &Mat44) -> Mat44 {
     unsafe {
+        // todo: make a row-major version
         let inM = inM.transposed(); // convert to column-major
         let w_axis = inM.row[3];
         let z_axis = inM.row[2];
@@ -565,6 +565,7 @@ fn GetTransformInverse_glam(inM: &Mat44) -> Mat44 {
                 _mm_mul_ps(inv3, rcp0),
             ],
         }
+        .transposed()
     }
 }
 

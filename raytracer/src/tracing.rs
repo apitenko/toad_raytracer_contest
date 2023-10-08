@@ -18,20 +18,20 @@ use crate::{
 
 // ? づ｀･ω･)づ it's compile time o'clock
 
-generate_multisample_positions!(2);
+generate_multisample_positions!(1);
 
-pub const MULTISAMPLE_OFFSETS: [(f32, f32); 2] = generated_samples();
+pub const MULTISAMPLE_OFFSETS: [(f32, f32); 1] = generated_samples();
 pub const MULTISAMPLE_SIZE: usize = MULTISAMPLE_OFFSETS.len();
 
-pub const MAX_BOUNCES: i32 = 1;
-pub const MONTE_CARLO_THRESHOLD_BOUNCES: i32 = 0;
+pub const MAX_BOUNCES: i32 = 0;
+pub const MONTE_CARLO_THRESHOLD_BOUNCES: i32 = 20;
 // pub const MAX_DEPTH: f32 = 20.0;
 
 // todo: move to skybox
 pub const SKYBOX_LIGHT_INTENSITY: f32 = 0.0;
 pub const SKYBOX_COLOR: Vec3 = COLOR_SKY_BLUE;
 
-pub const AMBIENT_LIGHT_INTENSITY: f32 = 0.0;
+pub const AMBIENT_LIGHT_INTENSITY: f32 = 10.0;
 pub const AMBIENT_LIGHT_COLOR: Vec3 = COLOR_WHITE;
 
 // Cook-Torrance F term
@@ -188,6 +188,7 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
 }
 
 // Cook-Torrance D term
+#[inline]
 fn ggx_normal_distribution(NdotH: f32, roughness: f32) -> f32 {
     // TODO: remove clamps
     let NdotH = NdotH.clamp(f32::EPSILON, 1.0 - f32::EPSILON);
@@ -195,11 +196,12 @@ fn ggx_normal_distribution(NdotH: f32, roughness: f32) -> f32 {
 
     let a2 = roughness * roughness;
     let d = ((NdotH * a2 - NdotH) * NdotH + 1.0);
-    return a2 / (d * d * PI);
+    return NdotH * a2 / (d * d * PI);
 }
 
 // Cook-Torrance G term
 // TODO: maybe find a better model
+#[inline]
 fn ggx_schlick_masking_term(NdotL: f32, NdotV: f32, roughness: f32) -> f32 {
     // TODO: remove clamps
     let NdotL = NdotL.clamp(f32::EPSILON, 1.0 - f32::EPSILON);
@@ -217,7 +219,9 @@ fn ggx_schlick_masking_term(NdotL: f32, NdotV: f32, roughness: f32) -> f32 {
 }
 
 fn get_perpendicular_vector(vector: Vec3) -> Vec3 {
-    Vec3::cross(vector, Vec3::from_f32([1.0, 1.0, 1.0, 0.0])).normalized()
+    Vec3::from_f32([-vector.y(), vector.x(), vector.z(), 0.0])
+    // Vec3::cross(vector, Vec3::from_f32([1.0, 1.0, 1.0, 0.0])).normalized()
+    // Vec3::cross(vector, Vec3::from_f32([1.0, 0.0, 0.0, 0.0])).normalized()
 }
 
 // When using this function to sample, the probability density is:

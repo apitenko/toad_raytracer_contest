@@ -125,7 +125,7 @@ impl Material {
 
     #[inline]
     pub fn sample_normal(&self, uv: &[(f32, f32); 4], mip: f32) -> Vec3 {
-        self.sample_uv_scaled(&self.normal_texture, uv, mip)
+        self.sample_uv_scaled(&self.normal_texture, uv, mip).normalized()
     }
 }
 

@@ -4,6 +4,7 @@ use rand::Rng;
 use raytracer_lib::generate_multisample_positions;
 
 use crate::scene::acceleration_structure::acceleration_structure::AccelerationStructure;
+use crate::scene::lights::light::attenuation_fn;
 use crate::{
     constants::{COLOR_RED, COLOR_SKY_BLUE, COLOR_WHITE, MISS_COLOR_VEC3},
     math::{
@@ -23,15 +24,15 @@ generate_multisample_positions!(1);
 pub const MULTISAMPLE_OFFSETS: [(f32, f32); 1] = generated_samples();
 pub const MULTISAMPLE_SIZE: usize = MULTISAMPLE_OFFSETS.len();
 
-pub const MAX_BOUNCES: i32 = 0;
-pub const MONTE_CARLO_THRESHOLD_BOUNCES: i32 = 20;
+pub const MAX_BOUNCES: i32 = 1;
+pub const MONTE_CARLO_THRESHOLD_BOUNCES: i32 = 1;
 // pub const MAX_DEPTH: f32 = 20.0;
 
 // todo: move to skybox
 pub const SKYBOX_LIGHT_INTENSITY: f32 = 0.0;
 pub const SKYBOX_COLOR: Vec3 = COLOR_SKY_BLUE;
 
-pub const AMBIENT_LIGHT_INTENSITY: f32 = 10.0;
+pub const AMBIENT_LIGHT_INTENSITY: f32 = 0.0;
 pub const AMBIENT_LIGHT_COLOR: Vec3 = COLOR_WHITE;
 
 // Cook-Torrance F term
@@ -92,26 +93,24 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
         // return skybox_color * current_bounce.multiplier;
     }
 
-    let mip: f32 = current_bounce.distance / 2.0;
+    // let mip: f32 = current_bounce.distance / 2.0;
+    let mip: f32 = 0.0;
 
     let current_material = cast_result.material.get();
 
-    let material_color =
-        current_material.sample_albedo(&cast_result.uv, mip) * current_material.color_factor;
+    let material_color = current_material.sample_albedo(&cast_result.uv, mip);
     let material_emission = current_material.sample_emission(&cast_result.uv, mip);
 
-    let material_roughness =
-        current_material.sample_roughness(&cast_result.uv, mip) * current_material.roughness_factor;
-    let material_metallic =
-        current_material.sample_roughness(&cast_result.uv, mip) * current_material.metallic_factor;
+    let material_roughness = current_material.sample_metallic(&cast_result.uv, mip);
+    let material_metallic = current_material.sample_roughness(&cast_result.uv, mip);
 
     // TODO: replace Specular with Metallic
     let material_specular =
         Vec3::from_f32([material_metallic, material_metallic, material_metallic, 0.0]);
 
     let material_normal = current_material.sample_normal(&cast_result.uv, mip);
-    // let surface_normal = (material_normal * cast_result.normal).normalized();
-    let surface_normal = cast_result.normal.normalized();
+    let surface_normal = (material_normal * cast_result.normal).normalized();
+    // let surface_normal = cast_result.normal.normalized();
 
     // GGX
     const DO_DIRECT_LIGHTING: bool = true;
@@ -180,10 +179,15 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
 
     // ! Blend components  -------------------------
 
-    let final_color = component_direct
-        + component_indirect
-        + material_emission
-        + AMBIENT_LIGHT_INTENSITY * AMBIENT_LIGHT_COLOR * material_color;
+    // let final_color = component_direct
+    // + component_indirect
+    // + material_emission
+    // + AMBIENT_LIGHT_INTENSITY * AMBIENT_LIGHT_COLOR * material_color;
+
+    let final_color = component_direct + component_indirect;
+    let final_color =
+        final_color * attenuation_fn(cast_result.distance_traversed)
+            + material_emission;
     return final_color;
 }
 

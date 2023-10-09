@@ -599,8 +599,6 @@ fn import_texture(
             );
             // sampler.mag_filter()
 
-            // let color_texture = app_scene.material_storage.push_texture(color_texture);
-
             Ok(sampler)
         }
     }

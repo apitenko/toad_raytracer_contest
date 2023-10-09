@@ -30,9 +30,9 @@ impl AccelerationStructure for FlatArray {
             (*item).intersect(ray, inside)
         })
         .fold(CastResult::MISS, |acc, item| {
-            if acc.distance_traversed > item.distance_traversed
-                && item.distance_traversed > 0.001
-                // && item.distance_traversed <= ray.max_distance()
+            if (acc.distance_traversed > item.distance_traversed)
+                & (item.distance_traversed > 0.001)
+                & (item.distance_traversed <= ray.max_distance())
             {
                 return item;
             } else {

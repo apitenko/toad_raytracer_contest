@@ -34,7 +34,7 @@ impl AccelerationStructure for Octree {
     }
 
     fn single_cast(&self, ray: Ray, inside: bool) -> CastResult {
-        return Self::recursive_intersection(self.root, ray);
+        return Self::recursive_intersection(&ray, self.root, &ray);
     }
 
     fn cone_cast(&self, cone: Cone) -> ConeCastResult {
@@ -248,7 +248,7 @@ impl Octree {
         Ok(())
     }
 
-    fn intersect_triangles(node: *mut OctreeNode, ray: Ray) -> CastResult {
+    fn intersect_triangles(node: *mut OctreeNode, ray: &Ray) -> CastResult {
         debug_assert!(!node.is_null());
         unsafe {
             let inside = false;
@@ -264,12 +264,12 @@ impl Octree {
                 .iter()
                 .filter_map(|item| unsafe {
                     //
-                    (item).intersect(ray, inside)
+                    (item).intersect(*ray, inside)
                 })
                 .fold(CastResult::MISS, |acc, item| {
                     if acc.distance_traversed > item.distance_traversed
                         && item.distance_traversed > 0.001
-                    // && item.distance_traversed <= ray.max_distance()
+                        && item.distance_traversed <= ray.max_distance()
                     {
                         return item;
                     } else {
@@ -281,12 +281,12 @@ impl Octree {
         }
     }
 
-    fn recursive_intersection(node: *mut OctreeNode, ray: Ray) -> CastResult {
+    fn recursive_intersection(original_ray: &Ray, node: *mut OctreeNode, ray: &Ray) -> CastResult {
         unsafe {
             if node.is_null() {
                 return CastResult::MISS;
             }
-            let current_cast_result = Self::intersect_triangles(node, ray);
+            let current_cast_result = Self::intersect_triangles(node, original_ray);
             // return current_cast_result;
             // if !current_cast_result.has_missed() {
             //     println!("HIT");
@@ -349,8 +349,9 @@ impl Octree {
                 let idx = side_to_index(&side);
 
                 let ret = Self::recursive_intersection(
+                    original_ray,
                     (*node).children[idx],
-                    Ray::new(origin, direction, f32::INFINITY),
+                    &Ray::new(origin, direction, f32::INFINITY),
                 );
                 if !ret.has_missed() {
                     return minimum_of_two_cast_results(current_cast_result, ret);

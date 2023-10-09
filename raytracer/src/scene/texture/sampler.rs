@@ -90,8 +90,8 @@ impl TextureMips {
         let coordinates = Self::mip_coordinates(normalized_width, normalized_height, mip_level);
 
         TextureMipBoxFloat {
-            scaled_height: coordinates.height as f32 * width_scale - f32::EPSILON,
-            scaled_width: coordinates.width as f32 * height_scale - f32::EPSILON,
+            scaled_height: coordinates.height as f32 * height_scale - f32::EPSILON,
+            scaled_width: coordinates.width as f32 * width_scale - f32::EPSILON,
             start_x: coordinates.start_x as f32,
             start_y: coordinates.start_y as f32,
         }
@@ -294,7 +294,7 @@ impl TextureMips {
 
     pub fn sample(&self, u: f32, v: f32, mip: usize) -> Vec3 {
         let coordinates = &self.mips[mip];
-
+        
         let x: usize = (coordinates.start_x + u.wrap_01() * coordinates.scaled_width) as usize;
         let y: usize = (coordinates.start_y + v.wrap_01() * coordinates.scaled_height) as usize;
         let sample = unsafe {

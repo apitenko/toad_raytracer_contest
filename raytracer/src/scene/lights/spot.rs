@@ -27,8 +27,7 @@ pub struct SpotLightRange {
 impl Light for SpotLight {
     fn get_emission(&self, at_point: Vec3) -> Vec3 {
         let distance = (self.position - at_point).length();
-        let attenuation = attenuation_fn(distance);
-        return self.color * attenuation * self.intensity;
+        return attenuation_fn(distance, self.color * self.intensity);
     }
     // (distance, normal)
     fn normal_from(&self, origin: Vec3) -> (f32, Vec3) {
@@ -41,8 +40,7 @@ impl Light for SpotLight {
 impl Light for SpotLightRange {
     fn get_emission(&self, at_point: Vec3) -> Vec3 {
         let distance = (self.position - at_point).length();
-        let attenuation = attenuation_fn(distance);
-        return self.color * attenuation * self.intensity;
+        return attenuation_fn(distance, self.color * self.intensity);
     }
     // (distance, normal)
     fn normal_from(&self, origin: Vec3) -> (f32, Vec3) {

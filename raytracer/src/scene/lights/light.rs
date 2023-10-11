@@ -8,9 +8,9 @@ pub trait Light {
 // c + x + x^2
 const ATTENUATION_PARAMETERS: (f32, f32, f32) = (0.0, 0.0, 1.0);
 
-pub fn attenuation_fn(distance: f32) -> f32 {
+pub fn attenuation_fn(distance: f32, multiplier: Vec3) -> Vec3 {
     // return 1.0 / (ATTENUATION_PARAMETERS.0
     //     + ATTENUATION_PARAMETERS.1 * distance
     //     + ATTENUATION_PARAMETERS.2 * (distance * distance));
-    return 1.0 / (ATTENUATION_PARAMETERS.2 * (distance * distance));
+    return multiplier / (ATTENUATION_PARAMETERS.2 * (distance * distance));
 }

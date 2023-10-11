@@ -21,8 +21,7 @@ impl PointLight {
 impl Light for PointLight {
     fn get_emission(&self, at_point: Vec3) -> Vec3 {
         let distance = (self.position - at_point).length();
-        let attenuation = attenuation_fn(distance);
-        return self.color * attenuation * self.intensity;
+        return attenuation_fn(distance, self.color * self.intensity);
     }
     // (distance, normal)
     fn normal_from(&self, origin: Vec3) -> (f32, Vec3) {
@@ -55,8 +54,7 @@ impl Light for PointLightRadius {
     fn get_emission(&self, at_point: Vec3) -> Vec3 {
         let distance = (self.position - at_point).length();
         let distance_in_radius = ((self.radius - distance) / self.radius);
-        let attenuation = attenuation_fn(distance_in_radius);
-        return self.color * attenuation * self.intensity;
+        return attenuation_fn(distance_in_radius, self.color * self.intensity);
     }
     // (distance, normal)
     fn normal_from(&self, origin: Vec3) -> (f32, Vec3) {

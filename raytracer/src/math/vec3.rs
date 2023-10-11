@@ -459,7 +459,7 @@ impl Vec3 {
         let edge1 = vertex1 - vertex0;
         let edge2 = vertex2 - vertex0;
 
-        let geometry_normal = Vec3::cross(edge1, edge2).normalized();
+        let geometry_normal = Vec3::cross(edge1, edge2).as_vector().normalized();
         geometry_normal
     }
 }

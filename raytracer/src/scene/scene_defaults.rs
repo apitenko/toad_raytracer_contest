@@ -18,7 +18,7 @@ pub fn add_scene_defaults(scene: &mut Scene) -> anyhow::Result<()> {
         println!("No lights found, adding default Directional");
         scene.lights.push(Box::new(DirectionalLight::new(
             Vec3::new([0.5, -1.0, 0.0]),
-            20000.0,
+            200000.0,
             COLOR_SKY_BLUE,
         )));
     }

@@ -109,8 +109,18 @@ impl Material {
     }
 
     #[inline]
+    pub fn sample_roughness_metallic(&self, uv: &[(f32, f32); 4], mip: f32) -> (f32,f32) {
+        let sample = self.sample_uv_scaled(&self.metallic_roughness_texture, uv, mip);
+        (sample.y(), sample.z())
+    }
+
+    #[inline]
     pub fn sample_metallic(&self, uv: &[(f32, f32); 4], mip: f32) -> f32 {
-        self.sample_uv_scaled(&self.metallic_roughness_texture, uv, mip).x() * self.metallic_factor
+        let sample = self.sample_uv_scaled(&self.metallic_roughness_texture, uv, mip);
+        // if (sample.x() > 0.001 ||sample.y() > 0.001 ||sample.z() > 0.001 ||sample.w() > 0.001) && self.metallic_factor > 0.001 {
+        //     println!("Yeet");
+        // }
+        sample.z() * self.metallic_factor
     }
 
     #[inline]

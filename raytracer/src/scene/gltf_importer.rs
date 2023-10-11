@@ -244,7 +244,7 @@ fn import_node(
                             let boxed_closure = Box::new(move |index: usize, inv_tr_mat: Mat44, fallback_geometry_normal: Vec3| {
                                 let normal = Vec3::from_f32_3(data[index], 0.0);
                                 let normal = inv_tr_mat * normal;
-                                normal.normalized()
+                                normal.as_vector().normalized()
                             });
                             boxed_closure
                         }
@@ -426,8 +426,8 @@ fn import_material(
 ) -> anyhow::Result<MaterialShared> {
     let pbr_info = material.pbr_metallic_roughness();
     let color_factor = pbr_info.base_color_factor();
-    let metallic_factor = pbr_info.metallic_factor();
-    let roughness_factor = pbr_info.roughness_factor();
+    let mut metallic_factor = pbr_info.metallic_factor();
+    let mut roughness_factor = pbr_info.roughness_factor();
 
     let color_texture = import_texture(
         pbr_info.base_color_texture(),
@@ -450,6 +450,15 @@ fn import_material(
         gltf_folder,
         imported,
     )?;
+
+    if Vec3::from_f32_3(emission_factor, 0.0).squared_length() > 0.001 {
+        metallic_factor = 0.0;
+        roughness_factor = 1.0;
+    }
+
+    // if metallic_factor <= 0.01 {
+    //     metallic_factor = 0.01;
+    // }
 
     let normal_texture = import_texture_normal(
         material.normal_texture(),

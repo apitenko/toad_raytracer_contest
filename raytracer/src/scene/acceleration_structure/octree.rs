@@ -5,7 +5,6 @@ use rand::Rng;
 use crate::{
     math::{
         cone::Cone,
-        random::random_in_unit_sphere,
         sphere::{sphere_bbox_intersection, Sphere},
         Ray, Vec3,
     },
@@ -267,9 +266,9 @@ impl Octree {
                     (item).intersect(*ray, inside)
                 })
                 .fold(CastResult::MISS, |acc, item| {
-                    if acc.distance_traversed > item.distance_traversed
-                        && item.distance_traversed > 0.001
-                        && item.distance_traversed <= ray.max_distance()
+                    if (acc.distance_traversed > item.distance_traversed)
+                        & (item.distance_traversed > 0.001)
+                        & (item.distance_traversed <= ray.max_distance())
                     {
                         return item;
                     } else {

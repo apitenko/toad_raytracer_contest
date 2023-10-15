@@ -13,6 +13,8 @@ pub struct Triangle {
     pub vertices: [Vec3; 3],
     pub uv: UVSet,
     pub normals: [Vec3; 3],
+    pub tangents: [Vec3; 3],
+    pub bitangents: [Vec3; 3],
 }
 
 // impl Default for Triangle {
@@ -25,17 +27,17 @@ pub struct Triangle {
 //     }
 // }
 
-impl Triangle {
-    pub fn from_vertices(p0: Vec3, p1: Vec3, p2: Vec3, material: MaterialShared) -> Self {
-        let normal = Vec3::calculate_normal_from_points(p0, p1, p2);
-        Self {
-            vertices: [p0, p1, p2],
-            uv: UVSet::empty(),
-            normals: [normal, normal, normal],
-            material,
-        }
-    }
-}
+// impl Triangle {
+//     pub fn from_vertices(p0: Vec3, p1: Vec3, p2: Vec3, material: MaterialShared) -> Self {
+//         let normal = Vec3::calculate_normal_from_points(p0, p1, p2);
+//         Self {
+//             vertices: [p0, p1, p2],
+//             uv: UVSet::empty(),
+//             normals: [normal, normal, normal],
+//             material,
+//         }
+//     }
+// }
 
 impl Shape for Triangle {
     fn intersect(&self, ray: Ray, inside: bool) -> Option<CastResult> {
@@ -79,6 +81,8 @@ impl Shape for Triangle {
         {
             // let geometry_normal = Vec3::cross(edge1, edge2).normalized();
             let normal = interpolate_normals([w, u, v], self.normals);
+            let tangent = interpolate_normals([w, u, v], self.tangents);
+            let bitangent = interpolate_normals([w, u, v], self.bitangents);
             // let normal = geometry_normal;//* interpolated_normal;
 
             let intersection_point = ray.point_at_parameter(t);
@@ -86,6 +90,8 @@ impl Shape for Triangle {
                 intersection_point,
                 distance_traversed: (ray.direction() * t).length(),
                 normal,
+                tangent,
+                bitangent,
                 uv,
                 material: self.material.clone(),
             });

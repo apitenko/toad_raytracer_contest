@@ -8,6 +8,8 @@ pub struct CastResult {
     pub distance_traversed: f32,
     pub intersection_point: Vec3,
     pub normal: Vec3,
+    pub tangent: Vec3,
+    pub bitangent: Vec3,
     pub uv: [(f32, f32); 4],
     pub material: MaterialShared,
 }
@@ -16,6 +18,8 @@ impl CastResult {
     pub const MISS: Self = Self {
         intersection_point: Vec3::ZERO,
         normal: Vec3::ZERO,
+        tangent: Vec3::ZERO,
+        bitangent: Vec3::ZERO,
         distance_traversed: f32::INFINITY,
         uv: [(0.0, 0.0), (0.0, 0.0), (0.0, 0.0), (0.0, 0.0)],
         material: MaterialShared::null(),

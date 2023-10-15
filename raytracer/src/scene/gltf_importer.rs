@@ -18,7 +18,7 @@ use super::{
     camera::Camera,
     lights::{
         directional::DirectionalLight,
-        point::{PointLight},
+        point::PointLight,
         spot::{SpotLight, SpotLightRange},
     },
     material::{Material, MaterialShared, MaterialStorage},
@@ -45,6 +45,9 @@ impl From<GltfImport> for ImportedGltfScene {
 }
 
 pub fn read_into_scene(app_scene: &mut Scene, path: &str) -> anyhow::Result<()> {
+
+    // fuck();
+
     let imported: ImportedGltfScene = {
         if !std::path::Path::exists(&std::path::PathBuf::from(path)) {
             panic!("gltf scene not found")
@@ -131,10 +134,7 @@ pub fn scan_for_camera<'a>(
     for child in &mut *nodes {
         let current_transform: Mat44 = child.transform().into();
         let accumulated_transform = current_transform * parent_transform;
-        match scan_for_camera(
-            accumulated_transform,
-            &mut child.children(),
-        ) {
+        match scan_for_camera(accumulated_transform, &mut child.children()) {
             Some(transform_plus_camera) => return Some(transform_plus_camera),
             None => (),
         }
@@ -174,7 +174,7 @@ fn import_node(
     gltf_folder: &Path,
 ) -> anyhow::Result<()> {
     let own_transform: Mat44 = node.transform().into();
-    let accumulated_transform = own_transform * *parent_transform; 
+    let accumulated_transform = own_transform * *parent_transform;
 
     match node.mesh() {
         Some(mesh) => {
@@ -217,7 +217,9 @@ fn import_node(
                     let read_uv = |channel_index: u32| -> Vec<_> {
                         let uv_reader = reader.read_tex_coords(channel_index);
                         match uv_reader {
-                            None => (0..length).map(|huynya| [huynya as f32, huynya as f32]).collect(),
+                            None => (0..length)
+                                .map(|huynya| [huynya as f32, huynya as f32])
+                                .collect(),
                             Some(uv_reader) => uv_reader.into_f32().collect(),
                         }
                     };
@@ -225,7 +227,7 @@ fn import_node(
                     [read_uv(0), read_uv(1), read_uv(2), read_uv(3)]
                 };
 
-                let read_normal_for_triangle: Box<dyn Fn(usize, Mat44, Vec3) -> Vec3> = {   
+                let read_normal_for_triangle: Box<dyn Fn(usize, Mat44, Vec3) -> Vec3> = {
                     let normals_reader = reader.read_normals();
                     match normals_reader {
                         None => {
@@ -288,11 +290,16 @@ fn import_node(
                     );
 
                     let uv = UVSet::read(&input_uv, i0 as usize, i1 as usize, i2 as usize);
+                    let vertices = [p0, p1, p2];
+                    let normals = [n0, n1, n2];
+                    let (tangents, bitangents) = calculate_tangents(&vertices, &uv, &normals);
 
                     app_scene.push_triangle(Triangle {
-                        vertices: [p0, p1, p2],
+                        vertices,
                         uv,
-                        normals: [n0, n1, n2],
+                        normals,
+                        tangents,
+                        bitangents,
                         material: material.clone(),
                     });
                 }
@@ -307,7 +314,8 @@ fn import_node(
             let color = Vec3::new(light.color());
             let intensity = light.intensity();
             let direction = accumulated_transform * Vec3::from_f32([0.0, 0.0, -1.0, 0.0]);
-            let position = (accumulated_transform * Vec3::from_f32([0.0, 0.0, 0.0, 1.0])).divided_by_w();
+            let position =
+                (accumulated_transform * Vec3::from_f32([0.0, 0.0, 0.0, 1.0])).divided_by_w();
 
             match light.kind() {
                 gltf::khr_lights_punctual::Kind::Directional => {
@@ -467,6 +475,8 @@ fn import_material(
         imported,
     )?;
 
+    let fresnel_coefficient = material.ior().unwrap_or(2.5);
+
     let mat = Material {
         color_factor: Vec3::from_f32(color_factor),
         color_texture,
@@ -475,6 +485,7 @@ fn import_material(
         metallic_factor,
         emission_texture,
         normal_texture,
+        fresnel_coefficient,
         emission_factor: Vec3::from_f32_3(emission_factor, 0.0),
         ..app_scene.default_material.get().clone()
     };
@@ -714,3 +725,69 @@ fn import_texture_normal(
         }
     }
 }
+
+fn calculate_tangents(
+    vertices: &[Vec3; 3],
+    uv: &UVSet,
+    normals: &[Vec3; 3],
+) -> ([Vec3; 3], [Vec3; 3]) {
+    let edge1 = vertices[1] - vertices[0];
+    let edge2 = vertices[2] - vertices[0];
+
+    let uv0 = uv.channels[0].points[0];
+    let uv1 = uv.channels[0].points[1];
+    let uv2 = uv.channels[0].points[2];
+    let s1 = uv1[0] - uv0[0];
+    let s2 = uv2[0] - uv0[0];
+    let t1 = uv1[1] - uv0[1];
+    let t2 = uv2[1] - uv0[1];
+
+    let r = 1.0 / (s1 * t2 - s2 * t1);
+
+    let sdir = (t2 * edge1 - t1 * edge2) * r;
+    let tdir = (s1 * edge2 - s2 * edge1) * r;
+
+    let tangents1 = [sdir, sdir, sdir];
+    let tangents2 = [tdir, tdir, tdir];
+
+    let mut tangents = [Vec3::ZERO; 3];
+    let mut bitangents = [Vec3::ZERO; 3];
+
+    for a in 0..3 {
+        let n = normals[a];
+        let t = tangents1[a];
+        // const Vector3D& n = normals[a];
+        // const Vector3D& t = tan1[a];
+
+        // Gram-Schmidt orthogonalize
+        tangents[a] = (t - n * Vec3::dot(n, t)).normalized();
+
+        // Calculate handedness
+        if Vec3::dot(Vec3::cross(n, t), tangents2[a]) < 0.0 {
+            tangents[a] = -tangents[a];
+        }
+
+        bitangents[a] = Vec3::cross(tangents[a], n);
+    }
+
+    return (tangents, bitangents);
+}
+
+
+// fn fuck() {
+//     let translation = [0.0, 0.0, -101.0];
+//     let v = Mat44::from_translation(translation);
+//     let p = Mat44::from_perspective_rh(85.0_f32.to_radians(), 4.0 / 4.0, 0.01, 300.0);
+
+//     let vp = v * p;
+
+//     let p0 = Vec3::from_f32([0.0, 0.0, 0.0, 1.0]);
+//     let p1 = Vec3::from_f32([0.0, 1.0, 0.0, 1.0]);
+
+//     let p0_ = vp.transform_point(p0);
+//     let p1_ = vp.transform_point(p1);
+
+//     let length = (p1_ - p0_).length();
+
+//     println!("{:?}", length);
+// }

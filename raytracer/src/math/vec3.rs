@@ -19,6 +19,7 @@ impl Vec3 {
     pub const ONE: Self = Vec3::new([1.0, 1.0, 1.0]);
     pub const BACK: Self = Vec3::new([0.0, 0.0, -1.0]);
     pub const UP: Self = Vec3::new([0.0, 1.0, 0.0]);
+    pub const DOWN: Self = Vec3::new([0.0, -1.0, 0.0]);
     pub const X_AXIS: Self = Vec3::new([1.0, 0.0, 0.0]);
     pub const Y_AXIS: Self = Vec3::new([0.0, 1.0, 0.0]);
     pub const Z_AXIS: Self = Vec3::new([0.0, 0.0, 1.0]);
@@ -59,6 +60,7 @@ impl Vec3 {
     pub const fn z(&self) -> f32 {
         unsafe { self.data[2] }
     }
+
     #[inline]
     #[must_use]
     pub const fn w(&self) -> f32 {

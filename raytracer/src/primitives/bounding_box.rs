@@ -94,17 +94,17 @@ impl BoundingBox {
 
     #[must_use]
     pub fn intersects(a: &Self, b: &Self) -> bool {
-        (a.min.x() <= b.max.x() && a.max.x() >= b.min.x()) && // .
-        (a.min.y() <= b.max.y() && a.max.y() >= b.min.y()) && // .
-        (a.min.z() <= b.max.z() && a.max.z() >= b.min.z()) // .
+        ((a.min.x() <= b.max.x()) & (a.max.x() >= b.min.x())) & // .
+        ((a.min.y() <= b.max.y()) & (a.max.y() >= b.min.y())) & // .
+        ((a.min.z() <= b.max.z()) & (a.max.z() >= b.min.z())) // .
     }
-    #[must_use]
-    pub fn intersects_padded(a: &Self, b: &Self, padding: Vec3) -> bool {
-        (a.min.x() - padding.x() <= b.max.x() && a.max.x() + padding.x() >= b.min.x()) && // .
-        (a.min.y() - padding.y() <= b.max.y() && a.max.y() + padding.y() >= b.min.y()) && // .
-        (a.min.z() - padding.z() <= b.max.z() && a.max.z() + padding.z() >= b.min.z())
-        // .
-    }
+    // #[must_use]
+    // pub fn intersects_padded(a: &Self, b: &Self, padding: Vec3) -> bool {
+    //     (a.min.x() - padding.x() <= b.max.x() && a.max.x() + padding.x() >= b.min.x()) && // .
+    //     (a.min.y() - padding.y() <= b.max.y() && a.max.y() + padding.y() >= b.min.y()) && // .
+    //     (a.min.z() - padding.z() <= b.max.z() && a.max.z() + padding.z() >= b.min.z())
+    //     // .
+    // }
 
     pub fn from_gltf(aabb: gltf::mesh::BoundingBox) -> Self {
         Self::new(Vec3::new(aabb.min), Vec3::new(aabb.max))

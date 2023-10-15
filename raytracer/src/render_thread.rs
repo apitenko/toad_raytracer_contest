@@ -88,12 +88,12 @@ impl RenderThreadHandle {
         {
             let available_threads = unsafe {
                 std::thread::available_parallelism().unwrap_or(NonZeroUsize::new_unchecked(12))
-            };
+            }.get();
 
             let mut task_queue = Queue::new();
 
             let total_pixels = surface.width() * surface.height();
-            let total_tasks = (available_threads.get() * 20).min(total_pixels as usize);
+            let total_tasks = (available_threads * 20).min(total_pixels as usize);
             let pixels_per_task: usize = (total_pixels as f32 / total_tasks as f32).floor() as usize;
 
             for index in 0..(total_tasks - 1) {
@@ -116,7 +116,7 @@ impl RenderThreadHandle {
 
             let mut worker_thread_handles = Vec::new();
 
-            for _ in 0..available_threads.get() {
+            for _ in 0..available_threads {
                 worker_thread_handles.push(WorkerThreadHandle::run(
                     surface.clone(),
                     task_queue.clone(),

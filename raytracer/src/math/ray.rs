@@ -76,7 +76,7 @@ impl RayBounce {
         Self {
             ray,
             current_bounces: 0,
-            distance: 0.0,
+            distance: 0.2,
             // remaining_depth: MAX_DEPTH,
             refraction_state: RayRefractionState::InsideMaterial {
                 current_outside_fresnel_coefficient: 9.9,

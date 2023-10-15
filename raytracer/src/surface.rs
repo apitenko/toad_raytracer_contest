@@ -15,7 +15,7 @@ pub struct TotallySafeSurfaceWrapper {
 }
 
 // true for correct PNG, false for correct windowed version
-const COLOR_INVERSION_ENABLED: bool = false;
+const COLOR_INVERSION_ENABLED: bool = true;
 
 impl TotallySafeSurfaceWrapper {
     pub fn new(memory: *mut u32, render_size: (u32, u32), render_scale: u32) -> Self {

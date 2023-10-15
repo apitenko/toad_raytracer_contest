@@ -25,6 +25,9 @@ pub struct Material {
     pub emission_factor: Vec3,
     pub emission_texture: Sampler,
     pub normal_texture: Sampler,
+
+    pub transmission_factor: f32,
+    pub transmission_texture: Sampler,
     // pub subsurface: f32,
     // pub anisotropic: f32,
     // pub sheen: f32,
@@ -117,9 +120,6 @@ impl Material {
     #[inline]
     pub fn sample_metallic(&self, uv: &[(f32, f32); 4], mip: f32) -> f32 {
         let sample = self.sample_uv_scaled(&self.metallic_roughness_texture, uv, mip);
-        // if (sample.x() > 0.001 ||sample.y() > 0.001 ||sample.z() > 0.001 ||sample.w() > 0.001) && self.metallic_factor > 0.001 {
-        //     println!("Yeet");
-        // }
         sample.z() * self.metallic_factor
     }
 

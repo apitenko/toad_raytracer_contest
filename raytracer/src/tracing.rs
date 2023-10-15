@@ -5,6 +5,7 @@ use raytracer_lib::generate_multisample_positions;
 
 use crate::scene::acceleration_structure::acceleration_structure::AccelerationStructure;
 use crate::scene::lights::light::attenuation_fn;
+use crate::util::prng::{rand01, rand_range};
 use crate::{
     constants::{COLOR_RED, COLOR_SKY_BLUE, COLOR_WHITE, MISS_COLOR_VEC3},
     math::{
@@ -19,13 +20,13 @@ use crate::{
 
 // ? づ｀･ω･)づ it's compile time o'clock
 
-generate_multisample_positions!(4);
+generate_multisample_positions!(16);
 
-pub const MULTISAMPLE_OFFSETS: [(f32, f32); 4] = generated_samples();
+pub const MULTISAMPLE_OFFSETS: [(f32, f32); 16] = generated_samples();
 pub const MULTISAMPLE_SIZE: usize = MULTISAMPLE_OFFSETS.len();
 
-pub const MAX_BOUNCES: i32 = 1;
-pub const MONTE_CARLO_THRESHOLD_BOUNCES: i32 = 4;
+pub const MAX_BOUNCES: i32 = 8;
+pub const MONTE_CARLO_THRESHOLD_BOUNCES: i32 = 2;
 // pub const MAX_DEPTH: f32 = 20.0;
 
 // todo: move to skybox
@@ -101,7 +102,8 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
     let material_color = current_material.sample_albedo(&cast_result.uv, mip);
     let material_emission = current_material.sample_emission(&cast_result.uv, mip);
 
-    let (material_roughness, material_metallic) = current_material.sample_roughness_metallic(&cast_result.uv, mip);
+    let (material_roughness, material_metallic) =
+        current_material.sample_roughness_metallic(&cast_result.uv, mip);
 
     // TODO: replace Specular with Metallic
     let material_specular =
@@ -114,6 +116,7 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
     // GGX
     const DO_DIRECT_LIGHTING: bool = true;
     const DO_INDIRECT_LIGHTING: bool = true;
+    // let DO_DIRECT_LIGHTING: bool = current_bounce.current_bounces > 0;
 
     // Do explicit direct lighting to a random light in the scene
     let component_direct = if DO_DIRECT_LIGHTING {
@@ -179,11 +182,10 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
 
     // ! Blend components  -------------------------
 
-    let final_color = component_direct * component_indirect;
-    let final_color =
-        attenuation_fn(current_bounce.distance + cast_result.distance_traversed, final_color)
-            + material_emission
-            + AMBIENT_LIGHT_INTENSITY * AMBIENT_LIGHT_COLOR * material_color;
+    let final_color = component_direct + component_indirect;
+    let final_color = attenuation_fn(current_bounce.distance, final_color)
+        + material_emission
+        + AMBIENT_LIGHT_INTENSITY * AMBIENT_LIGHT_COLOR * material_color;
     return final_color;
 }
 
@@ -218,23 +220,17 @@ fn ggx_schlick_masking_term(NdotL: f32, NdotV: f32, roughness: f32) -> f32 {
     return g_v * g_l;
 }
 
-fn get_perpendicular_vector(vector: Vec3) -> Vec3 {
-    Vec3::from_f32([-vector.y(), vector.x(), vector.z(), 0.0])
-    // Vec3::cross(vector, Vec3::from_f32([1.0, 1.0, 1.0, 0.0])).normalized()
-    // Vec3::cross(vector, Vec3::from_f32([1.0, 0.0, 0.0, 0.0])).normalized()
-}
-
 // When using this function to sample, the probability density is:
 //      pdf = D * NdotH / (4 * HdotV)
-fn getGGXMicrofacet(roughness: f32, surface_normal: Vec3) -> Vec3 {
-    let mut rng = rand::thread_rng();
-
+fn getGGXMicrofacet(roughness: f32, surface_normal: Vec3, tangent: Vec3, bitangent: Vec3) -> Vec3 {
     // Get our uniform random numbers
-    let randVal: (f32, f32) = (rng.gen(), rng.gen());
+    let randVal: (f32, f32) = (rand01(), rand01());
 
     // Get an orthonormal basis from the normal
-    let B: Vec3 = get_perpendicular_vector(surface_normal); // ! ??????????????
-    let T: Vec3 = Vec3::cross(B, surface_normal);
+    // let B: Vec3 = get_perpendicular_vector(surface_normal); // ! ??????????????
+    // let T: Vec3 = Vec3::cross(B, surface_normal);
+    let B = bitangent;
+    let T = tangent;
 
     // GGX NDF sampling
     let a2 = roughness * roughness;
@@ -305,7 +301,7 @@ fn ggx_direct(
         let random_light = {
             // Pick a random light from our scene to shoot a shadow ray towards
             let lights_count = scene.lights.len();
-            let random_light_index = rand::thread_rng().gen_range(0..lights_count);
+            let random_light_index = rand_range(lights_count);
             let random_light = scene.lights[random_light_index].as_ref();
             random_light
         };
@@ -357,14 +353,15 @@ fn ggx_indirect(
     let V = -current_bounce.ray.direction();
     let N = surface_normal;
     let hit = cast_result.intersection_point;
+    let tangent = cast_result.tangent;
+    let bitangent = cast_result.bitangent;
 
-    let mut rng = rand::thread_rng();
     let (probDiffuse, diffuseMult) = probabilityToSampleDiffuse(material_color, material_specular);
 
-    let fn_diffuse_ray = || {
+    let fn_diffuse_ray = |diffuseMult: f32| {
         // return Vec3::ZERO;
         // Shoot a randomly selected cosine-sampled diffuse ray.
-        let random_direction: Vec3 = (random_cosine_weighted_point() * N).normalized();
+        let random_direction: Vec3 = (getCosHemisphereSample(N, tangent, bitangent)).normalized();
         let bounce_color: Vec3 = ray_cast(
             RayBounce {
                 ray: Ray::new(hit, random_direction, f32::MAX),
@@ -378,16 +375,16 @@ fn ggx_indirect(
         // Accumulate the color: (NdotL * incomingLight * material_albedo / pi)
         // Probability of sampling this ray:  (NdotL / pi) * probDiffuse
         let result_color = bounce_color * material_color / diffuseMult;
-        // if result_color.length() > 3.0 {
-        //     println!("FUCKME IN THE ASS {:?}", probDiffuse);
-        //     println!("{:?} ", result_color);
+
+        // if result_color.luminosity() > 4000.0 {
+        //     println!("Firefly3 found");
         // }
         return result_color;
     };
-    let fn_specular_ray = || {
+    let fn_specular_ray = |diffuseMult: f32| {
         // return Vec3::ZERO;
         // Randomly sample the NDF to get a microfacet in our BRDF
-        let H: Vec3 = getGGXMicrofacet(material_roughness, N).normalized();
+        let H: Vec3 = getGGXMicrofacet(material_roughness, N, tangent, bitangent).normalized();
 
         // Compute outgoing direction based on this (perfectly reflective) facet
         let reflected_ray = reflect(current_ray_direction, H);
@@ -432,11 +429,11 @@ fn ggx_indirect(
     };
 
     if current_bounce.monte_carlo_reached() {
-        let chooseDiffuse = (rng.gen::<f32>() < probDiffuse);
+        let chooseDiffuse = (rand01() < probDiffuse);
         if chooseDiffuse {
-            return fn_diffuse_ray();
+            return fn_diffuse_ray(0.5);
         } else {
-            return fn_specular_ray();
+            return fn_specular_ray(0.5);
         }
     } else {
         // const USE_MULTIPLE_DIFFUSE_RAYS: bool = true;
@@ -451,39 +448,73 @@ fn ggx_indirect(
         //     return (color_diffuse + color_specular) / 2.0;
         // }
         // else {
-        let color_diffuse = fn_diffuse_ray();
-        let color_specular = fn_specular_ray();
+        let color_diffuse = fn_diffuse_ray(diffuseMult);
+        let color_specular = fn_specular_ray(diffuseMult);
         return (color_diffuse + color_specular) / 2.0;
+        // return color_diffuse;
         // }
     }
 }
 
 // TODO: find a better approach
-fn probabilityToSampleDiffuse(material_albedo: Vec3, material_specular: Vec3) -> (f32,f32) {
-    let lumDiffuse = material_albedo.luminosity().saturate();
+fn probabilityToSampleDiffuse(material_albedo: Vec3, material_specular: Vec3) -> (f32, f32) {
     let lumSpecular = material_specular.luminosity();
-    if lumSpecular > 0.01 {
+    if lumSpecular > 0.0001 {
+        let lumDiffuse = material_albedo.luminosity().saturate();
         let mult = lumDiffuse / (lumDiffuse + lumSpecular);
         return (mult, mult);
-    }
-    else {
+    } else {
         return (1.0, 0.5);
     }
 }
 
-fn random_cosine_weighted_point() -> Vec3 {
-    let mut rng = rand::thread_rng();
-    let u = rng.gen::<f32>();
-    let v = rng.gen::<f32>();
+// Get a cosine-weighted random vector centered around a specified normal direction.
+fn getCosHemisphereSample(hitNorm: Vec3, tangent: Vec3, bitangent: Vec3) -> Vec3 {
+    // Get 2 random numbers to select our sample with
+    let u = rand01();
+    let v = rand01();
+    // println!("u: {} v: {}", u, v);
+    // let u: f32 = 0.7648199;
+    // let v: f32 = 0.69663984;
+    // let u: f32 = 0.5;
+    // let v: f32 = 0.5;
 
-    let radial = u.sqrt();
-    let theta = 2.0 * PI * v;
+    // Cosine weighted hemisphere sample from RNG
+    // let bitangent = get_perpendicular_vector(hitNorm);
+    // let tangent = Vec3::cross(bitangent, hitNorm);
 
-    let x = radial * theta.cos();
-    let y = radial * theta.sin();
+    let r = u.sqrt();
+    let phi = 2.0 * PI * v;
+    let result =
+        tangent * (r * phi.cos()) + bitangent * (r * phi.sin()) + hitNorm * (1.0 - v).sqrt();
+    // println!("n {:?} t {:?} b {:?} r {:?}", hitNorm, tangent, bitangent, result);
 
-    return Vec3::new([x, y, (1.0 - u).sqrt()]); //??? -v ??????
+    // Get our cosine-weighted hemisphere lobe sample direction
+    return result;
 }
+
+// #[cfg(test)]
+// mod tests {
+//     use crate::math::Vec3;
+
+//     use super::getCosHemisphereSample;
+
+//     #[test]
+
+//     fn testFuck() {
+//         for _ in 0..100_000 {
+//             let vec1 = getCosHemisphereSample(Vec3::from_f32([0.0, 0.0, -0.999969900, 0.0]));
+//             let vec = vec1.normalized();
+//             // if Vec3::dot(vec, Vec3::DOWN) > 0.001 {
+//             //     println!("FGSDF");
+//             // }
+//             if vec.x() == 0.0 && vec.y() == 0.0 && vec.z() > 0.99 {
+//                 println!("FGSDF");
+//             }
+//         }
+//     }
+// }
+
 
 //====================================================================
 fn SmithGGXMasking(surface_normal: Vec3, wi: Vec3, wo: Vec3, a2: f32) -> f32 {
@@ -553,12 +584,11 @@ fn ImportanceSampleGgxVdn(
 {
     let NdotWI = Vec3::dot(surface_normal, wi);
 
-    let mut rng = rand::thread_rng();
     let a = roughness;
     let a2 = a * a;
 
-    let r0 = rng.gen::<f32>(); // Random::MersenneTwisterFloat(twister);
-    let r1 = rng.gen::<f32>(); // Random::MersenneTwisterFloat(twister);
+    let r0 = rand01(); // Random::MersenneTwisterFloat(twister);
+    let r1 = rand01(); // Random::MersenneTwisterFloat(twister);
     let wm: Vec3 = GgxVndf(wo, roughness, r0, r1);
 
     wi = reflect(wm, wo);

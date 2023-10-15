@@ -14,6 +14,7 @@
 #![feature(generic_const_exprs)]
 #![feature(adt_const_params)]
 #![feature(new_uninit)]
+#![feature(thread_local)]
 
 use fps_counter::FpsCounter;
 use std::cell::Cell;

@@ -29,9 +29,11 @@
             // },
             "args": [
                 "--in",
-                // "./res/sponza/sponza.glb",
+                "./res/abeautifulgame.glb",
+                // "./res/sponza/sponza_.glb",
                 // "./res/scene2_embedded.gltf",
-                "./res/scene2_3.glb",
+                // "./res/metalrough_.glb",
+                // "./res/scene2_3.glb",
                 // "./res/octree_test.glb",
                 // "./res/toad/Duck.glb",
                 // "./res/duck_embedded.gltf",
@@ -63,19 +65,23 @@
             },
             "args": [
                 "--in",
-                // "./res/sponza/sponza.glb",
+                // "C:\\code\\glTF-Sample-Models\\2.0\\ABeautifulGame\\glTF\\ABeautifulGame.gltf",
+                "./res/sponza/sponza_.glb",
                 // "./res/scene2_embedded.gltf",
-                "./res/scene2_3.glb",
+                // "./res/scene2_3.glb",
+                // "./res/metalrough_.glb",
+                // "./res/scene1.glb",
                 // "./res/octree_test.glb",
                 // "./res/toad/Duck.glb",
                 // "./res/duck_embedded.gltf",
                 "--height",
-                "400",
+                "900",
                 // "--out",
                 // "duck.png"
                 "--stay-after-complete",
             ],
             // cargo run --release -- --in "./res/toad/Duck.glb" --height 1000
+            // cargo run --release -- --in "./res/abeautifulgame.glb" --height 800 -P
             "cwd": "${workspaceFolder}"
         },
         {

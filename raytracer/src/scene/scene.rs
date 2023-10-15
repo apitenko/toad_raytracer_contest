@@ -43,7 +43,9 @@ impl Scene {
             color_texture: default_sampler.clone(),
             metallic_roughness_texture: default_sampler.clone(),
             emission_texture: default_sampler.clone(),
-            normal_texture: default_sampler.clone()
+            normal_texture: default_sampler.clone(),
+            transmission_factor: 0.0,
+            transmission_texture: default_sampler.clone(),
         });
         // let skybox_texture =  material_storage.push_texture(Texture::new_from_file(&Path::new("./res/skybox.png"))?);
 

@@ -117,7 +117,12 @@ impl WorkerThreadHandle {
 
                         pixel_color = pixel_color / MULTISAMPLE_SIZE as f32;
 
-                        pixel_color *= 10.0;
+                        pixel_color = pixel_color / 400.0;
+                        
+                        let lumi = pixel_color.luminosity();
+                        if lumi > 10.0 {
+                            pixel_color = pixel_color / lumi;
+                        }
                         
                         pixel_color = tone_mapping(pixel_color);
 

@@ -20,6 +20,10 @@ pub(crate) struct Cli {
     /// Rendered image height
     #[arg(long, short = 'P')]
     pub(crate) stay_after_complete: bool,
+
+    /// Rendered image height
+    #[arg(long = "camera", default_value = "no camera")]
+    pub(crate) camera_name: String,    
 }
 
 pub(crate) fn cli_parse() -> Cli {

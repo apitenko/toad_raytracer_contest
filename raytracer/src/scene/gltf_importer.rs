@@ -44,9 +44,7 @@ impl From<GltfImport> for ImportedGltfScene {
     }
 }
 
-pub fn read_into_scene(app_scene: &mut Scene, path: &str) -> anyhow::Result<()> {
-
-    // fuck();
+pub fn read_into_scene(app_scene: &mut Scene, path: &str, camera_name: &str) -> anyhow::Result<()> {
 
     let imported: ImportedGltfScene = {
         if !std::path::Path::exists(&std::path::PathBuf::from(path)) {
@@ -72,6 +70,14 @@ pub fn read_into_scene(app_scene: &mut Scene, path: &str) -> anyhow::Result<()> 
 
     let mut cameras = imported.document.cameras();
     let first_camera = cameras.next();
+
+    let fn_import_camera = |c: &(Mat44, gltf::Camera)| {
+        let camera_view_matrix: Mat44 = c.0.inverse();
+        let (camera_projection_matrix, aspect_ratio) = from_gltf_projection(c.1.projection());
+
+        return (camera_view_matrix, camera_projection_matrix, aspect_ratio);
+    };
+
     let (camera_view_matrix, camera_projection_matrix, aspect_ratio) = match first_camera {
         None => {
             println!("Camera not found; using default");
@@ -82,16 +88,23 @@ pub fn read_into_scene(app_scene: &mut Scene, path: &str) -> anyhow::Result<()> 
 
             (camera_view_matrix, camera_projection_matrix, aspect_ratio)
         }
-        Some(_camera_found) => {
-            let (transform, camera) = scan_for_camera(Mat44::IDENTITY, &mut scene.nodes())
-                .expect("No camera found in the gltf scene: something's wrong with the code");
-            println!("Camera found");
-            let camera_view_matrix: Mat44 = transform.inverse();
-            let (camera_projection_matrix, aspect_ratio) =
-                from_gltf_projection(camera.projection());
-
-            (camera_view_matrix, camera_projection_matrix, aspect_ratio)
-        }
+        Some(_camera_found) => (|| {
+            let mut collected_cameras: Vec<(Mat44, gltf::Camera)> = Vec::new();
+            scan_for_camera(Mat44::IDENTITY, &mut scene.nodes(), &mut collected_cameras);
+            assert!(collected_cameras.len() > 0);
+            for c in &collected_cameras {
+                if c.1.name().unwrap_or("_") == camera_name {
+                    println!("Camera \"{}\" found", camera_name);
+                    return fn_import_camera(c);
+                }
+            }
+            println!(
+                "Camera \"{}\" not found; using first camera \"{}\"",
+                camera_name,
+                collected_cameras[0].1.name().unwrap_or_default()
+            );
+            return fn_import_camera(&collected_cameras[0]);
+        })(),
     };
 
     app_scene.set_camera(Camera::from_matrices(
@@ -130,22 +143,23 @@ pub fn read_into_scene(app_scene: &mut Scene, path: &str) -> anyhow::Result<()> 
 pub fn scan_for_camera<'a>(
     parent_transform: Mat44,
     nodes: &mut dyn Iterator<Item = gltf::Node<'a>>,
-) -> Option<(Mat44, gltf::Camera<'a>)> {
+    collected_cameras: &mut Vec<(Mat44, gltf::Camera<'a>)>,
+) {
     for child in &mut *nodes {
         let current_transform: Mat44 = child.transform().into();
         let accumulated_transform = current_transform * parent_transform;
-        match scan_for_camera(accumulated_transform, &mut child.children()) {
-            Some(transform_plus_camera) => return Some(transform_plus_camera),
-            None => (),
-        }
+        scan_for_camera(
+            accumulated_transform,
+            &mut child.children(),
+            collected_cameras,
+        );
         match child.camera() {
             Some(cam) => {
-                return Some((accumulated_transform, cam));
+                collected_cameras.push((accumulated_transform, cam));
             }
-            None => {}
+            None => (),
         }
     }
-    return None;
 }
 
 #[derive(Clone, Debug)]
@@ -772,7 +786,6 @@ fn calculate_tangents(
 
     return (tangents, bitangents);
 }
-
 
 // fn fuck() {
 //     let translation = [0.0, 0.0, -101.0];

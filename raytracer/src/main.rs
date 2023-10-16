@@ -66,11 +66,12 @@ fn main() -> anyhow::Result<()> {
     let input = cli.input.to_str().unwrap();
     let output = cli.output;
     let stay_after_complete = cli.stay_after_complete;
+    let camera_name = cli.camera_name.as_str();
 
     println!("Parsing scene from {input}...");
     // Scene
     let mut scene = Box::new(Scene::new()?);
-    read_into_scene(scene.as_mut(), input)?;
+    read_into_scene(scene.as_mut(), input, camera_name)?;
     add_scene_defaults(scene.as_mut())?;
     println!("Scene read! Creating window...");
 

@@ -1,4 +1,4 @@
-use crate::{tracing::{MAX_BOUNCES, MONTE_CARLO_THRESHOLD_BOUNCES}, util::fresnel_constants::FresnelConstants};
+use crate::constants::MONTE_CARLO_THRESHOLD_BOUNCES;
 
 use super::vec3::Vec3;
 

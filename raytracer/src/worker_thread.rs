@@ -1,5 +1,6 @@
 use std::thread::JoinHandle;
 
+use crate::constants::{MULTISAMPLE_OFFSETS, MULTISAMPLE_SIZE};
 use crate::scene::acceleration_structure::acceleration_structure::AccelerationStructure;
 use crate::{
     math::{RayBounce, Vec3},
@@ -8,10 +9,7 @@ use crate::{
         workload::Workload,
     },
     surface::TotallySafeSurfaceWrapper,
-    tracing::{
-        ray_cast, MAX_BOUNCES, MULTISAMPLE_OFFSETS, MULTISAMPLE_SIZE, SKYBOX_COLOR,
-        SKYBOX_LIGHT_INTENSITY,
-    },
+    tracing::ray_cast,
     util::queue::Queue,
 };
 
@@ -27,7 +25,7 @@ fn hable(x: f32) -> f32 {
     return ((x * (A * x + C * B) + D * E) / (x * (A * x + B) + D * F)) - E / F;
 }
 
-fn reinhard(x: f32) -> f32 { 
+fn reinhard(x: f32) -> f32 {
     x / (x + 1.0)
 }
 
@@ -118,12 +116,12 @@ impl WorkerThreadHandle {
                         pixel_color = pixel_color / MULTISAMPLE_SIZE as f32;
 
                         pixel_color = pixel_color / 400.0;
-                        
+
                         let lumi = pixel_color.luminosity();
                         if lumi > 10.0 {
                             pixel_color = pixel_color / lumi;
                         }
-                        
+
                         pixel_color = tone_mapping(pixel_color);
 
                         surface.write((x, y), pixel_color);

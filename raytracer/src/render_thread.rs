@@ -90,6 +90,8 @@ impl RenderThreadHandle {
                 std::thread::available_parallelism().unwrap_or(NonZeroUsize::new_unchecked(12))
             }.get();
 
+            // let available_threads = 4;
+
             let mut task_queue = Queue::new();
 
             let total_pixels = surface.width() * surface.height();

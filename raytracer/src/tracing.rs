@@ -1,8 +1,8 @@
 use std::f32::consts::PI;
 
 use rand::Rng;
-use raytracer_lib::generate_multisample_positions;
 
+use crate::constants::{MAX_BOUNCES, SKYBOX_LIGHT_INTENSITY, SKYBOX_COLOR, AMBIENT_LIGHT_COLOR, AMBIENT_LIGHT_INTENSITY};
 use crate::scene::acceleration_structure::acceleration_structure::AccelerationStructure;
 use crate::scene::lights::light::attenuation_fn;
 use crate::util::prng::{rand01, rand_range};
@@ -17,24 +17,6 @@ use crate::{
     scene::{lights::light::Light, material::Material, scene::Scene},
     util::fresnel_constants::FresnelConstants,
 };
-
-// ? づ｀･ω･)づ it's compile time o'clock
-
-generate_multisample_positions!(16);
-
-pub const MULTISAMPLE_OFFSETS: [(f32, f32); 16] = generated_samples();
-pub const MULTISAMPLE_SIZE: usize = MULTISAMPLE_OFFSETS.len();
-
-pub const MAX_BOUNCES: i32 = 8;
-pub const MONTE_CARLO_THRESHOLD_BOUNCES: i32 = 2;
-// pub const MAX_DEPTH: f32 = 20.0;
-
-// todo: move to skybox
-pub const SKYBOX_LIGHT_INTENSITY: f32 = 0.0;
-pub const SKYBOX_COLOR: Vec3 = COLOR_SKY_BLUE;
-
-pub const AMBIENT_LIGHT_INTENSITY: f32 = 0.0;
-pub const AMBIENT_LIGHT_COLOR: Vec3 = COLOR_WHITE;
 
 // Cook-Torrance F term
 fn schlick_fresnel(f0: Vec3, lDotH: f32) -> Vec3 {
@@ -105,17 +87,19 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
     let (material_roughness, material_metallic) =
         current_material.sample_roughness_metallic(&cast_result.uv, mip);
 
+    let material_roughness = material_roughness.clamp(f32::EPSILON, 1.0 - f32::EPSILON);
+    let material_metallic = material_metallic.clamp(f32::EPSILON, 1.0 - f32::EPSILON);
+
     // TODO: replace Specular with Metallic
     let material_specular =
         Vec3::from_f32([material_metallic, material_metallic, material_metallic, 0.0]);
 
     let material_normal = current_material.sample_normal(&cast_result.uv, mip);
     let surface_normal = (material_normal * cast_result.normal).normalized();
-    // let surface_normal = cast_result.normal.normalized();
 
     // GGX
     const DO_DIRECT_LIGHTING: bool = true;
-    const DO_INDIRECT_LIGHTING: bool = true;
+    const DO_INDIRECT_LIGHTING: bool = false;
     // let DO_DIRECT_LIGHTING: bool = current_bounce.current_bounces > 0;
 
     // Do explicit direct lighting to a random light in the scene
@@ -192,10 +176,6 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
 // Cook-Torrance D term
 #[inline]
 fn ggx_normal_distribution(NdotH: f32, roughness: f32) -> f32 {
-    // TODO: remove clamps
-    let NdotH = NdotH.clamp(f32::EPSILON, 1.0 - f32::EPSILON);
-    let roughness = roughness.clamp(f32::EPSILON, 1.0 - f32::EPSILON);
-
     let a2 = roughness * roughness;
     let d = ((NdotH * a2 - NdotH) * NdotH + 1.0);
     return a2 / (d * d * PI);
@@ -206,8 +186,8 @@ fn ggx_normal_distribution(NdotH: f32, roughness: f32) -> f32 {
 #[inline]
 fn ggx_schlick_masking_term(NdotL: f32, NdotV: f32, roughness: f32) -> f32 {
     // TODO: remove clamps
-    let NdotL = NdotL.clamp(f32::EPSILON, 1.0 - f32::EPSILON);
-    let NdotV = NdotV.clamp(f32::EPSILON, 1.0 - f32::EPSILON);
+    let NdotL = NdotL;
+    let NdotV = NdotV;
     let roughness = roughness.clamp(f32::EPSILON, 1.0 - f32::EPSILON);
 
     // Karis notes they use alpha / 2 (or roughness^2 / 2)
@@ -226,12 +206,6 @@ fn getGGXMicrofacet(roughness: f32, surface_normal: Vec3, tangent: Vec3, bitange
     // Get our uniform random numbers
     let randVal: (f32, f32) = (rand01(), rand01());
 
-    // Get an orthonormal basis from the normal
-    // let B: Vec3 = get_perpendicular_vector(surface_normal); // ! ??????????????
-    // let T: Vec3 = Vec3::cross(B, surface_normal);
-    let B = bitangent;
-    let T = tangent;
-
     // GGX NDF sampling
     let a2 = roughness * roughness;
     let cosThetaH = f32::sqrt(f32::max(
@@ -242,8 +216,8 @@ fn getGGXMicrofacet(roughness: f32, surface_normal: Vec3, tangent: Vec3, bitange
     let phiH = randVal.1 * PI * 2.0;
 
     // Get our GGX NDF sample (i.e., the half vector)
-    return T * (sinThetaH * f32::cos(phiH))
-        + B * (sinThetaH * f32::sin(phiH))
+    return tangent * (sinThetaH * f32::cos(phiH))
+        + bitangent * (sinThetaH * f32::sin(phiH))
         + surface_normal * cosThetaH;
 }
 
@@ -375,10 +349,6 @@ fn ggx_indirect(
         // Accumulate the color: (NdotL * incomingLight * material_albedo / pi)
         // Probability of sampling this ray:  (NdotL / pi) * probDiffuse
         let result_color = bounce_color * material_color / diffuseMult;
-
-        // if result_color.luminosity() > 4000.0 {
-        //     println!("Firefly3 found");
-        // }
         return result_color;
     };
     let fn_specular_ray = |diffuseMult: f32| {
@@ -408,7 +378,7 @@ fn ggx_indirect(
         let NdotV: f32 = (Vec3::dot(N, V)).saturate();
 
         // Evaluate our BRDF using a microfacet BRDF model
-        // let D: f32 = ggx_normal_distribution(NdotH, rough);
+        // let D: f32 = ggx_normal_distribution(NdotH, material_roughness);
         let G: f32 = ggx_schlick_masking_term(NdotL, NdotV, material_roughness);
         let F: Vec3 = schlick_fresnel(material_specular, LdotH);
         // let ggxTerm: Vec3 = D * G * F / (4.0 * NdotL * NdotV);
@@ -419,53 +389,34 @@ fn ggx_indirect(
 
         // Accumulate color:  ggx-BRDF * lightIn * NdotL / probability-of-sampling
         //    -> Note: Should really cancel and simplify the math above
-        // return NdotL * bounce_color * ggxTerm / (ggxProb * (1.0 - probDiffuse));
+        // return NdotL * bounce_color * ggxTerm / (ggxProb * (1.0 - diffuseMult));
         // return Vec3::ONE * ggxProb;
 
         // NOTE: this is simplified version of a line earlier
-        let specular_color = bounce_color * G * F * LdotH / (NdotV * NdotH * (1.0 - diffuseMult));
-
-        return specular_color;
+        return bounce_color * G * F * LdotH / (NdotH * NdotV * (1.0 - diffuseMult));
     };
 
-    if current_bounce.monte_carlo_reached() {
-        let chooseDiffuse = (rand01() < probDiffuse);
-        if chooseDiffuse {
-            return fn_diffuse_ray(0.5);
-        } else {
-            return fn_specular_ray(0.5);
-        }
+    // return fn_diffuse_ray(diffuseMult);
+    // return fn_specular_ray(diffuseMult);
+
+    let chooseDiffuse = rand01() < probDiffuse;
+    if chooseDiffuse {
+        return fn_diffuse_ray(diffuseMult);
     } else {
-        // const USE_MULTIPLE_DIFFUSE_RAYS: bool = true;
-        // if USE_MULTIPLE_DIFFUSE_RAYS {
-        //     const DIFFUSE_REFLECTIONS_NUMBER: usize = 2;
-        //     let mut color_diffuse = Vec3::ZERO;
-        //     for _ in 0..DIFFUSE_REFLECTIONS_NUMBER {
-        //         color_diffuse += fn_diffuse_ray();
-        //     }
-        //     color_diffuse = color_diffuse / DIFFUSE_REFLECTIONS_NUMBER as f32;
-        //     let color_specular = fn_specular_ray();
-        //     return (color_diffuse + color_specular) / 2.0;
-        // }
-        // else {
-        let color_diffuse = fn_diffuse_ray(diffuseMult);
-        let color_specular = fn_specular_ray(diffuseMult);
-        return (color_diffuse + color_specular) / 2.0;
-        // return color_diffuse;
-        // }
+        return fn_specular_ray(diffuseMult);
     }
 }
 
 // TODO: find a better approach
 fn probabilityToSampleDiffuse(material_albedo: Vec3, material_specular: Vec3) -> (f32, f32) {
     let lumSpecular = material_specular.luminosity();
-    if lumSpecular > 0.0001 {
+    // if lumSpecular > 0.0001 {
         let lumDiffuse = material_albedo.luminosity().saturate();
         let mult = lumDiffuse / (lumDiffuse + lumSpecular);
         return (mult, mult);
-    } else {
-        return (1.0, 0.5);
-    }
+    // } else {
+        // return (1.0, 0.5);
+    // }
 }
 
 // Get a cosine-weighted random vector centered around a specified normal direction.

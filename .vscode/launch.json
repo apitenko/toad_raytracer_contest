@@ -29,8 +29,8 @@
             // },
             "args": [
                 "--in",
-                "./res/abeautifulgame.glb",
-                // "./res/sponza/sponza_.glb",
+                // "./res/abeautifulgame.glb",
+                "./res/sponza/sponza.glb",
                 // "./res/scene2_embedded.gltf",
                 // "./res/metalrough_.glb",
                 // "./res/scene2_3.glb",

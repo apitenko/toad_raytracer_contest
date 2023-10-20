@@ -444,7 +444,8 @@ impl Vec3 {
 
     #[inline]
     pub fn luminosity(&self) -> f32 {
-        (*self * Self::from_f32([0.2126, 0.7152, 0.0722, 0.0])).sum_components()
+        // Self::dot(*self, Self::from_f32([0.299, 0.587, 0.114, 0.0])) // new function
+        Self::dot(*self, Self::from_f32([0.2126, 0.7152, 0.0722, 0.0])) // old function
     }
 
     #[inline]

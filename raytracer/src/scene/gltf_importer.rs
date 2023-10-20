@@ -326,7 +326,7 @@ fn import_node(
         None => (),
         Some(light) => {
             let color = Vec3::new(light.color());
-            let intensity = light.intensity();
+            let intensity = light.intensity() / 1000.0;
             let direction = accumulated_transform * Vec3::from_f32([0.0, 0.0, -1.0, 0.0]);
             let position =
                 (accumulated_transform * Vec3::from_f32([0.0, 0.0, 0.0, 1.0])).divided_by_w();
@@ -489,7 +489,7 @@ fn import_material(
         imported,
     )?;
 
-    let fresnel_coefficient = material.ior().unwrap_or(2.5);
+    let ior = material.ior().unwrap_or(2.0);
 
     let mat = Material {
         color_factor: Vec3::from_f32(color_factor),
@@ -499,7 +499,7 @@ fn import_material(
         metallic_factor,
         emission_texture,
         normal_texture,
-        fresnel_coefficient,
+        ior,
         emission_factor: Vec3::from_f32_3(emission_factor, 0.0),
         ..app_scene.default_material.get().clone()
     };

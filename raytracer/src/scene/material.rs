@@ -12,14 +12,12 @@ pub struct Material {
     // ? PBR stuff:
     pub color_factor: Vec3,
     pub color_texture: Sampler,
-    pub specular: Vec3, // TODO: metallic workflow
-    // pub specular_tint: f32,
     pub roughness_factor: f32,
-    pub metallic_factor: f32, // TODO: Metallic/Roughness workflow; unused at the moment
+    pub metallic_factor: f32,
     pub metallic_roughness_texture: Sampler,
 
     // ? glass
-    pub fresnel_coefficient: f32,
+    pub ior: f32,
 
     // ? other
     pub emission_factor: Vec3,

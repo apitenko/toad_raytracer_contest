@@ -35,9 +35,8 @@ impl Scene {
         );
         let default_material = material_storage.push_material(Material {
             color_factor: Vec3::ONE,
-            fresnel_coefficient: 2.5,
+            ior: 2.0,
             emission_factor: Vec3::ONE,
-            specular: 0.20 * Vec3::ONE,
             roughness_factor: 0.80,
             metallic_factor: 0.00,
             color_texture: default_sampler.clone(),

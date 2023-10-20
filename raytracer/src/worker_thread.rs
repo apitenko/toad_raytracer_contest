@@ -84,6 +84,9 @@ impl WorkerThreadHandle {
                             let u = (x as f32 + offset.0) / surface.width() as f32;
                             let v = (y as f32 + offset.1) / surface.height() as f32;
 
+                            // if u < 0.2 {
+                            //     continue;
+                            // }
                             // if u < 0.3 || u > 0.7 || v < 0.55 || v > 0.65 {
                             //     continue;
                             // }
@@ -115,7 +118,8 @@ impl WorkerThreadHandle {
 
                         pixel_color = pixel_color / MULTISAMPLE_SIZE as f32;
 
-                        pixel_color = pixel_color / 400.0;
+                        pixel_color = pixel_color * 10.0;
+                        // pixel_color = pixel_color / 400.0;
 
                         let lumi = pixel_color.luminosity();
                         if lumi > 10.0 {

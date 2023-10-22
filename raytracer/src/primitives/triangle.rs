@@ -94,6 +94,7 @@ impl Shape for Triangle {
                 bitangent,
                 uv,
                 material: self.material.clone(),
+                // triangle: self.clone()
             });
         } else {
             // This means that there is a line intersection but not a ray intersection.
@@ -103,21 +104,21 @@ impl Shape for Triangle {
 }
 
 #[inline]
-fn interpolate_uvs(intersection_uvw: [f32; 3], self_uv: &UVSet) -> [(f32, f32); 4] {
+fn interpolate_uvs(intersection_wuv: [f32; 3], self_uv: &UVSet) -> [(f32, f32); 4] {
     [
-        interpolate_uv(intersection_uvw, &self_uv.channels[0].points),
-        interpolate_uv(intersection_uvw, &self_uv.channels[1].points),
-        interpolate_uv(intersection_uvw, &self_uv.channels[2].points),
-        interpolate_uv(intersection_uvw, &self_uv.channels[3].points),
+        interpolate_uv(intersection_wuv, &self_uv.channels[0].points),
+        interpolate_uv(intersection_wuv, &self_uv.channels[1].points),
+        interpolate_uv(intersection_wuv, &self_uv.channels[2].points),
+        interpolate_uv(intersection_wuv, &self_uv.channels[3].points),
     ]
 }
 
 #[inline]
-fn interpolate_uv(uvw: [f32; 3], triangle_uv: &[[f32; 2]; 3]) -> (f32, f32) {
+fn interpolate_uv(wuv: [f32; 3], triangle_uv: &[[f32; 2]; 3]) -> (f32, f32) {
     add_f32([
-        mul_f32(triangle_uv[0], uvw[0]),
-        mul_f32(triangle_uv[1], uvw[1]),
-        mul_f32(triangle_uv[2], uvw[2]),
+        mul_f32(triangle_uv[0], wuv[0]),
+        mul_f32(triangle_uv[1], wuv[1]),
+        mul_f32(triangle_uv[2], wuv[2]),
     ])
 }
 

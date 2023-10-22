@@ -1,8 +1,12 @@
+use std::mem::MaybeUninit;
+
 use crate::{
     constants::COLOR_CALL_PARAMETERS,
     math::{Ray, Vec3},
     scene::material::MaterialShared,
 };
+
+use super::triangle::Triangle;
 
 pub struct CastResult {
     pub distance_traversed: f32,
@@ -12,6 +16,7 @@ pub struct CastResult {
     pub bitangent: Vec3,
     pub uv: [(f32, f32); 4],
     pub material: MaterialShared,
+    // pub triangle: Triangle
 }
 
 impl CastResult {
@@ -23,6 +28,7 @@ impl CastResult {
         distance_traversed: f32::INFINITY,
         uv: [(0.0, 0.0), (0.0, 0.0), (0.0, 0.0), (0.0, 0.0)],
         material: MaterialShared::null(),
+        // triangle: unsafe {MaybeUninit::zeroed().assume_init()}
     };
 
     #[inline]

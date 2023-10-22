@@ -45,7 +45,7 @@ fn tone_mapping(color: Vec3) -> Vec3 {
     // https://computergraphics.stackexchange.com/questions/6307/tone-mapping-bright-images
     // Calculate the desaturation coefficient based on the brightness
     let sig = f32::max(color.x(), f32::max(color.y(), color.z()));
-    let luma = Vec3::dot(color, Vec3::from_f32([0.2126, 0.7152, 0.0722, 0.0]));
+    let luma = color.luminosity();// Vec3::dot(color, Vec3::from_f32([0.2126, 0.7152, 0.0722, 0.0]));
     let coeff = f32::max(sig - 0.18, 1e-6) / f32::max(sig, 1e-6);
     let coeff = f32::powi(coeff, 20);
 
@@ -84,7 +84,16 @@ impl WorkerThreadHandle {
                             let u = (x as f32 + offset.0) / surface.width() as f32;
                             let v = (y as f32 + offset.1) / surface.height() as f32;
 
-                            // if u < 0.2 {
+                            // Full metallic sphere
+                            // if u < 0.31 || u > 0.36 || v < 0.75 || v > 0.85 {
+                            //     continue;
+                            // }
+
+                            // if u < 0.36 || u > 0.41 || v < 0.65 || v > 0.75 {
+                            //     continue;
+                            // }
+
+                            // if u < 0.3 || u > 0.7 {
                             //     continue;
                             // }
                             // if u < 0.3 || u > 0.7 || v < 0.55 || v > 0.65 {
@@ -118,13 +127,13 @@ impl WorkerThreadHandle {
 
                         pixel_color = pixel_color / MULTISAMPLE_SIZE as f32;
 
-                        pixel_color = pixel_color * 10.0;
+                        pixel_color = pixel_color * 5.0;
                         // pixel_color = pixel_color / 400.0;
 
-                        let lumi = pixel_color.luminosity();
-                        if lumi > 10.0 {
-                            pixel_color = pixel_color / lumi;
-                        }
+                        // let lumi = pixel_color.luminosity();
+                        // if lumi > 10.0 {
+                        //     pixel_color = pixel_color / lumi;
+                        // }
 
                         pixel_color = tone_mapping(pixel_color);
 

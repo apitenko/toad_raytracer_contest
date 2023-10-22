@@ -69,6 +69,7 @@ pub struct RayBounce {
     pub current_bounces: i32,
     pub distance: f32,
     pub refraction_state: RayRefractionState,
+    // pub apply_filter_glossy: bool,
 }
 
 impl RayBounce {
@@ -81,6 +82,7 @@ impl RayBounce {
             refraction_state: RayRefractionState::InsideMaterial {
                 current_outside_fresnel_coefficient: 9.9,
             },
+            // apply_filter_glossy: false
         }
     }
 

@@ -16,11 +16,11 @@ impl FlatArray {
 }
 
 impl AccelerationStructure for FlatArray {
-    fn push_triangle(&mut self, insert_triangle: crate::primitives::triangle::Triangle) {
+    fn push_triangle(&mut self, insert_triangle: Triangle) {
         self.triangles.push(insert_triangle);
     }
 
-    fn single_cast(&self, ray: crate::math::Ray, inside: bool) -> crate::primitives::cast_result::CastResult {
+    fn single_cast(&self, ray: crate::math::Ray, inside: bool) -> CastResult {
         
         let cast_result = self
         .triangles

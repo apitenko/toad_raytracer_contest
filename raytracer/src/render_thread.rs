@@ -7,7 +7,7 @@ use crate::{
     },
     surface::TotallySafeSurfaceWrapper,
     util::queue::Queue,
-    worker_thread::WorkerThreadHandle,
+    worker_thread::WorkerThreadHandle, constants::THREADS,
 };
 
 /// Renders 1 frame into the given memory then exits.
@@ -90,7 +90,7 @@ impl RenderThreadHandle {
                 std::thread::available_parallelism().unwrap_or(NonZeroUsize::new_unchecked(12))
             }.get();
 
-            // let available_threads = 4;
+            let available_threads = usize::min(THREADS, available_threads);
 
             let mut task_queue = Queue::new();
 

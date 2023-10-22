@@ -784,6 +784,11 @@ fn calculate_tangents(
         bitangents[a] = Vec3::cross(tangents[a], n);
     }
 
+    // for i in 0..3 {
+    //     debug_assert!(Vec3::dot(normals[i], tangents[i]) < 0.001);
+    //     debug_assert!(Vec3::dot(normals[i], bitangents[i]) < 0.001);
+    //     debug_assert!(Vec3::dot(bitangents[i], tangents[i]) < 0.001);
+    // }
     return (tangents, bitangents);
 }
 

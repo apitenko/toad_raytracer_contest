@@ -69,27 +69,33 @@ impl BoundingBox {
             tri.vertices[2].z(),
         );
 
-        const EPSILON: f32 = 0.001;
-        if max_x - min_x < EPSILON {
-            max_x += EPSILON;
-            min_x -= EPSILON;
-        }
-        if max_y - min_y < EPSILON {
-            max_y += EPSILON;
-            min_y -= EPSILON;
-        }
-        if max_z - min_z < EPSILON {
-            max_z += EPSILON;
-            min_z -= EPSILON;
-        }
+        let min = Vec3::from_f32([min_x, min_y, min_z, 0.0]);
+        let max = Vec3::from_f32([max_x, max_y, max_z, 0.0]);
 
-        const TRI_PADDING_EPSILON: f32 = 0.001;
-        const PADDING: Vec3 = Vec3::new([TRI_PADDING_EPSILON, TRI_PADDING_EPSILON, TRI_PADDING_EPSILON]);
+        let bbox = Self::new(min, max);
+        return bbox.padded(0.003);
 
-        let min = Vec3::from_f32([min_x, min_y, min_z, 0.0]) - PADDING;
-        let max = Vec3::from_f32([max_x, max_y, max_z, 0.0]) + PADDING;
+        // const EPSILON: f32 = 0.001;
+        // if max_x - min_x < EPSILON {
+        //     max_x += EPSILON;
+        //     min_x -= EPSILON;
+        // }
+        // if max_y - min_y < EPSILON {
+        //     max_y += EPSILON;
+        //     min_y -= EPSILON;
+        // }
+        // if max_z - min_z < EPSILON {
+        //     max_z += EPSILON;
+        //     min_z -= EPSILON;
+        // }
 
-        Self::new(min, max)
+        // const TRI_PADDING_EPSILON: f32 = 0.001;
+        // const PADDING: Vec3 = Vec3::new([TRI_PADDING_EPSILON, TRI_PADDING_EPSILON, TRI_PADDING_EPSILON]);
+
+        // let min = Vec3::from_f32([min_x, min_y, min_z, 0.0]) - PADDING;
+        // let max = Vec3::from_f32([max_x, max_y, max_z, 0.0]) + PADDING;
+
+        // Self::new(min, max)
     }
 
     #[must_use]
@@ -98,13 +104,6 @@ impl BoundingBox {
         ((a.min.y() <= b.max.y()) & (a.max.y() >= b.min.y())) & // .
         ((a.min.z() <= b.max.z()) & (a.max.z() >= b.min.z())) // .
     }
-    // #[must_use]
-    // pub fn intersects_padded(a: &Self, b: &Self, padding: Vec3) -> bool {
-    //     (a.min.x() - padding.x() <= b.max.x() && a.max.x() + padding.x() >= b.min.x()) && // .
-    //     (a.min.y() - padding.y() <= b.max.y() && a.max.y() + padding.y() >= b.min.y()) && // .
-    //     (a.min.z() - padding.z() <= b.max.z() && a.max.z() + padding.z() >= b.min.z())
-    //     // .
-    // }
 
     pub fn from_gltf(aabb: gltf::mesh::BoundingBox) -> Self {
         Self::new(Vec3::new(aabb.min), Vec3::new(aabb.max))

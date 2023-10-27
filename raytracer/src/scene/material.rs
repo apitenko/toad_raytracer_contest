@@ -1,5 +1,5 @@
 use crate::scene::texture::samplable::Samplable;
-use crate::{math::Vec3, util::unresizable_array::UnresizableArray};
+use crate::{math::Vec3, util::fixed_array::FixedArray};
 use std::{
     mem::{transmute, zeroed, MaybeUninit},
     sync::Arc,
@@ -183,8 +183,8 @@ pub trait IMaterialStorage {
 }
 
 pub struct MaterialStorageSized<const MATERIALS_MAX: usize, const TEXTURES_MAX: usize> {
-    materials: UnresizableArray<Material, { MATERIALS_MAX }>,
-    textures: UnresizableArray<Texture, { TEXTURES_MAX }>,
+    materials: FixedArray<Material, { MATERIALS_MAX }>,
+    textures: FixedArray<Texture, { TEXTURES_MAX }>,
 }
 
 pub type MaterialStorage = MaterialStorageSized<600, 600>;
@@ -194,8 +194,8 @@ impl<const MATERIALS_MAX: usize, const TEXTURES_MAX: usize>
 {
     pub fn new() -> Self {
         Self {
-            materials: UnresizableArray::<Material, { MATERIALS_MAX }>::with_capacity(),
-            textures: UnresizableArray::<Texture, { TEXTURES_MAX }>::with_capacity(),
+            materials: FixedArray::<Material, { MATERIALS_MAX }>::with_capacity(),
+            textures: FixedArray::<Texture, { TEXTURES_MAX }>::with_capacity(),
         }
     }
 }

@@ -1,5 +1,5 @@
 
-pub struct UnresizableArray<T, const TCAPACITY: usize>
+pub struct FixedArray<T, const TCAPACITY: usize>
 where
     T: Sized
 {
@@ -7,7 +7,7 @@ where
     current_index: usize,
 }
 
-impl<T, const TCAPACITY: usize> UnresizableArray<T, TCAPACITY>
+impl<T, const TCAPACITY: usize> FixedArray<T, TCAPACITY>
 where
     T: Sized,
 {
@@ -26,7 +26,7 @@ where
 
     pub fn push(&mut self, mut item: T) -> *mut T {
         if self.current_index >= Self::MAX_SIZE {
-            panic!("UnresizableArray is out of memory");
+            panic!("FixedArray is out of memory");
         }
 
         std::mem::swap(&mut self.data[self.current_index], &mut item);
@@ -38,7 +38,7 @@ where
     }
 
     pub fn get_unchecked(&self, index: usize) -> *const T {
-        assert!(index < self.current_index);
+        debug_assert!(index < self.current_index);
         &self.data[index]
     }
 }

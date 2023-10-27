@@ -75,15 +75,19 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
     let cast_result = scene.geometry.single_cast(
         current_bounce.ray,
         current_bounce.refraction_state == RayRefractionState::TraversingAir,
-    );
-    if cast_result.has_missed() {
+    ).resolve();
+
+    let cast_result = if let Some(cast_result) = cast_result {
+        cast_result
+    }
+    else {
         // every miss is a skybox hit
         // miss after bounce
         return SKYBOX_COLOR * SKYBOX_LIGHT_INTENSITY;
         // let unit_direction = current_bounce.ray.direction().normalized();
         // let skybox_color = scene.skybox.sample_from_direction(unit_direction);
         // return skybox_color * current_bounce.multiplier;
-    }
+    };
 
     // let mip: f32 = current_bounce.distance / 2.0;
     let mip: f32 = 0.0;

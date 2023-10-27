@@ -7,21 +7,21 @@ pub(crate) const UPDATE_INTERVAL: f32 = 1.0 / 10.0;
 pub(crate) const DEFAULT_ASPECT_RATIO: f32 = 1.3333333;
 pub(crate) const DEFAULT_HEIGHT: u32 = 200;
 pub(crate) const DEFAULT_HEIGHT_STRING: &str = const_str::to_str!(DEFAULT_HEIGHT);
-pub(crate) const RENDER_SCALE: u32 = 2;
+pub(crate) const RENDER_SCALE: u32 = 1;
 
 // ? づ｀･ω･)づ it's compile time o'clock
 
 use raytracer_lib::generate_multisample_positions;
-generate_multisample_positions!(1);
+generate_multisample_positions!(16);
 
-pub(crate) const MULTISAMPLE_OFFSETS: [(f32, f32); 1] = generated_samples();
+pub(crate) const MULTISAMPLE_OFFSETS: [(f32, f32); 16] = generated_samples();
 pub(crate) const MULTISAMPLE_SIZE: usize = MULTISAMPLE_OFFSETS.len();
 
 pub(crate) const MAX_BOUNCES: i32 = 6;
 pub(crate) const MONTE_CARLO_THRESHOLD_BOUNCES: i32 = 0;
 // pub const MAX_DEPTH: f32 = 20.0;
 
-pub(crate) const THREADS: usize = 7;
+pub(crate) const THREADS: usize = 70;
 // pub(crate) const THREADS: usize = usize::MAX;
 
 // todo: move to skybox

@@ -1,4 +1,4 @@
-use crate::{primitives::{triangle::Triangle, cast_result::{CastResult, ConeCastResult}}, math::{cone::Cone, Vec3}};
+use crate::{primitives::{triangle::Triangle, cast_result::{CastResult, ConeCastResult, CastIntersectionResult}}, math::{cone::Cone, Vec3}};
 
 use super::acceleration_structure::AccelerationStructure;
 use crate::primitives::shape::Shape;
@@ -20,7 +20,7 @@ impl AccelerationStructure for FlatArray {
         self.triangles.push(insert_triangle);
     }
 
-    fn single_cast(&self, ray: crate::math::Ray, inside: bool) -> CastResult {
+    fn single_cast(&self, ray: crate::math::Ray, inside: bool) -> CastIntersectionResult {
         
         let cast_result = self
         .triangles
@@ -29,7 +29,7 @@ impl AccelerationStructure for FlatArray {
             //
             (*item).intersect(ray, inside)
         })
-        .fold(CastResult::MISS, |acc, item| {
+        .fold(CastIntersectionResult::MISS, |acc, item| {
             if (acc.distance_traversed > item.distance_traversed)
                 & (item.distance_traversed > 0.001)
                 & (item.distance_traversed <= ray.max_distance())

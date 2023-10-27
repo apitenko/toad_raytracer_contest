@@ -3,6 +3,7 @@ use std::{intrinsics::size_of, marker::PhantomData, mem::MaybeUninit};
 use rand::Rng;
 
 use crate::{
+    constants::FLOAT_ERROR,
     math::{
         cone::Cone,
         sphere::{sphere_bbox_intersection, Sphere},
@@ -10,21 +11,24 @@ use crate::{
     },
     primitives::{
         bounding_box::BoundingBox,
-        cast_result::{CastResult, ConeCastResult, ConeCastResultStep},
+        cast_result::{CastIntersectionResult, CastResult, ConeCastResult, ConeCastResultStep},
         plane::Plane,
         shape::Shape,
         triangle::Triangle,
     },
-    util::unresizable_array::UnresizableArray,
+    util::fixed_array::FixedArray,
 };
 
 use super::{acceleration_structure::AccelerationStructure, svogi::NodeGIInfo};
+
+const BBOX_PAD: f32 = 0.001;
 
 pub struct OctreeNode {
     pub triangles: Vec<Triangle>,
     pub children: [*mut OctreeNode; 8],
     pub bbox: BoundingBox,
-    pub gi_info: NodeGIInfo, // todo: mutex/atomic    
+    pub bbox_padded: BoundingBox,
+    // pub gi_info: NodeGIInfo, // todo: mutex/atomic
 }
 
 impl AccelerationStructure for Octree {
@@ -32,7 +36,7 @@ impl AccelerationStructure for Octree {
         self.push_triangle_(insert_triangle);
     }
 
-    fn single_cast(&self, ray: Ray, inside: bool) -> CastResult {
+    fn single_cast(&self, ray: Ray, inside: bool) -> CastIntersectionResult {
         return Self::recursive_intersection(&ray, self.root, &ray);
     }
 
@@ -46,33 +50,43 @@ impl AccelerationStructure for Octree {
 }
 
 impl OctreeNode {
-    pub fn empty() -> Self {
-        Self {
-            triangles: Vec::new(),
-            children: [std::ptr::null_mut(); 8],
-            bbox: BoundingBox {
-                center: Vec3::ZERO,
-                mid_planes: [
-                    Plane::new(Vec3::X_AXIS, 0.0),
-                    Plane::new(Vec3::Y_AXIS, 0.0),
-                    Plane::new(Vec3::Z_AXIS, 0.0),
-                ],
-                min: Vec3::ZERO,
-                max: Vec3::ZERO,
-            },
-            gi_info: NodeGIInfo {
-                directional_density: [0.0, 0.0, 0.0],
-                directional_emittance: [Vec3::ZERO, Vec3::ZERO, Vec3::ZERO],
-            },
-        }
-    }
+    // pub fn empty() -> Self {
+    //     Self {
+    //         triangles: Vec::new(),
+    //         children: [std::ptr::null_mut(); 8],
+    //         bbox: BoundingBox {
+    //             center: Vec3::ZERO,
+    //             mid_planes: [
+    //                 Plane::new(Vec3::X_AXIS, 0.0),
+    //                 Plane::new(Vec3::Y_AXIS, 0.0),
+    //                 Plane::new(Vec3::Z_AXIS, 0.0),
+    //             ],
+    //             min: Vec3::ZERO,
+    //             max: Vec3::ZERO,
+    //         },
+    //         bbox_padded: BoundingBox {
+    //             center: Vec3::ZERO,
+    //             mid_planes: [
+    //                 Plane::new(Vec3::X_AXIS, 0.0),
+    //                 Plane::new(Vec3::Y_AXIS, 0.0),
+    //                 Plane::new(Vec3::Z_AXIS, 0.0),
+    //             ],
+    //             min: Vec3::ZERO,
+    //             max: Vec3::ZERO,
+    //         },
+    //         gi_info: NodeGIInfo {
+    //             directional_density: [0.0, 0.0, 0.0],
+    //             directional_emittance: [Vec3::ZERO, Vec3::ZERO, Vec3::ZERO],
+    //         },
+    //     }
+    // }
 
     pub fn make_child_bbox<const CHILD_INDEX: i32>(bbox: BoundingBox) -> Self {
         let len = bbox.max - bbox.min;
         let len_h = len / 2.0;
-        let len_h_x = Vec3::new([len_h.x(), 0.0, 0.0]);
-        let len_h_y = Vec3::new([0.0, len_h.y(), 0.0]);
-        let len_h_z = Vec3::new([0.0, 0.0, len_h.z()]);
+        let len_h_x = Vec3::from_f32([len_h.x(), 0.0, 0.0, 0.0]);
+        let len_h_y = Vec3::from_f32([0.0, len_h.y(), 0.0, 0.0]);
+        let len_h_z = Vec3::from_f32([0.0, 0.0, len_h.z(), 0.0]);
         let middle = bbox.min + len_h;
 
         let bbox_min_max = match CHILD_INDEX {
@@ -89,22 +103,25 @@ impl OctreeNode {
             ),
             _ => panic!("wrong index"),
         };
+        let bbox = BoundingBox::new(bbox_min_max.0, bbox_min_max.1);
+        let bbox_padded = bbox.padded(BBOX_PAD);
         Self {
             triangles: Vec::with_capacity(0),
             children: [std::ptr::null_mut(); 8],
-            bbox: BoundingBox::new(bbox_min_max.0, bbox_min_max.1),
-            gi_info: NodeGIInfo {
-                directional_density: [0.0, 0.0, 0.0],
-                directional_emittance: [Vec3::ZERO, Vec3::ZERO, Vec3::ZERO],
-            },
+            bbox,
+            bbox_padded,
+            // gi_info: NodeGIInfo {
+            //     directional_density: [0.0, 0.0, 0.0],
+            //     directional_emittance: [Vec3::ZERO, Vec3::ZERO, Vec3::ZERO],
+            // },
         }
     }
 }
 
 pub struct Octree {
-    // meshes: UnresizableArray<Mesh, { Self::MESHES_MAX }>, // mesh memory
-    memory: UnresizableArray<OctreeNode, { Self::NODES_MAX }>, // node memory
-    root: *mut OctreeNode,                                     // tree root node
+    // meshes: FixedArray<Mesh, { Self::MESHES_MAX }>, // mesh memory
+    memory: FixedArray<OctreeNode, { Self::NODES_MAX }>, // node memory
+    root: *mut OctreeNode,                               // tree root node
 }
 
 lazy_static::lazy_static! {
@@ -137,16 +154,17 @@ impl Octree {
     const MIN_DEPTH: i32 = -30;
 
     pub fn empty() -> Self {
-        let mut memory = UnresizableArray::<OctreeNode, { Self::NODES_MAX }>::with_capacity();
+        let mut memory = FixedArray::<OctreeNode, { Self::NODES_MAX }>::with_capacity();
 
         let root = memory.push(OctreeNode {
             triangles: Vec::new(),
             children: [std::ptr::null_mut(); 8],
             bbox: ROOT_BBOX.clone(),
-            gi_info: NodeGIInfo {
-                directional_density: [0.0, 0.0, 0.0],
-                directional_emittance: [Vec3::ZERO, Vec3::ZERO, Vec3::ZERO],
-            },
+            bbox_padded: ROOT_BBOX.clone().padded(BBOX_PAD),
+            // gi_info: NodeGIInfo {
+            //     directional_density: [0.0, 0.0, 0.0],
+            //     directional_emittance: [Vec3::ZERO, Vec3::ZERO, Vec3::ZERO],
+            // },
         });
 
         Self { memory, root }
@@ -160,8 +178,9 @@ impl Octree {
             let delta = insert_bbox.max - insert_bbox.min;
             f32::max(f32::max(delta.x(), delta.y()), delta.z())
         };
-        // min level is size-1
-        let level = f32::log2(max_side).ceil() as i32 - 1;
+
+        // let insert_level = f32::log2(max_side).ceil() as i32 + 1;
+        let insert_level = -6;
 
         // traverse the tree: if intersected, continue traversing (or add if the current level reached)
         let current_node = self.root;
@@ -171,7 +190,7 @@ impl Octree {
             Self::ROOT_DEPTH,
             &insert_triangle,
             &insert_bbox,
-            level,
+            insert_level,
         );
 
         if let Err(e) = result {
@@ -201,7 +220,6 @@ impl Octree {
                 return Ok(());
             }
 
-            // find 8 or split by 8
             if (*current_node).children[0].is_null() {
                 self.subdivide(current_node)?;
             }
@@ -247,15 +265,10 @@ impl Octree {
         Ok(())
     }
 
-    fn intersect_triangles(node: *mut OctreeNode, ray: &Ray) -> CastResult {
+    fn intersect_triangles(node: *mut OctreeNode, ray: &Ray) -> CastIntersectionResult {
         debug_assert!(!node.is_null());
         unsafe {
             let inside = false;
-
-            // println!("-- intersection -- {:?} \n -- {:?} ", (*node).bbox, ray);
-            // if ! ((*node).triangles.is_empty()) {
-            //     println!("FSDFSDF");
-            // }
 
             // intersect with all triangles, return nearest CastResult or None
             let cast_result = (*node)
@@ -265,7 +278,7 @@ impl Octree {
                     //
                     (item).intersect(*ray, inside)
                 })
-                .fold(CastResult::MISS, |acc, item| {
+                .fold(CastIntersectionResult::MISS, |acc, item| {
                     if (acc.distance_traversed > item.distance_traversed)
                         & (item.distance_traversed > 0.001)
                         & (item.distance_traversed <= ray.max_distance())
@@ -280,16 +293,17 @@ impl Octree {
         }
     }
 
-    fn recursive_intersection(original_ray: &Ray, node: *mut OctreeNode, ray: &Ray) -> CastResult {
+    fn recursive_intersection(
+        original_ray: &Ray,
+        node: *mut OctreeNode,
+        ray: &Ray,
+    ) -> CastIntersectionResult {
         unsafe {
-            if node.is_null() {
-                return CastResult::MISS;
-            }
+            debug_assert!(!node.is_null());
             let current_cast_result = Self::intersect_triangles(node, original_ray);
-            // return current_cast_result;
-            // if !current_cast_result.has_missed() {
-            //     println!("HIT");
-            // }
+            if !current_cast_result.has_missed() {
+                return current_cast_result;
+            }
 
             // keep intersecting children by nearest, until any intersection is found
             // return nearest of children_cast_result and current_cast_result
@@ -297,7 +311,7 @@ impl Octree {
             let planes = &(*node).bbox.mid_planes;
             let mut origin = ray.origin();
             let direction = ray.direction();
-            let bbox = &(*node).bbox;
+            let bbox_padded = &(*node).bbox_padded;
             // let center =  (*node).bbox.
 
             struct _Sides {
@@ -308,9 +322,9 @@ impl Octree {
 
             let mut side = {
                 _Sides {
-                    X: Vec3::dot(origin, planes[0].normal) - planes[0].distance >= 0.0,
-                    Y: Vec3::dot(origin, planes[1].normal) - planes[1].distance >= 0.0,
-                    Z: Vec3::dot(origin, planes[2].normal) - planes[2].distance >= 0.0,
+                    X: origin.x() - planes[0].distance >= 0.0,
+                    Y: origin.y() - planes[1].distance >= 0.0,
+                    Z: origin.z() - planes[2].distance >= 0.0,
                 }
             };
 
@@ -331,40 +345,54 @@ impl Octree {
             };
 
             fn side_to_index(side: &_Sides) -> usize {
-                (if side.Z { 4 } else { 0 }
-                    | if side.Y { 2 } else { 0 }
-                    | if side.X { 1 } else { 0 })
+                (if side.Z { 4 } else { 0 })
+                    | (if side.Y { 2 } else { 0 })
+                    | (if side.X { 1 } else { 0 })
             }
 
-            fn minimum_of_two_cast_results(left: CastResult, right: CastResult) -> CastResult {
-                if left.distance_traversed > right.distance_traversed {
-                    return right;
-                } else {
-                    return left;
-                }
-            }
+            // fn minimum_of_two_cast_results(
+            //     left: CastIntersectionResult,
+            //     right: CastIntersectionResult,
+            // ) -> CastIntersectionResult {
+            //     if left.distance_traversed > right.distance_traversed {
+            //         return right;
+            //     } else {
+            //         return left;
+            //     }
+            // }
 
             for _ in 0..4 {
                 let idx = side_to_index(&side);
 
-                let ret = Self::recursive_intersection(
-                    original_ray,
-                    (*node).children[idx],
-                    &Ray::new(origin, direction, f32::INFINITY),
-                );
-                if !ret.has_missed() {
-                    return minimum_of_two_cast_results(current_cast_result, ret);
+                {
+                    let child_node = (*node).children[idx];
+                    if !child_node.is_null() {
+                        let ret = Self::recursive_intersection(
+                            original_ray,
+                            child_node,
+                            &Ray::new(origin, direction, f32::INFINITY),
+                        );
+
+                        if !ret.has_missed() {
+                            // intersection found, return as it's always the nearest
+
+                            // current_cast_result = minimum_of_two_cast_results(current_cast_result, ret);
+                            // return minimum_of_two_cast_results(ret, current_cast_result);
+                            // assert!(current_cast_result.has_missed());
+                            return ret;
+                        }
+                    }
                 }
 
                 let minDist = f32::min(f32::min(xDist, yDist), zDist);
                 if f32::is_infinite(minDist) {
-                    return current_cast_result;
+                    return CastIntersectionResult::MISS;
                 }
 
-                origin = ray.origin() + direction * minDist;
+                origin = ray.origin() + minDist * direction;
 
-                if !bbox.padded(0.01).contains(origin) {
-                    return current_cast_result;
+                if !bbox_padded.contains(origin) {
+                    return CastIntersectionResult::MISS;
                 }
 
                 if minDist == xDist {
@@ -378,24 +406,25 @@ impl Octree {
                     zDist = f32::INFINITY;
                 }
             }
-            return current_cast_result;
+            return CastIntersectionResult::MISS;
         }
     }
 
     fn cone_cast_(&self, cone: Cone) -> ConeCastResult {
-        let mut accumulated_color = Vec3::ZERO;
-        let mut remaining_density: f32 = 1.0;
-        for sphere in cone.iter() {
-            let step = Self::recursive_sphere_intersection(&sphere, &cone.origin, self.root);
-            accumulated_color += step.accumulated_color * remaining_density;
-            remaining_density -= step.accumulated_density;
-            remaining_density = f32::clamp(remaining_density, 0.0, 1.0);
-            if remaining_density <= 0.0 {
-                break;
-            }
-        }
+        todo!();
+        // let mut accumulated_color = Vec3::ZERO;
+        // let mut remaining_density: f32 = 1.0;
+        // for sphere in cone.iter() {
+        //     let step = Self::recursive_sphere_intersection(&sphere, &cone.origin, self.root);
+        //     accumulated_color += step.accumulated_color * remaining_density;
+        //     remaining_density -= step.accumulated_density;
+        //     remaining_density = f32::clamp(remaining_density, 0.0, 1.0);
+        //     if remaining_density <= 0.0 {
+        //         break;
+        //     }
+        // }
 
-        return ConeCastResult { accumulated_color };
+        // return ConeCastResult { accumulated_color };
     }
 
     #[inline]
@@ -404,79 +433,80 @@ impl Octree {
         origin: &Vec3,
         node: *mut OctreeNode,
     ) -> ConeCastResultStep {
+        todo!();
         // todo: simplify/approximate
-        unsafe {
-            if !sphere_bbox_intersection(&sphere, &(*node).bbox) {
-                return ConeCastResultStep::empty();
-            }
+        // unsafe {
+        //     if !sphere_bbox_intersection(&sphere, &(*node).bbox) {
+        //         return ConeCastResultStep::empty();
+        //     }
 
-            let bbox = &(*node).bbox;
+        //     let bbox = &(*node).bbox;
 
-            fn projection_area_approx(
-                origin: &Vec3,
-                point0: Vec3,
-                point1: Vec3,
-                point2: Vec3,
-            ) -> f32 {
-                let cosy = Vec3::dot(*origin - point0, *origin - point1);
-                let cosz = Vec3::dot(*origin - point0, *origin - point2);
-                return cosy * cosz;
-            };
-            // todo: question my life choices
-            let projection_area = {
-                let projection_area_x = {
-                    let point0 = Vec3::from_f32([bbox.center.x(), bbox.min.y(), bbox.min.z(), 0.0]);
-                    let point1 = Vec3::from_f32([bbox.center.x(), bbox.min.y(), bbox.max.z(), 0.0]);
-                    let point2 = Vec3::from_f32([bbox.center.x(), bbox.max.y(), bbox.min.z(), 0.0]);
-                    projection_area_approx(origin, point0, point1, point2)
-                };
-                let projection_area_y = {
-                    let point0 = Vec3::from_f32([bbox.min.x(), bbox.center.y(), bbox.min.z(), 0.0]);
-                    let point1 = Vec3::from_f32([bbox.min.x(), bbox.center.y(), bbox.max.z(), 0.0]);
-                    let point2 = Vec3::from_f32([bbox.max.x(), bbox.center.y(), bbox.min.z(), 0.0]);
-                    projection_area_approx(origin, point0, point1, point2)
-                };
-                let projection_area_z = {
-                    let point0 = Vec3::from_f32([bbox.min.x(), bbox.min.y(), bbox.center.z(), 0.0]);
-                    let point1 = Vec3::from_f32([bbox.max.x(), bbox.min.y(), bbox.center.z(), 0.0]);
-                    let point2 = Vec3::from_f32([bbox.min.x(), bbox.max.y(), bbox.center.z(), 0.0]);
-                    projection_area_approx(origin, point0, point1, point2)
-                };
+        //     fn projection_area_approx(
+        //         origin: &Vec3,
+        //         point0: Vec3,
+        //         point1: Vec3,
+        //         point2: Vec3,
+        //     ) -> f32 {
+        //         let cosy = Vec3::dot(*origin - point0, *origin - point1);
+        //         let cosz = Vec3::dot(*origin - point0, *origin - point2);
+        //         return cosy * cosz;
+        //     };
+        //     // todo: question my life choices
+        //     let projection_area = {
+        //         let projection_area_x = {
+        //             let point0 = Vec3::from_f32([bbox.center.x(), bbox.min.y(), bbox.min.z(), 0.0]);
+        //             let point1 = Vec3::from_f32([bbox.center.x(), bbox.min.y(), bbox.max.z(), 0.0]);
+        //             let point2 = Vec3::from_f32([bbox.center.x(), bbox.max.y(), bbox.min.z(), 0.0]);
+        //             projection_area_approx(origin, point0, point1, point2)
+        //         };
+        //         let projection_area_y = {
+        //             let point0 = Vec3::from_f32([bbox.min.x(), bbox.center.y(), bbox.min.z(), 0.0]);
+        //             let point1 = Vec3::from_f32([bbox.min.x(), bbox.center.y(), bbox.max.z(), 0.0]);
+        //             let point2 = Vec3::from_f32([bbox.max.x(), bbox.center.y(), bbox.min.z(), 0.0]);
+        //             projection_area_approx(origin, point0, point1, point2)
+        //         };
+        //         let projection_area_z = {
+        //             let point0 = Vec3::from_f32([bbox.min.x(), bbox.min.y(), bbox.center.z(), 0.0]);
+        //             let point1 = Vec3::from_f32([bbox.max.x(), bbox.min.y(), bbox.center.z(), 0.0]);
+        //             let point2 = Vec3::from_f32([bbox.min.x(), bbox.max.y(), bbox.center.z(), 0.0]);
+        //             projection_area_approx(origin, point0, point1, point2)
+        //         };
 
-                [projection_area_x, projection_area_y, projection_area_z]
-            };
+        //         [projection_area_x, projection_area_y, projection_area_z]
+        //     };
 
-            let current_densities = [
-                (*node).gi_info.directional_density[0] * projection_area[0],
-                (*node).gi_info.directional_density[1] * projection_area[1],
-                (*node).gi_info.directional_density[2] * projection_area[2],
-            ];
+        //     let current_densities = [
+        //         (*node).gi_info.directional_density[0] * projection_area[0],
+        //         (*node).gi_info.directional_density[1] * projection_area[1],
+        //         (*node).gi_info.directional_density[2] * projection_area[2],
+        //     ];
 
-            let current_colors = [
-                (*node).gi_info.directional_emittance[0] * projection_area[0],
-                (*node).gi_info.directional_emittance[1] * projection_area[1],
-                (*node).gi_info.directional_emittance[2] * projection_area[2],
-            ];
+        //     let current_colors = [
+        //         (*node).gi_info.directional_emittance[0] * projection_area[0],
+        //         (*node).gi_info.directional_emittance[1] * projection_area[1],
+        //         (*node).gi_info.directional_emittance[2] * projection_area[2],
+        //     ];
 
-            let current_color = current_colors[0] + current_colors[1] + current_colors[2];
-            let current_density =
-                current_densities[0] + current_densities[1] + current_densities[2];
+        //     let current_color = current_colors[0] + current_colors[1] + current_colors[2];
+        //     let current_density =
+        //         current_densities[0] + current_densities[1] + current_densities[2];
 
-            let mut result = ConeCastResultStep {
-                accumulated_color: current_color,
-                accumulated_density: current_density,
-            };
+        //     let mut result = ConeCastResultStep {
+        //         accumulated_color: current_color,
+        //         accumulated_density: current_density,
+        //     };
 
-            if !(*node).children[0].is_null() {
-                for child in (*node).children {
-                    result = ConeCastResultStep::merge(
-                        result,
-                        Self::recursive_sphere_intersection(sphere, origin, child),
-                    );
-                }
-            }
+        //     if !(*node).children[0].is_null() {
+        //         for child in (*node).children {
+        //             result = ConeCastResultStep::merge(
+        //                 result,
+        //                 Self::recursive_sphere_intersection(sphere, origin, child),
+        //             );
+        //         }
+        //     }
 
-            return result;
-        }
+        //     return result;
+        // }
     }
 }

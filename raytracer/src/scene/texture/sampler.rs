@@ -303,7 +303,7 @@ impl TextureMips {
                 .get_raw_data()
                 .unsafe_get_pixel(x as u32, y as u32)
         };
-        return Vec3::from_f32(sample.0);
+        return Vec3::from_f32(sample.0).as_vector();
     }
 }
 

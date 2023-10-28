@@ -33,16 +33,25 @@ impl Scene {
             super::texture::sampler::MagFilter::Nearest,
             0
         );
+
+        let default_normal_sampler = Sampler::new(
+            &mut material_storage,
+            Texture::make_default_normal_map()?,
+            super::texture::sampler::MinFilter::Nearest,
+            super::texture::sampler::MagFilter::Nearest,
+            0
+        );
+
         let default_material = material_storage.push_material(Material {
             color_factor: Vec3::ONE,
-            ior: 2.0,
+            ior: 1.38095, // f0 == 0.04, approximately correct for most dielectics
             emission_factor: Vec3::ONE,
             roughness_factor: 0.80,
             metallic_factor: 0.00,
             color_texture: default_sampler.clone(),
             metallic_roughness_texture: default_sampler.clone(),
             emission_texture: default_sampler.clone(),
-            normal_texture: default_sampler.clone(),
+            normal_texture: default_normal_sampler.clone(),
             transmission_factor: 0.0,
             transmission_texture: default_sampler.clone(),
         });

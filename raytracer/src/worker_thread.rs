@@ -130,7 +130,7 @@ impl WorkerThreadHandle {
 
                         pixel_color = pixel_color / MULTISAMPLE_SIZE as f32;
 
-                        pixel_color = pixel_color * 5.0;
+                        // pixel_color = pixel_color * 5.0;
                         // pixel_color = pixel_color / 400.0;
 
                         // let lumi = pixel_color.luminosity();
@@ -139,6 +139,7 @@ impl WorkerThreadHandle {
                         // }
 
                         pixel_color = tone_mapping(pixel_color);
+                        pixel_color = pixel_color.gamma_correct_2();
 
                         surface.write((x, y), pixel_color);
                     }

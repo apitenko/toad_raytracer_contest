@@ -326,7 +326,7 @@ fn import_node(
         None => (),
         Some(light) => {
             let color = Vec3::new(light.color());
-            let intensity = light.intensity() / 100.0;
+            let intensity = light.intensity() / 1000.0;
             let direction = accumulated_transform * Vec3::from_f32([0.0, 0.0, -1.0, 0.0]);
             let position =
                 (accumulated_transform * Vec3::from_f32([0.0, 0.0, 0.0, 1.0])).divided_by_w();
@@ -335,7 +335,7 @@ fn import_node(
                 gltf::khr_lights_punctual::Kind::Directional => {
                     app_scene.lights.push(Box::new(DirectionalLight {
                         color,
-                        intensity,
+                        intensity: intensity * 10.0,
                         direction,
                     }))
                 }
@@ -646,7 +646,7 @@ fn import_texture_normal(
 ) -> anyhow::Result<super::texture::sampler::Sampler> {
     match texture {
         None => {
-            let texture = Texture::make_default_texture()?;
+            let texture = Texture::make_default_normal_map()?;
             let sampler = super::texture::sampler::Sampler::new(
                 material_storage,
                 texture,

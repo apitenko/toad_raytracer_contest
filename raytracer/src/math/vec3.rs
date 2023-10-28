@@ -400,6 +400,23 @@ impl Vec3 {
         }
     }
 
+    /// By-component power
+    #[inline]
+    #[must_use]
+    pub fn pow(&self, y: f32) -> Self {
+        todo!();
+        #[cfg(target_feature = "sse")]
+        unsafe {
+            Self {
+                data_vectorized: _mm_sqrt_ps(self.data_vectorized),
+            }
+        }
+        #[cfg(not(target_feature = "sse"))]
+        {
+            return Vec3::new([self.x().sqrt(), self.y().sqrt(), self.z().sqrt()]);
+        }
+    }
+
     #[inline]
     #[must_use]
     pub fn lerp(left: Vec3, right: Vec3, t: f32) -> Self {

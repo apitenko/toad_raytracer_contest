@@ -22,11 +22,11 @@ use crate::{
 };
 
 // Cook-Torrance F term
-fn schlick_fresnel(f0: Vec3, lDotH: f32) -> Vec3 {
-    return f0 + (Vec3::new([1.0, 1.0, 1.0]) - f0) * f32::powi(1.0 - lDotH, 5);
+fn schlick_fresnel(f0: Vec3, LdotH: f32) -> Vec3 {
+    return f0 + (Vec3::ONE - f0) * f32::powi(1.0 - LdotH, 5);
 }
 
-fn schlick_fresnel_ior_to_specular(n1: f32, n2: f32) -> f32 {
+fn schlick_fresnel_f0(n1: f32, n2: f32) -> f32 {
     let mut r0: f32 = (n1 - n2) / (n1 + n2);
     r0 *= r0;
     return r0;
@@ -72,15 +72,17 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
     //     return Vec3::ZERO;
     // }
 
-    let cast_result = scene.geometry.single_cast(
-        current_bounce.ray,
-        current_bounce.refraction_state == RayRefractionState::TraversingAir,
-    ).resolve();
+    let cast_result = scene
+        .geometry
+        .single_cast(
+            current_bounce.ray,
+            current_bounce.refraction_state == RayRefractionState::TraversingAir,
+        )
+        .resolve();
 
     let cast_result = if let Some(cast_result) = cast_result {
         cast_result
-    }
-    else {
+    } else {
         // every miss is a skybox hit
         // miss after bounce
         return SKYBOX_COLOR * SKYBOX_LIGHT_INTENSITY;
@@ -107,9 +109,16 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
     //     material_roughness = (material_roughness + FILTER_GLOSSY * current_bounce.current_bounces as f32).clamp(0.0, 1.0);
     // }
     let material_roughness = material_roughness * material_roughness;
-
-    let material_normal = current_material.sample_normal(&cast_result.uv, mip);
-    let surface_normal = (material_normal * cast_result.normal).normalized();
+    
+    let surface_normal = {
+        let material_normal = current_material.sample_normal(&cast_result.uv, mip);
+        let material_normal = (2.0 * material_normal - Vec3::ONE); //.normalized();
+        let surface_normal = (material_normal.z() * cast_result.normal
+            + material_normal.x() * cast_result.tangent
+            + material_normal.y() * cast_result.bitangent)
+            .normalized();
+        surface_normal
+    };
     // let surface_normal = cast_result.normal;
 
     let material_ior = current_material.ior;
@@ -208,12 +217,13 @@ fn ggx_normal_distribution(NdotH: f32, roughness: f32) -> f32 {
 // TODO: maybe find a better model
 #[inline]
 fn ggx_schlick_masking_term(NdotL: f32, NdotV: f32, roughness: f32) -> f32 {
-    let NdotL = NdotL;
-    let NdotV = NdotV;
-    // let roughness = roughness.clamp(f32::EPSILON, 1.0 - f32::EPSILON);
-
     // Karis notes they use alpha / 2 (or roughness^2 / 2)
-    let k = roughness * roughness / 2.0;
+    // let k = roughness * roughness / 2.0;
+
+    // https://learnopengl.com/PBR/Lighting
+    // ^ uses slightly different roughness mapping:
+    let r = (roughness + 1.0);
+    let k = (r * r) / 8.0;
 
     // Compute G(v) and G(l).  These equations directly from Schlick 1994
     //     (Though note, Schlick's notation is cryptic and confusing.)
@@ -288,21 +298,29 @@ fn ggx_direct(
         let NdotH = (Vec3::dot(N, H)).saturate();
         let LdotH = (Vec3::dot(L, H)).saturate();
         let NdotV = (Vec3::dot(N, V)).saturate();
+        let HdotV = (Vec3::dot(H, V)).saturate(); // same as LdotH?
 
         // Evaluate terms for our GGX BRDF model
         let D = ggx_normal_distribution(NdotH, material_roughness);
         let G = ggx_schlick_masking_term(NdotL, NdotV, material_roughness);
-        // let F: Vec3 = schlick_fresnel(material_specular, LdotH);
-        let F: f32 = fresnel_reflect_amount(1.0, material_ior, LdotH);
+
+        let dielectric_f0 = schlick_fresnel_f0(FresnelConstants::Air, material_ior);
+        let dielectric_f0 = Vec3::new([dielectric_f0, dielectric_f0, dielectric_f0]);
+        let f0 = Vec3::lerp(dielectric_f0, material_color, material_metallic); // color channel as albedo for metallics
+        let F: Vec3 = schlick_fresnel(f0, HdotV);
 
         // Evaluate the Cook-Torrance Microfacet BRDF model
         //     Cancel NdotL here to avoid catastrophic numerical precision issues.
-        let ggxTerm: Vec3 = Vec3::ONE * D * G * F / (4.0 * NdotV/* * NdotL */);
+        let ggx_specular: Vec3 = /* NdotL * */ Vec3::ONE * D * G * F / (4.0 * NdotV/* * NdotL */);
+        // let ggx_specular = Vec3::ZERO;
+
+        let kS = F;
+        let ratio_or_refraction = (Vec3::ONE - kS) * (1.0 - material_metallic);
+
+        let lambertian_diffuse = NdotL * ratio_or_refraction * material_color / PI;
 
         // Compute our final color (combining diffuse lobe plus specular GGX lobe)
-        return light_visibility
-            * light_intensity
-            * (/* NdotL * */ggxTerm + NdotL * material_color / PI);
+        return light_visibility * light_intensity * (ggx_specular + lambertian_diffuse);
     };
 
     if current_bounce.monte_carlo_reached() {
@@ -531,7 +549,7 @@ fn ggx_indirect(
         return fn_specular_metallic_ray();
     } else {
         // ! dielectric
-        let calculated_specular = schlick_fresnel_ior_to_specular(1.0, material_ior);
+        let calculated_specular = schlick_fresnel_f0(1.0, material_ior);
         // color is diffuse
         let (probDiffuse, diffuseMult) =
             probability_to_sample_diffuse(material_color, calculated_specular);
@@ -572,7 +590,7 @@ fn get_cos_hemisphere_sample(hitNorm: Vec3, tangent: Vec3, bitangent: Vec3) -> V
 
         // let u = rand01().clamp(0.05, 0.95);
         // let v = rand01().clamp(0.05, 0.95);
-        
+
         let u = rand01();
         let v = rand01();
 

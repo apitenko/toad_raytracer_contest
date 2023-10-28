@@ -1,6 +1,7 @@
 use crate::{math::Vec3, scene::material::MaterialShared};
 
 use super::{plane::Plane, triangle::Triangle};
+use std::{arch::x86_64::*, fmt::Debug, mem::MaybeUninit};
 
 #[derive(Clone, Copy, Debug)]
 pub struct BoundingBox {
@@ -41,61 +42,13 @@ impl BoundingBox {
         }
     }
 
-    // todo: vectorize
     pub fn from_triangle(tri: &Triangle) -> Self {
-        let mut min_x = f32::min(
-            f32::min(tri.vertices[0].x(), tri.vertices[1].x()),
-            tri.vertices[2].x(),
-        );
-        let mut min_y = f32::min(
-            f32::min(tri.vertices[0].y(), tri.vertices[1].y()),
-            tri.vertices[2].y(),
-        );
-        let mut min_z = f32::min(
-            f32::min(tri.vertices[0].z(), tri.vertices[1].z()),
-            tri.vertices[2].z(),
-        );
 
-        let mut max_x = f32::max(
-            f32::max(tri.vertices[0].x(), tri.vertices[1].x()),
-            tri.vertices[2].x(),
-        );
-        let mut max_y = f32::max(
-            f32::max(tri.vertices[0].y(), tri.vertices[1].y()),
-            tri.vertices[2].y(),
-        );
-        let mut max_z = f32::max(
-            f32::max(tri.vertices[0].z(), tri.vertices[1].z()),
-            tri.vertices[2].z(),
-        );
-
-        let min = Vec3::from_f32([min_x, min_y, min_z, 0.0]);
-        let max = Vec3::from_f32([max_x, max_y, max_z, 0.0]);
+        let max = Vec3::max(Vec3::max(tri.vertices[0], tri.vertices[1]), tri.vertices[2]);
+        let min = Vec3::min(Vec3::min(tri.vertices[0], tri.vertices[1]), tri.vertices[2]);
 
         let bbox = Self::new(min, max);
         return bbox.padded(0.003);
-
-        // const EPSILON: f32 = 0.001;
-        // if max_x - min_x < EPSILON {
-        //     max_x += EPSILON;
-        //     min_x -= EPSILON;
-        // }
-        // if max_y - min_y < EPSILON {
-        //     max_y += EPSILON;
-        //     min_y -= EPSILON;
-        // }
-        // if max_z - min_z < EPSILON {
-        //     max_z += EPSILON;
-        //     min_z -= EPSILON;
-        // }
-
-        // const TRI_PADDING_EPSILON: f32 = 0.001;
-        // const PADDING: Vec3 = Vec3::new([TRI_PADDING_EPSILON, TRI_PADDING_EPSILON, TRI_PADDING_EPSILON]);
-
-        // let min = Vec3::from_f32([min_x, min_y, min_z, 0.0]) - PADDING;
-        // let max = Vec3::from_f32([max_x, max_y, max_z, 0.0]) + PADDING;
-
-        // Self::new(min, max)
     }
 
     #[must_use]

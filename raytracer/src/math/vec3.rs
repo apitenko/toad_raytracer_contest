@@ -328,6 +328,52 @@ impl Vec3 {
         Self::from_f32([self.x(), self.y(), self.z(), 0.0])
     }
 
+    /// By-component min
+    #[inline]
+    #[must_use]
+    pub fn min(left: Vec3, right: Vec3) -> Self {
+        #[cfg(target_feature = "sse")]
+        unsafe {
+            return Self::from_sse(_mm_min_ps(left.data_vectorized, right.data_vectorized));
+        }
+        #[cfg(not(target_feature = "sse"))]
+        {
+            let mut min_x = f32::min(
+                left.x(), right.x()
+            );
+            let mut min_y = f32::min(
+                left.y(), right.y()
+            );
+            let mut min_z = f32::min(
+                left.z(), right.z()
+            );
+            return Vec3::new([min_x, min_y, min_z]);
+        }
+    }
+    
+    /// By-component max
+    #[inline]
+    #[must_use]
+    pub fn max(left: Vec3, right: Vec3) -> Self {
+        #[cfg(target_feature = "sse")]
+        unsafe {
+            return Self::from_sse(_mm_max_ps(left.data_vectorized, right.data_vectorized));
+        }
+        #[cfg(not(target_feature = "sse"))]
+        {
+            let mut max_x = f32::max(
+                left.x(), right.x()
+            );
+            let mut max_y = f32::max(
+                left.y(), right.y()
+            );
+            let mut max_z = f32::max(
+                left.z(), right.z()
+            );
+            return Vec3::new([max_x, max_y, max_z]);
+        }
+    }
+
     #[inline]
     #[must_use]
     pub fn clamp(&self, min: f32, max: f32) -> Self {
@@ -395,6 +441,7 @@ impl Vec3 {
         }
     }
 
+    #[inline]
     #[cfg(target_feature = "sse")]
     pub const fn from_sse(sse: __m128) -> Self {
         Self {

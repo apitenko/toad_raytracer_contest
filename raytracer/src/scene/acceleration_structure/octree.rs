@@ -1,5 +1,6 @@
 use std::{intrinsics::size_of, marker::PhantomData, mem::MaybeUninit};
 
+use const_guards::guard;
 use rand::Rng;
 
 use crate::{
@@ -81,7 +82,8 @@ impl OctreeNode {
     //     }
     // }
 
-    pub fn make_child_bbox<const CHILD_INDEX: i32>(bbox: BoundingBox) -> Self {
+    #[guard(CHILD_INDEX <= 7 && CHILD_INDEX >= 0)]
+    fn make_child_bbox<const CHILD_INDEX: i32>(bbox: BoundingBox) -> Self {
         let len = bbox.max - bbox.min;
         let len_h = len / 2.0;
         let len_h_x = Vec3::from_f32([len_h.x(), 0.0, 0.0, 0.0]);
@@ -187,10 +189,10 @@ impl Octree {
 
         let result = self.tree_traversal_insert(
             current_node,
-            Self::ROOT_DEPTH,
             &insert_triangle,
             &insert_bbox,
             insert_level,
+            Self::ROOT_DEPTH,
         );
 
         if let Err(e) = result {
@@ -201,10 +203,10 @@ impl Octree {
     fn tree_traversal_insert(
         &mut self,
         current_node: *mut OctreeNode,
-        current_level: i32,
         insert_triangle: &Triangle,
         insert_bbox: &BoundingBox,
         insert_level: i32,
+        current_level: i32,
     ) -> anyhow::Result<()> {
         debug_assert!(!current_node.is_null());
         unsafe {
@@ -228,10 +230,10 @@ impl Octree {
                 if BoundingBox::intersects(insert_bbox, &(*child).bbox) {
                     self.tree_traversal_insert(
                         child,
-                        current_level - 1,
                         &insert_triangle,
                         &insert_bbox,
                         insert_level,
+                        current_level - 1,
                     )?;
                 }
             }

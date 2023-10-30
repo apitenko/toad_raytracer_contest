@@ -12,16 +12,16 @@ pub(crate) const RENDER_SCALE: u32 = 1;
 // ? づ｀･ω･)づ it's compile time o'clock
 
 use raytracer_lib::generate_multisample_positions;
-generate_multisample_positions!(16);
+generate_multisample_positions!(1);
 
-pub(crate) const MULTISAMPLE_OFFSETS: [(f32, f32); 16] = generated_samples();
+pub(crate) const MULTISAMPLE_OFFSETS: [(f32, f32); 1] = generated_samples();
 pub(crate) const MULTISAMPLE_SIZE: usize = MULTISAMPLE_OFFSETS.len();
 
-pub(crate) const MAX_BOUNCES: i32 = 6;
+pub(crate) const MAX_BOUNCES: i32 = 12;
 pub(crate) const MONTE_CARLO_THRESHOLD_BOUNCES: i32 = 0;
 // pub const MAX_DEPTH: f32 = 20.0;
 
-pub(crate) const THREADS: usize = 70;
+pub(crate) const THREADS: usize = 7;
 // pub(crate) const THREADS: usize = usize::MAX;
 
 // todo: move to skybox
@@ -35,6 +35,7 @@ pub(crate) const AMBIENT_LIGHT_COLOR: Vec3 = COLOR_WHITE;
 pub(crate) const MISS_COLOR_VEC3: Vec3 = Vec3::new([144.0 / 256.0, 185.0 / 256.0, 224.0 / 256.0]);
 pub(crate) const MISS_COLOR: u32 = 224 | (185 << 8) | (144 << 16);
 
+pub(crate) const DEFAULT_IOR: f32 = 1.38095; // f0 == 0.04, approximately correct for most dielectics
 
 pub(crate) const COLOR_SKY_BLUE: Vec3 = Vec3::from_rgb(199, 227, 235);
 pub(crate) const COLOR_WHITE: Vec3 = Vec3::new([1.0, 1.0, 1.0]);

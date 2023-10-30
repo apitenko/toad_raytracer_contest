@@ -11,7 +11,7 @@ use crate::{
         Ray, Vec3,
     },
     primitives::{
-        bounding_box::BoundingBox,
+        bounding_box::{BoundingBox, BBOX_PAD},
         cast_result::{CastIntersectionResult, CastResult, ConeCastResult, ConeCastResultStep},
         plane::Plane,
         shape::Shape,
@@ -21,8 +21,6 @@ use crate::{
 };
 
 use super::{acceleration_structure::AccelerationStructure, svogi::NodeGIInfo};
-
-const BBOX_PAD: f32 = 0.001;
 
 pub struct OctreeNode {
     pub triangles: Vec<Triangle>,
@@ -181,8 +179,8 @@ impl Octree {
             f32::max(f32::max(delta.x(), delta.y()), delta.z())
         };
 
-        // let insert_level = f32::log2(max_side).ceil() as i32 + 1;
-        let insert_level = -6;
+        let insert_level = f32::log2(max_side).ceil() as i32 + 1;
+        // let insert_level = -6;
 
         // traverse the tree: if intersected, continue traversing (or add if the current level reached)
         let current_node = self.root;
@@ -303,9 +301,9 @@ impl Octree {
         unsafe {
             debug_assert!(!node.is_null());
             let current_cast_result = Self::intersect_triangles(node, original_ray);
-            if !current_cast_result.has_missed() {
-                return current_cast_result;
-            }
+            // if !current_cast_result.has_missed() {
+            //     return current_cast_result;
+            // }
 
             // keep intersecting children by nearest, until any intersection is found
             // return nearest of children_cast_result and current_cast_result
@@ -322,12 +320,10 @@ impl Octree {
                 pub Z: bool,
             }
 
-            let mut side = {
-                _Sides {
-                    X: origin.x() - planes[0].distance >= 0.0,
-                    Y: origin.y() - planes[1].distance >= 0.0,
-                    Z: origin.z() - planes[2].distance >= 0.0,
-                }
+            let mut side = _Sides {
+                X: origin.x() - planes[0].distance >= 0.0,
+                Y: origin.y() - planes[1].distance >= 0.0,
+                Z: origin.z() - planes[2].distance >= 0.0,
             };
 
             let mut xDist: f32 = if side.X == (direction.x() < 0.0) {
@@ -346,22 +342,26 @@ impl Octree {
                 f32::INFINITY
             };
 
+            assert!(xDist >= 0.0);
+            assert!(yDist >= 0.0);
+            assert!(zDist >= 0.0);
+
             fn side_to_index(side: &_Sides) -> usize {
                 (if side.Z { 4 } else { 0 })
                     | (if side.Y { 2 } else { 0 })
                     | (if side.X { 1 } else { 0 })
             }
 
-            // fn minimum_of_two_cast_results(
-            //     left: CastIntersectionResult,
-            //     right: CastIntersectionResult,
-            // ) -> CastIntersectionResult {
-            //     if left.distance_traversed > right.distance_traversed {
-            //         return right;
-            //     } else {
-            //         return left;
-            //     }
-            // }
+            fn minimum_of_two_cast_results(
+                left: CastIntersectionResult,
+                right: CastIntersectionResult,
+            ) -> CastIntersectionResult {
+                if left.distance_traversed < right.distance_traversed {
+                    return left;
+                } else {
+                    return right;
+                }
+            }
 
             for _ in 0..4 {
                 let idx = side_to_index(&side);
@@ -379,22 +379,23 @@ impl Octree {
                             // intersection found, return as it's always the nearest
 
                             // current_cast_result = minimum_of_two_cast_results(current_cast_result, ret);
-                            // return minimum_of_two_cast_results(ret, current_cast_result);
+                            return minimum_of_two_cast_results(ret, current_cast_result);
                             // assert!(current_cast_result.has_missed());
-                            return ret;
+                            // return ret;
                         }
                     }
                 }
 
                 let minDist = f32::min(f32::min(xDist, yDist), zDist);
                 if f32::is_infinite(minDist) {
-                    return CastIntersectionResult::MISS;
+                    return current_cast_result;
                 }
 
+                assert!(minDist >= 0.0);
                 origin = ray.origin() + minDist * direction;
 
                 if !bbox_padded.contains(origin) {
-                    return CastIntersectionResult::MISS;
+                    return current_cast_result;
                 }
 
                 if minDist == xDist {
@@ -408,7 +409,7 @@ impl Octree {
                     zDist = f32::INFINITY;
                 }
             }
-            return CastIntersectionResult::MISS;
+            return current_cast_result;
         }
     }
 

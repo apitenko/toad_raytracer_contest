@@ -1,7 +1,7 @@
-use crate::math::Vec3;
+use crate::math::f32_util::FloatWrapTo01;
+use crate::math::{Mat44, Vec3};
 use crate::scene::material::IMaterialStorage;
 use image::GenericImageView;
-use crate::math::f32_util::FloatWrapTo01;
 
 use super::{
     samplable::Samplable,
@@ -292,9 +292,15 @@ impl TextureMips {
         }
     }
 
-    pub fn sample(&self, u: f32, v: f32, mip: usize) -> Vec3 {
+    #[inline]
+    pub fn sample(&self, u: f32, v: f32, mip: usize, texture_transform: &TextureTransform) -> Vec3 {
         let coordinates = &self.mips[mip];
-        
+
+        let v = Vec3::from_f32([u, v, 0.0, 0.0]);
+        let transformed_v = texture_transform.matrix * v;
+        let u = transformed_v.x();
+        let v = transformed_v.y();
+
         let x: usize = (coordinates.start_x + u.wrap_01() * coordinates.scaled_width) as usize;
         let y: usize = (coordinates.start_y + v.wrap_01() * coordinates.scaled_height) as usize;
         let sample = unsafe {
@@ -313,6 +319,7 @@ pub struct Sampler {
     min_filter: MinFilter,
     mag_filter: MagFilter,
     tex_coord_index: usize,
+    texture_transform: TextureTransform,
 }
 
 impl Sampler {
@@ -322,6 +329,7 @@ impl Sampler {
         min_filter: MinFilter,
         mag_filter: MagFilter,
         tex_coord_index: usize,
+        texture_transform: TextureTransform,
     ) -> Self {
         unsafe {
             let texture_mips = TextureMips::generate_mips(storage, &texture, min_filter);
@@ -330,6 +338,7 @@ impl Sampler {
                 min_filter,
                 mag_filter,
                 tex_coord_index,
+                texture_transform,
             }
         }
     }
@@ -344,6 +353,26 @@ impl Samplable for Sampler {
             uv[self.tex_coord_index].0,
             uv[self.tex_coord_index].1,
             mip.floor() as usize,
+            &self.texture_transform
         )
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct TextureTransform {
+    pub scale: [f32; 2],
+    pub rotation: f32,
+    pub offset: [f32; 2],
+    pub matrix: Mat44,
+}
+
+impl Default for TextureTransform {
+    fn default() -> Self {
+        Self {
+            scale: [1.0, 1.0],
+            rotation: 0.0,
+            offset: [0.0, 0.0],
+            matrix: Mat44::IDENTITY,
+        }
     }
 }

@@ -45,7 +45,7 @@ pub struct Triangle {
 
 impl Shape for Triangle {
     fn intersect(&self, ray: Ray, inside: bool) -> Option<CastIntersectionResult> {
-        const EPSILON: f32 = 0.0000001;
+        const EPSILON: f32 = 0.00001;
         let vertex0: Vec3 = self.vertices[0];
         let vertex1: Vec3 = self.vertices[1];
         let vertex2: Vec3 = self.vertices[2];
@@ -82,9 +82,10 @@ impl Shape for Triangle {
             let intersection_point = ray.point_at_parameter(t);
             return Some(CastIntersectionResult {
                 intersection_point,
-                distance_traversed: (ray.direction() * t).length(),
+                distance_traversed: t,//(ray.direction() * t).length(),
                 raw_uvw: [u, v, w],
-                triangle: self as *const Triangle
+                triangle: self as *const Triangle,
+                front_face: a > 0.0
             });
         } else {
             return None;

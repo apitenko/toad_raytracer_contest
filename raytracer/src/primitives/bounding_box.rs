@@ -11,6 +11,8 @@ pub struct BoundingBox {
     pub max: Vec3,
 }
 
+pub const BBOX_PAD: f32 = 0.01;
+
 impl BoundingBox {
     // True if the point lies within the bounding box
     pub fn contains(&self, point: Vec3) -> bool {
@@ -48,7 +50,7 @@ impl BoundingBox {
         let min = Vec3::min(Vec3::min(tri.vertices[0], tri.vertices[1]), tri.vertices[2]);
 
         let bbox = Self::new(min, max);
-        return bbox.padded(0.003);
+        return bbox.padded(BBOX_PAD);
     }
 
     #[must_use]

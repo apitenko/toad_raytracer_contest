@@ -88,7 +88,7 @@ impl RayBounce {
 
     #[inline]
     pub fn monte_carlo_reached(&self) -> bool {
-        self.current_bounces > MONTE_CARLO_THRESHOLD_BOUNCES
+        self.current_bounces >= MONTE_CARLO_THRESHOLD_BOUNCES
     }
 }
 

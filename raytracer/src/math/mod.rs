@@ -5,6 +5,7 @@ pub mod ray;
 pub mod cone;
 pub mod sphere;
 pub mod f32_util;
+pub mod quat;
 
 // reimports idk why they're pretty useless
 pub use vec3::Vec3;

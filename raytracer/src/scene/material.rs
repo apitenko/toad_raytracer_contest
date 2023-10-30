@@ -26,6 +26,8 @@ pub struct Material {
 
     pub transmission_factor: f32,
     pub transmission_texture: Sampler,
+
+    pub double_sided: bool,
     // pub subsurface: f32,
     // pub anisotropic: f32,
     // pub sheen: f32,
@@ -112,7 +114,7 @@ impl Material {
     #[inline]
     pub fn sample_roughness_metallic(&self, uv: &[(f32, f32); 4], mip: f32) -> (f32,f32) {
         let sample = self.sample_uv_scaled(&self.metallic_roughness_texture, uv, mip);
-        (sample.y(), sample.z())
+        (sample.y() * self.roughness_factor, sample.z() * self.metallic_factor)
     }
 
     #[inline]

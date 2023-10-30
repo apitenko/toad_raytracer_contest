@@ -16,9 +16,9 @@ impl Plane {
         {
             let center = self.normal * self.distance;
             let t: f32 = Vec3::dot(center - origin, self.normal) / denom;
-            if t < 0.0 {
-                return f32::INFINITY;
-            }
+            // if t < 0.0 {
+            //     return f32::INFINITY;
+            // }
             return t;
         }
         return f32::INFINITY;
@@ -36,7 +36,7 @@ mod tests {
     use super::Plane;
 
     #[test]
-    fn Plane_RayDistance() {
+    fn Plane_RayDistanceWorks() {
         assert_eq!(
             {
                 let plane = Plane::new(Vec3::X_AXIS, 100.0);
@@ -56,8 +56,28 @@ mod tests {
         assert_eq!(
             {
                 let plane = Plane::new(Vec3::X_AXIS, -100.0);
-                let distance = plane.RayDistance(Vec3::new([0.0, 0.0, 0.0]), Vec3::new([-2.0, 0.0, -2.0]).normalized());
+                let distance = plane.RayDistance(
+                    Vec3::new([0.0, 0.0, 0.0]),
+                    Vec3::new([-2.0, 0.0, -2.0]).normalized(),
+                );
                 distance > 141.41 && distance < 141.47
+            },
+            true
+        );
+    }
+
+    #[test]
+    fn Plane_RayDistanceWtfCases() {
+        assert_eq!(
+            {
+                let plane = Plane::new(Vec3::X_AXIS, 0.0);
+                let distance = plane.RayDistance(
+                    Vec3::from_f32([0.0, 0.0, 30.0, 1.0]),
+                    Vec3::new([-0.331974208, -0.187075689, -0.924584687]).normalized(),
+                );
+                println!("{:?}", distance);
+                distance > -0.01 && distance < 0.01
+                // distance > 141.41 && distance < 141.47
             },
             true
         );

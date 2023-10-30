@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use crate::constants::DEFAULT_IOR;
 use crate::math::Vec3;
 use crate::scene::acceleration_structure::acceleration_structure::AccelerationStructure;
 use crate::{constants::DEFAULT_ASPECT_RATIO, primitives::triangle::Triangle};
@@ -7,7 +8,7 @@ use crate::{constants::DEFAULT_ASPECT_RATIO, primitives::triangle::Triangle};
 use super::acceleration_structure::AccelerationStructureType;
 
 use super::material::{IMaterialStorage, Material, MaterialShared};
-use super::texture::sampler::Sampler;
+use super::texture::sampler::{Sampler, TextureTransform};
 use super::texture::texture::Texture;
 use super::{camera::Camera, lights::light::Light, material::MaterialStorage};
 
@@ -31,7 +32,8 @@ impl Scene {
             Texture::make_default_texture()?,
             super::texture::sampler::MinFilter::Nearest,
             super::texture::sampler::MagFilter::Nearest,
-            0
+            0,
+            TextureTransform::default(),
         );
 
         let default_normal_sampler = Sampler::new(
@@ -39,12 +41,13 @@ impl Scene {
             Texture::make_default_normal_map()?,
             super::texture::sampler::MinFilter::Nearest,
             super::texture::sampler::MagFilter::Nearest,
-            0
+            0,
+            TextureTransform::default(),
         );
 
         let default_material = material_storage.push_material(Material {
             color_factor: Vec3::ONE,
-            ior: 1.38095, // f0 == 0.04, approximately correct for most dielectics
+            ior: DEFAULT_IOR,
             emission_factor: Vec3::ONE,
             roughness_factor: 0.80,
             metallic_factor: 0.00,
@@ -54,6 +57,7 @@ impl Scene {
             normal_texture: default_normal_sampler.clone(),
             transmission_factor: 0.0,
             transmission_texture: default_sampler.clone(),
+            double_sided: true, // TODO: KHR_materials_volume .doubleSided property
         });
         // let skybox_texture =  material_storage.push_texture(Texture::new_from_file(&Path::new("./res/skybox.png"))?);
 

@@ -8,6 +8,22 @@ pub union Mat44 {
     row: [__m128; 4],
 }
 
+impl std::fmt::Debug for Mat44 {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        unsafe {
+            write!(
+                f,
+                "\
+Mat44: {:?}
+       {:?}
+       {:?}
+       {:?}",
+                self.m[0], self.m[1], self.m[2], self.m[3]
+            )
+        }
+    }
+}
+
 impl Mat44 {
     pub const IDENTITY: Self = Self::new([
         [1.0, 0.0, 0.0, 0.0],

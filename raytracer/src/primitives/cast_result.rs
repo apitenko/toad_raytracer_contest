@@ -13,6 +13,7 @@ pub struct CastIntersectionResult {
     pub intersection_point: Vec3,
     pub raw_uvw: [f32; 3],
     pub triangle: *const Triangle,
+    pub front_face: bool,
 }
 
 impl CastIntersectionResult {
@@ -21,6 +22,7 @@ impl CastIntersectionResult {
         distance_traversed: f32::INFINITY,
         triangle: null(),
         raw_uvw: [0.0, 0.0, 0.0],
+        front_face: false
     };
 
     #[inline]
@@ -92,11 +94,15 @@ impl CastIntersectionResult {
         let [u, v, w] = self.raw_uvw;
         let uv = interpolate_uvs([w, u, v], &triangle.uv);
 
-        // let geometry_normal = Vec3::cross(edge1, edge2).normalized();
-        let normal = interpolate_normals([w, u, v], triangle.normals);
-        let tangent = interpolate_normals([w, u, v], triangle.tangents);
-        let bitangent = interpolate_normals([w, u, v], triangle.bitangents);
-        // let normal = geometry_normal;//* interpolated_normal;
+        let mut normal = interpolate_normals([w, u, v], triangle.normals);
+        let mut tangent = interpolate_normals([w, u, v], triangle.tangents);
+        let mut bitangent = interpolate_normals([w, u, v], triangle.bitangents);
+
+        if !self.front_face && triangle.material.get().double_sided {
+            normal = -normal;
+            tangent = -tangent;
+            bitangent = -bitangent;
+        }
 
         return Some(CastResult {
             intersection_point: self.intersection_point,

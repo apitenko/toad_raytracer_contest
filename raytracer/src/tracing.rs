@@ -102,7 +102,7 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
 
     let material_color = current_material.sample_albedo(&cast_result.uv, mip);
 
-    let (mut material_roughness, material_metallic) =
+    let (material_roughness, material_metallic) =
         current_material.sample_roughness_metallic(&cast_result.uv, mip);
 
     // if current_bounce.apply_filter_glossy {

@@ -1,3 +1,5 @@
+use crate::constants::DEFAULT_IOR;
+use crate::math::quat::Quat;
 use crate::primitives::uv_set::UVSet;
 use crate::scene::material::IMaterialStorage;
 use crate::{
@@ -14,6 +16,7 @@ use std::{
 };
 
 use super::lights::point::PointLightRadius;
+use super::texture::sampler::TextureTransform;
 use super::{
     camera::Camera,
     lights::{
@@ -45,7 +48,6 @@ impl From<GltfImport> for ImportedGltfScene {
 }
 
 pub fn read_into_scene(app_scene: &mut Scene, path: &str, camera_name: &str) -> anyhow::Result<()> {
-
     let imported: ImportedGltfScene = {
         if !std::path::Path::exists(&std::path::PathBuf::from(path)) {
             panic!("gltf scene not found")
@@ -489,7 +491,7 @@ fn import_material(
         imported,
     )?;
 
-    let ior = material.ior().unwrap_or(2.0);
+    let ior = material.ior().unwrap_or(DEFAULT_IOR);
 
     let mat = Material {
         color_factor: Vec3::from_f32(color_factor),
@@ -500,6 +502,7 @@ fn import_material(
         emission_texture,
         normal_texture,
         ior,
+        double_sided: material.double_sided(),
         emission_factor: Vec3::from_f32_3(emission_factor, 0.0),
         ..app_scene.default_material.get().clone()
     };
@@ -553,6 +556,7 @@ fn import_texture(
                 super::texture::sampler::MinFilter::Nearest,
                 super::texture::sampler::MagFilter::Nearest,
                 0,
+                TextureTransform::default(),
             );
 
             Ok(sampler)
@@ -562,6 +566,7 @@ fn import_texture(
             if texture_uv_index != 0 {
                 todo!("texture_uv_index != 0; it is {}", texture_uv_index);
             }
+            let texture_transform = import_texture_transform(t.texture_transform());
             let texture_ = t.texture();
             let image = texture_.source();
             let tex_coord_index = t.tex_coord();
@@ -617,6 +622,10 @@ fn import_texture(
 
             let texture = texture?;
             let sampler = texture_.sampler();
+
+            // let wrap_s = sampler.wrap_s();
+            // sampler.wrap_t(),
+
             let sampler = super::texture::sampler::Sampler::new(
                 material_storage,
                 texture,
@@ -628,10 +637,9 @@ fn import_texture(
                     .mag_filter()
                     .unwrap_or(gltf::texture::MagFilter::Nearest)
                     .into(),
-                tex_coord_index as usize, // sampler.wrap_s(),
-                                          // sampler.wrap_t(),
+                tex_coord_index as usize,
+                texture_transform,
             );
-            // sampler.mag_filter()
 
             Ok(sampler)
         }
@@ -653,6 +661,7 @@ fn import_texture_normal(
                 super::texture::sampler::MinFilter::Nearest,
                 super::texture::sampler::MagFilter::Nearest,
                 0,
+                TextureTransform::default(),
             );
 
             Ok(sampler)
@@ -662,7 +671,9 @@ fn import_texture_normal(
             if texture_uv_index != 0 {
                 todo!("texture_uv_index != 0; it is {}", texture_uv_index);
             }
+
             let texture_ = t.texture();
+            let texture_transform = import_texture_transform(t.texture_transform());
             let image = texture_.source();
             let tex_coord_index = t.tex_coord();
 
@@ -728,8 +739,10 @@ fn import_texture_normal(
                     .mag_filter()
                     .unwrap_or(gltf::texture::MagFilter::Nearest)
                     .into(),
-                tex_coord_index as usize, // sampler.wrap_s(),
-                                          // sampler.wrap_t(),
+                tex_coord_index as usize, //
+                // sampler.wrap_s(),
+                // sampler.wrap_t(),
+                texture_transform,
             );
             // sampler.mag_filter()
 
@@ -809,3 +822,36 @@ fn calculate_tangents(
 
 //     println!("{:?}", length);
 // }
+
+impl<'a> From<gltf::texture::TextureTransform<'a>> for TextureTransform {
+    fn from(value: gltf::texture::TextureTransform) -> Self {
+        let scale = value.scale();
+        // let tex_coord = value.tex_coord();
+        let offset = value.offset();
+        let rotation = value.rotation();
+
+        let matrix = Mat44::from_decomposed(
+            [offset[0], offset[1], 0.0],
+            Quat::from_rotation_x(rotation).data,
+            [scale[0], scale[1], 0.0],
+        );
+
+        Self {
+            scale,
+            // tex_coord,
+            offset,
+            rotation,
+            matrix,
+        }
+    }
+}
+
+fn import_texture_transform(
+    texture_transform: Option<gltf::texture::TextureTransform>,
+) -> TextureTransform {
+    let texture_transform: TextureTransform = match texture_transform {
+        None => TextureTransform::default(),
+        Some(t) => t.into(),
+    };
+    return texture_transform;
+}

@@ -95,15 +95,15 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
     let mip: f32 = 0.0;
     let current_material = cast_result.material.get();
 
-    let material_emission = current_material.sample_emission(&cast_result.uv, mip);
+    let material_emission = current_material.sample_emission(&cast_result.uv_emission, mip);
     if material_emission.luminosity() > 0.001 {
         return emission_brdf(material_emission);
     }
 
-    let material_color = current_material.sample_albedo(&cast_result.uv, mip);
+    let material_color = current_material.sample_albedo(&cast_result.uv_color, mip);
 
     let (material_roughness, material_metallic) =
-        current_material.sample_roughness_metallic(&cast_result.uv, mip);
+        current_material.sample_roughness_metallic(&cast_result.uv_metalrough, mip);
 
     // if current_bounce.apply_filter_glossy {
     //     material_roughness = (material_roughness + FILTER_GLOSSY * current_bounce.current_bounces as f32).clamp(0.0, 1.0);
@@ -111,7 +111,7 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
     let material_roughness = material_roughness * material_roughness;
     
     let surface_normal = {
-        let material_normal = current_material.sample_normal(&cast_result.uv, mip);
+        let material_normal = current_material.sample_normal(&cast_result.uv_normalmap, mip);
         let material_normal = (2.0 * material_normal - Vec3::ONE); //.normalized();
         let surface_normal = (material_normal.z() * cast_result.normal
             + material_normal.x() * cast_result.tangent

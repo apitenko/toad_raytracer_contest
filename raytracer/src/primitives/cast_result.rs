@@ -6,7 +6,7 @@ use crate::{
     scene::material::MaterialShared,
 };
 
-use super::{triangle::Triangle, uv_set::UVSet};
+use super::{triangle::Triangle, uv_set::{UVSet, UVChannel}};
 
 pub struct CastIntersectionResult {
     pub distance_traversed: f32,
@@ -37,7 +37,10 @@ pub struct CastResult {
     pub normal: Vec3,
     pub tangent: Vec3,
     pub bitangent: Vec3,
-    pub uv: [(f32, f32); 4],
+    pub uv_color: [(f32, f32); 4],
+    pub uv_metalrough: [(f32, f32); 4],
+    pub uv_normalmap: [(f32, f32); 4],
+    pub uv_emission: [(f32, f32); 4],
     pub material: MaterialShared,
 }
 
@@ -92,7 +95,11 @@ impl CastIntersectionResult {
 
         let triangle = unsafe { &*self.triangle };
         let [u, v, w] = self.raw_uvw;
-        let uv = interpolate_uvs([w, u, v], &triangle.uv);
+
+        let uv_color = interpolate_uvs([w, u, v], &triangle.uv.channels_color);
+        let uv_metalrough = interpolate_uvs([w, u, v], &triangle.uv.channels_metalrough);
+        let uv_normalmap = interpolate_uvs([w, u, v], &triangle.uv.channels_normalmap);
+        let uv_emission = interpolate_uvs([w, u, v], &triangle.uv.channels_emission);
 
         let mut normal = interpolate_normals([w, u, v], triangle.normals);
         let mut tangent = interpolate_normals([w, u, v], triangle.tangents);
@@ -110,7 +117,10 @@ impl CastIntersectionResult {
             normal,
             tangent,
             bitangent,
-            uv,
+            uv_color,
+            uv_metalrough,
+            uv_normalmap,
+            uv_emission,
             material: triangle.material.clone(),
             // triangle: self.clone()
         });
@@ -118,12 +128,12 @@ impl CastIntersectionResult {
 }
 
 #[inline]
-fn interpolate_uvs(intersection_wuv: [f32; 3], self_uv: &UVSet) -> [(f32, f32); 4] {
+fn interpolate_uvs(intersection_wuv: [f32; 3], self_uv_channels: &[UVChannel; 4]) -> [(f32, f32); 4] {
     [
-        interpolate_uv(intersection_wuv, &self_uv.channels[0].points),
-        interpolate_uv(intersection_wuv, &self_uv.channels[1].points),
-        interpolate_uv(intersection_wuv, &self_uv.channels[2].points),
-        interpolate_uv(intersection_wuv, &self_uv.channels[3].points),
+        interpolate_uv(intersection_wuv, &self_uv_channels[0].points),
+        interpolate_uv(intersection_wuv, &self_uv_channels[1].points),
+        interpolate_uv(intersection_wuv, &self_uv_channels[2].points),
+        interpolate_uv(intersection_wuv, &self_uv_channels[3].points),
     ]
 }
 

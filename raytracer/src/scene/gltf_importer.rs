@@ -16,7 +16,7 @@ use std::{
 };
 
 use super::lights::point::PointLightRadius;
-use super::texture::sampler::TextureTransform;
+use super::texture::texture_transform::TextureTransform;
 use super::{
     camera::Camera,
     lights::{
@@ -305,7 +305,8 @@ fn import_node(
                         fallback_geometry_normal,
                     );
 
-                    let uv = UVSet::read(&input_uv, i0 as usize, i1 as usize, i2 as usize);
+                    let uv = UVSet::read(&input_uv, i0 as usize, i1 as usize, i2 as usize, material.get());
+                    
                     let vertices = [p0, p1, p2];
                     let normals = [n0, n1, n2];
                     let (tangents, bitangents) = calculate_tangents(&vertices, &uv, &normals);
@@ -761,9 +762,10 @@ fn calculate_tangents(
     let edge1 = vertices[1] - vertices[0];
     let edge2 = vertices[2] - vertices[0];
 
-    let uv0 = uv.channels[0].points[0];
-    let uv1 = uv.channels[0].points[1];
-    let uv2 = uv.channels[0].points[2];
+    // ! Assume the same UV direction for all textures
+    let uv0 = uv.channels_color[0].points[0];
+    let uv1 = uv.channels_color[0].points[1];
+    let uv2 = uv.channels_color[0].points[2];
     let s1 = uv1[0] - uv0[0];
     let s2 = uv2[0] - uv0[0];
     let t1 = uv1[1] - uv0[1];

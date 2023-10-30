@@ -8,8 +8,9 @@ use crate::{constants::DEFAULT_ASPECT_RATIO, primitives::triangle::Triangle};
 use super::acceleration_structure::AccelerationStructureType;
 
 use super::material::{IMaterialStorage, Material, MaterialShared};
-use super::texture::sampler::{Sampler, TextureTransform};
+use super::texture::sampler::Sampler;
 use super::texture::texture::Texture;
+use super::texture::texture_transform::TextureTransform;
 use super::{camera::Camera, lights::light::Light, material::MaterialStorage};
 
 pub struct Scene {

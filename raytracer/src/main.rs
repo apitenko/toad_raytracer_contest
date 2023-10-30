@@ -40,6 +40,7 @@ pub mod surface;
 pub mod tracing;
 pub mod util;
 pub mod worker_thread;
+pub mod render;
 
 use constants::*;
 use render_thread::*;

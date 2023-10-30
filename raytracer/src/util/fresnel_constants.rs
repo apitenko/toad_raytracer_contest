@@ -1,3 +1,4 @@
+#[allow(non_upper_case_globals)]
 
 // partially taken from http://hyperphysics.phy-astr.gsu.edu/hbase/Tables/indrf.html
 pub mod FresnelConstants {

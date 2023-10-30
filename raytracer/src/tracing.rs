@@ -549,7 +549,7 @@ fn ggx_indirect(
         return fn_specular_metallic_ray();
     } else {
         // ! dielectric
-        let calculated_specular = schlick_fresnel_f0(1.0, material_ior);
+        let calculated_specular = schlick_fresnel_f0(FresnelConstants::Air, material_ior);
         // color is diffuse
         let (probDiffuse, diffuseMult) =
             probability_to_sample_diffuse(material_color, calculated_specular);

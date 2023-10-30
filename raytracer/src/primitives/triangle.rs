@@ -45,7 +45,6 @@ pub struct Triangle {
 
 impl Shape for Triangle {
     fn intersect(&self, ray: Ray, inside: bool) -> Option<CastIntersectionResult> {
-        const EPSILON: f32 = 0.00001;
         let vertex0: Vec3 = self.vertices[0];
         let vertex1: Vec3 = self.vertices[1];
         let vertex2: Vec3 = self.vertices[2];
@@ -54,7 +53,7 @@ impl Shape for Triangle {
         let h = Vec3::cross(ray.direction(), edge2);
         let a = Vec3::dot(edge1, h);
 
-        if a > -EPSILON && a < EPSILON {
+        if (a > -f32::EPSILON) & (a < f32::EPSILON) {
             return None; // This ray is parallel to this triangle.
         }
 
@@ -78,7 +77,7 @@ impl Shape for Triangle {
         // At this stage we can compute t to find out where the intersection point is on the line.
         let t = f * Vec3::dot(edge2, q);
 
-        if t > EPSILON {
+        if t > f32::EPSILON {
             let intersection_point = ray.point_at_parameter(t);
             return Some(CastIntersectionResult {
                 intersection_point,

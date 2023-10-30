@@ -179,7 +179,7 @@ impl Octree {
             f32::max(f32::max(delta.x(), delta.y()), delta.z())
         };
 
-        let insert_level = f32::log2(max_side).ceil() as i32 + 1;
+        let insert_level = f32::log2(max_side).ceil() as i32 - 1;
         // let insert_level = -6;
 
         // traverse the tree: if intersected, continue traversing (or add if the current level reached)
@@ -342,9 +342,9 @@ impl Octree {
                 f32::INFINITY
             };
 
-            assert!(xDist >= 0.0);
-            assert!(yDist >= 0.0);
-            assert!(zDist >= 0.0);
+            debug_assert!(xDist >= 0.0);
+            debug_assert!(yDist >= 0.0);
+            debug_assert!(zDist >= 0.0);
 
             fn side_to_index(side: &_Sides) -> usize {
                 (if side.Z { 4 } else { 0 })
@@ -391,7 +391,7 @@ impl Octree {
                     return current_cast_result;
                 }
 
-                assert!(minDist >= 0.0);
+                debug_assert!(minDist >= 0.0);
                 origin = ray.origin() + minDist * direction;
 
                 if !bbox_padded.contains(origin) {

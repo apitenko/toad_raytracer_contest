@@ -150,13 +150,12 @@ lazy_static::lazy_static! {
 
 impl Octree {
     const NODES_MAX: usize = 5 * 1024 * 1024;
+    // unused; rust-analyzer will show the size of the memory allocated
     const _TOTAL_OCTREE_SIZE_BYTES: usize = Self::NODES_MAX * size_of::<OctreeNode>();
 
-    // unused; rust-analyzer will show the size of the memory allocated
-    const NODES_MEMORY_ALLOCATED_BYTES: usize = Self::NODES_MAX * size_of::<OctreeNode>();
 
     const ROOT_DEPTH: i32 = 12;
-    const MIN_DEPTH: i32 = -7;
+    const MIN_DEPTH: i32 = -6;
 
     pub fn empty() -> Self {
         let mut memory = FixedArray::<OctreeNode, { Self::NODES_MAX }>::with_capacity();
@@ -332,17 +331,6 @@ impl Octree {
                 (if side.Z { 4 } else { 0 })
                     | (if side.Y { 2 } else { 0 })
                     | (if side.X { 1 } else { 0 })
-            }
-
-            fn minimum_of_two_cast_results(
-                left: CastIntersectionResult,
-                right: CastIntersectionResult,
-            ) -> CastIntersectionResult {
-                if left.distance_traversed < right.distance_traversed {
-                    return left;
-                } else {
-                    return right;
-                }
             }
 
             for _ in 0..4 {

@@ -21,6 +21,15 @@ pub struct Triangle {
     pub bitangents: [Vec3; 3],
 }
 
+impl Triangle {
+    pub fn calculate_geometry_normal(&self) -> Vec3 {
+        
+        let edge1 = self.vertices[1] - self.vertices[0];
+        let edge2 = self.vertices[2] - self.vertices[0];
+        return Vec3::cross(edge1, edge2);
+    }
+}
+
 // impl Default for Triangle {
 //     fn default() -> Self {
 //         Self {

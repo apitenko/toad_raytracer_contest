@@ -60,6 +60,11 @@ impl BoundingBox {
         ((a.min.z() <= b.max.z()) & (a.max.z() >= b.min.z())) // .
     }
 
+    #[must_use]
+    pub fn intersects_triangle(a: &Self, b: &Triangle) -> bool {
+        todo!()
+    }
+
     pub fn from_gltf(aabb: gltf::mesh::BoundingBox) -> Self {
         Self::new(Vec3::new(aabb.min), Vec3::new(aabb.max))
     }

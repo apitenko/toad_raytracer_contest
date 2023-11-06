@@ -25,7 +25,7 @@ use super::{acceleration_structure::AccelerationStructure, svogi::NodeGIInfo};
 pub struct OctreeNode {
     pub triangles: Vec<Triangle>,
     pub children: [*mut OctreeNode; 8],
-    pub bbox: BoundingBox,
+    // pub bbox: BoundingBox,
     pub bbox_padded: BoundingBox,
     // pub gi_info: NodeGIInfo, // todo: mutex/atomic
 }
@@ -39,8 +39,7 @@ impl AccelerationStructure for Octree {
         let result = Self::recursive_intersection(&ray, self.root, &ray, Self::ROOT_DEPTH);
         if let Some(result) = result {
             return result;
-        }
-        else {
+        } else {
             return CastIntersectionResult::MISS;
         }
     }
@@ -51,6 +50,14 @@ impl AccelerationStructure for Octree {
 
     fn inject_emittance_data(&mut self, ray: Ray) {
         self.inject_emittance_data(ray);
+    }
+
+    fn tris_count(&self) -> usize {
+        return Self::_triangle_count(self.root, Self::ROOT_DEPTH);
+    }
+
+    fn memory_info(&self) -> (usize, usize) {
+        return self.memory.memory_info();
     }
 }
 
@@ -86,8 +93,10 @@ impl OctreeNode {
     //     }
     // }
 
-    #[guard(CHILD_INDEX <= 7 && CHILD_INDEX >= 0)]
-    fn make_child_bbox<const CHILD_INDEX: i32>(bbox: BoundingBox) -> Self {
+    fn make_from_parent_bbox(bbox: &BoundingBox, current_octet: usize) -> (Self, BoundingBox) {
+        // assert!(current_octet >= 0);
+        assert!(current_octet <= 7);
+
         let len = bbox.max - bbox.min;
         let len_h = len / 2.0;
         let len_h_x = Vec3::from_f32([len_h.x(), 0.0, 0.0, 0.0]);
@@ -95,7 +104,7 @@ impl OctreeNode {
         let len_h_z = Vec3::from_f32([0.0, 0.0, len_h.z(), 0.0]);
         let middle = bbox.min + len_h;
 
-        let bbox_min_max = match CHILD_INDEX {
+        let bbox_min_max = match current_octet {
             0 => (bbox.min, middle),
             1 => (bbox.min + len_h_x, middle + len_h_x),
             2 => (bbox.min + len_h_y, middle + len_h_y),
@@ -111,16 +120,18 @@ impl OctreeNode {
         };
         let bbox = BoundingBox::new(bbox_min_max.0, bbox_min_max.1);
         let bbox_padded = bbox.padded(BBOX_PAD);
-        Self {
-            triangles: Vec::with_capacity(0),
-            children: [std::ptr::null_mut(); 8],
+        (
+            Self {
+                triangles: Vec::with_capacity(0),
+                children: [std::ptr::null_mut(); 8],
+                bbox_padded,
+                // gi_info: NodeGIInfo {
+                //     directional_density: [0.0, 0.0, 0.0],
+                //     directional_emittance: [Vec3::ZERO, Vec3::ZERO, Vec3::ZERO],
+                // },
+            },
             bbox,
-            bbox_padded,
-            // gi_info: NodeGIInfo {
-            //     directional_density: [0.0, 0.0, 0.0],
-            //     directional_emittance: [Vec3::ZERO, Vec3::ZERO, Vec3::ZERO],
-            // },
-        }
+        )
     }
 }
 
@@ -153,9 +164,8 @@ impl Octree {
     // unused; rust-analyzer will show the size of the memory allocated
     const _TOTAL_OCTREE_SIZE_BYTES: usize = Self::NODES_MAX * size_of::<OctreeNode>();
 
-
     const ROOT_DEPTH: i32 = 12;
-    const MIN_DEPTH: i32 = -6;
+    const MIN_DEPTH: i32 = -5;
 
     pub fn empty() -> Self {
         let mut memory = FixedArray::<OctreeNode, { Self::NODES_MAX }>::with_capacity();
@@ -163,7 +173,6 @@ impl Octree {
         let root = memory.push(OctreeNode {
             triangles: Vec::new(),
             children: [std::ptr::null_mut(); 8],
-            bbox: ROOT_BBOX.clone(),
             bbox_padded: ROOT_BBOX.clone().padded(BBOX_PAD),
             // gi_info: NodeGIInfo {
             //     directional_density: [0.0, 0.0, 0.0],
@@ -176,9 +185,9 @@ impl Octree {
 
     pub fn push_triangle_(&mut self, insert_triangle: Triangle) {
         // traverse the tree: if intersected, continue traversing (or add if the current level reached)
-        let current_node = self.root;
 
-        let result = self.tree_traversal_insert(current_node, &insert_triangle, Self::ROOT_DEPTH);
+        let result =
+            self.tree_traversal_insert(&insert_triangle, self.root, Self::ROOT_DEPTH, &ROOT_BBOX);
 
         if let Err(e) = result {
             panic!("tree_traversal_insert failed");
@@ -187,26 +196,41 @@ impl Octree {
 
     fn tree_traversal_insert(
         &mut self,
-        current_node: *mut OctreeNode,
         insert_triangle: &Triangle,
+        current_node: *mut OctreeNode,
         current_level: i32,
+        current_bbox: &BoundingBox,
     ) -> anyhow::Result<()> {
-        debug_assert!(!current_node.is_null());
         unsafe {
+            assert!(!current_node.is_null());
             if current_level <= Self::MIN_DEPTH {
-                if BoundingBox::intersects_triangle(&(*current_node).bbox, insert_triangle) {
-                    // insert to the current node
-                    (*current_node).triangles.push(insert_triangle.clone());
-                    return Ok(());
-                }
+                // insert to the current node
+                (*current_node).triangles.push(insert_triangle.clone());
+                return Ok(());
             } else {
-                if (*current_node).children[0].is_null() {
-                    self.subdivide(current_node)?;
-                }
                 // intersect with each, go recursive if true
-                for child in (*current_node).children {
-                    if BoundingBox::intersects_triangle(&(*child).bbox, insert_triangle) {
-                        self.tree_traversal_insert(child, &insert_triangle, current_level - 1)?;
+                for current_octet in 0..8usize {
+                    let (child_node, child_bbox) =
+                        OctreeNode::make_from_parent_bbox(&current_bbox, current_octet);
+                    if BoundingBox::intersects_triangle(&child_bbox.padded(0.01), insert_triangle) {
+                        let child_node_ptr = {
+                            let existing_node = (*current_node).children[current_octet];
+                            if existing_node.is_null() {
+                                let new_node = self.memory.push(child_node);
+                                (*current_node).children[current_octet] = new_node;
+                                new_node
+                            }
+                            else {
+                                existing_node
+                            }                            
+                        };
+                        
+                        self.tree_traversal_insert(
+                            &insert_triangle,
+                            child_node_ptr,
+                            current_level - 1,
+                            &child_bbox,
+                        )?;
                     }
                 }
             }
@@ -215,31 +239,48 @@ impl Octree {
         }
     }
 
-    fn subdivide(&mut self, node: *mut OctreeNode) -> anyhow::Result<()> {
+    fn _triangle_count(node: *mut OctreeNode, current_level: i32) -> usize {
         unsafe {
-            if (*node).children[0].is_null() {
-                (*node).children = [
-                    self.memory
-                        .push(OctreeNode::make_child_bbox::<0>((*node).bbox)),
-                    self.memory
-                        .push(OctreeNode::make_child_bbox::<1>((*node).bbox)),
-                    self.memory
-                        .push(OctreeNode::make_child_bbox::<2>((*node).bbox)),
-                    self.memory
-                        .push(OctreeNode::make_child_bbox::<3>((*node).bbox)),
-                    self.memory
-                        .push(OctreeNode::make_child_bbox::<4>((*node).bbox)),
-                    self.memory
-                        .push(OctreeNode::make_child_bbox::<5>((*node).bbox)),
-                    self.memory
-                        .push(OctreeNode::make_child_bbox::<6>((*node).bbox)),
-                    self.memory
-                        .push(OctreeNode::make_child_bbox::<7>((*node).bbox)),
-                ];
+            if current_level <= Self::MIN_DEPTH {
+                return (*node).triangles.len();
+            } else {
+                assert!((*node).triangles.len() == 0);
+                let mut tris = 0;
+                for child in (*node).children {
+                    if !child.is_null() {
+                        tris += Self::_triangle_count(child, current_level - 1);
+                    }
+                }
+                return tris;
             }
         }
-        Ok(())
     }
+
+    // fn subdivide(&mut self, node: *mut OctreeNode) -> anyhow::Result<()> {
+    //     unsafe {
+    //         if (*node).children[0].is_null() {
+    //             (*node).children = [
+    //                 self.memory
+    //                     .push(OctreeNode::make_child_bbox::<0>((*node).bbox)),
+    //                 self.memory
+    //                     .push(OctreeNode::make_child_bbox::<1>((*node).bbox)),
+    //                 self.memory
+    //                     .push(OctreeNode::make_child_bbox::<2>((*node).bbox)),
+    //                 self.memory
+    //                     .push(OctreeNode::make_child_bbox::<3>((*node).bbox)),
+    //                 self.memory
+    //                     .push(OctreeNode::make_child_bbox::<4>((*node).bbox)),
+    //                 self.memory
+    //                     .push(OctreeNode::make_child_bbox::<5>((*node).bbox)),
+    //                 self.memory
+    //                     .push(OctreeNode::make_child_bbox::<6>((*node).bbox)),
+    //                 self.memory
+    //                     .push(OctreeNode::make_child_bbox::<7>((*node).bbox)),
+    //             ];
+    //         }
+    //     }
+    //     Ok(())
+    // }
 
     fn intersect_triangles(node: *mut OctreeNode, ray: &Ray) -> CastIntersectionResult {
         debug_assert!(!node.is_null());
@@ -256,7 +297,7 @@ impl Octree {
                 })
                 .fold(CastIntersectionResult::MISS, |acc, item| {
                     if (acc.distance_traversed > item.distance_traversed)
-                        & (item.distance_traversed > 0.001)
+                        & (item.distance_traversed > 0.0001)
                         & (item.distance_traversed <= ray.max_distance())
                     {
                         return item;
@@ -273,23 +314,20 @@ impl Octree {
         original_ray: &Ray,
         node: *mut OctreeNode,
         ray: &Ray,
-        current_level: i32
+        current_level: i32,
     ) -> Option<CastIntersectionResult> {
         unsafe {
             debug_assert!(!node.is_null());
 
             if current_level <= Self::MIN_DEPTH {
+                debug_assert!((*node).children[0].is_null());
                 return Some(Self::intersect_triangles(node, original_ray));
             }
-            // let current_cast_result = 
-            // if !current_cast_result.has_missed() {
-            //     return current_cast_result;
-            // }
 
             // keep intersecting children by nearest, until any intersection is found
             // return nearest of children_cast_result and current_cast_result
 
-            let planes = &(*node).bbox.mid_planes;
+            let planes = &(*node).bbox_padded.mid_planes;
             let mut origin = ray.origin();
             let direction = ray.direction();
             let bbox_padded = &(*node).bbox_padded;
@@ -347,10 +385,12 @@ impl Octree {
                         );
 
                         if let Some(ret) = ret {
-                            // intersection found, return as it's always the nearest
+                            if !ret.has_missed() {
+                                // intersection found, return as it's always the nearest
+                                return Some(ret);
+                            }
 
                             // current_cast_result = minimum_of_two_cast_results(current_cast_result, ret);
-                            return Some(ret);
                             // assert!(current_cast_result.has_missed());
                             // return ret;
                         }
@@ -363,7 +403,7 @@ impl Octree {
                 }
 
                 debug_assert!(minDist >= 0.0);
-                origin = ray.origin() + minDist * direction;
+                origin = ray.origin() + minDist * direction ;//+ 0.001 * direction;
 
                 if !bbox_padded.contains(origin) {
                     return None;

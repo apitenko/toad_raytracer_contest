@@ -108,10 +108,10 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
     // if current_bounce.apply_filter_glossy {
     //     material_roughness = (material_roughness + FILTER_GLOSSY * current_bounce.current_bounces as f32).clamp(0.0, 1.0);
     // }
-    let material_roughness = material_roughness * material_roughness;
-    
-    let surface_normal = {
+    // let material_roughness = material_roughness * material_roughness;
+    let surface_normal = 'surface_normal: {
         let material_normal = current_material.sample_normal(&cast_result.uv_normalmap, mip);
+        // break 'surface_normal material_normal;
         let material_normal = (2.0 * material_normal - Vec3::ONE); //.normalized();
         let surface_normal = (material_normal.z() * cast_result.normal
             + material_normal.x() * cast_result.tangent
@@ -125,7 +125,7 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
 
     // GGX
     const DO_DIRECT_LIGHTING: bool = true;
-    const DO_INDIRECT_LIGHTING: bool = true;
+    const DO_INDIRECT_LIGHTING: bool = false;
     // let DO_DIRECT_LIGHTING: bool = current_bounce.current_bounces > 0;
 
     // Do explicit direct lighting to a random light in the scene
@@ -277,7 +277,6 @@ fn ggx_direct(
 ) -> Vec3 {
     let V = -current_ray_direction;
     let N = surface_normal;
-    let hit = cast_result.intersection_point;
 
     //////
     let fn_sample_light = |light_source: &dyn Light| {
@@ -288,7 +287,7 @@ fn ggx_direct(
         // Compute our lambertian term (N dot L)
         let NdotL = Vec3::dot(surface_normal, L).saturate();
 
-        let light_intensity = light_source.get_emission(hit);
+        let light_intensity = light_source.get_emission(cast_result.intersection_point);
         let light_visibility = shadow_ray_visibility(light_source, scene, cast_result);
 
         // return light_intensity * light_visibility * NdotL * NdotL; // simple model for testing
@@ -331,13 +330,13 @@ fn ggx_direct(
             let random_light = scene.lights[random_light_index].as_ref();
             random_light
         };
-        return fn_sample_light(random_light) * (1.0 - material_metallic);
+        return fn_sample_light(random_light);
     } else {
         let mut color = Vec3::ZERO;
         for light in &scene.lights {
             color += fn_sample_light(light.as_ref());
         }
-        return color / scene.lights.len() as f32 * (1.0 - material_metallic);
+        return color / scene.lights.len() as f32;
     }
 }
 
@@ -351,7 +350,7 @@ fn shadow_ray_visibility(
 
     let light_cast_result = scene.geometry.single_cast(
         Ray::new(
-            cast_result.intersection_point,
+            cast_result.intersection_point,// + 0.01 * cast_result.normal,
             normal_into_light,
             distance_to_light,
         ),
@@ -388,6 +387,28 @@ fn ggx_indirect(
     //     println!("Hitto");
     // }
     // let material_roughness = 0.95;
+
+    // ! Light model for geometry tests ////////////////////////////////
+    // const SIMPLE_INDIRECT: bool = false;
+    // if SIMPLE_INDIRECT {
+    //     let reflected = reflect(current_ray_direction, N);
+    //     let bounce_color: Vec3 = ray_cast(
+    //         RayBounce {
+    //             ray: Ray::new(
+    //                 hit + FLOAT_ERROR * reflected,
+    //                 reflected,
+    //                 f32::MAX,
+    //             ),
+    //             current_bounces: current_bounce.current_bounces + 1,
+    //             distance: current_bounce.distance + cast_result.distance_traversed,
+    //             refraction_state: RayRefractionState::TraversingAir,
+    //             // apply_filter_glossy: true
+    //         },
+    //         scene,
+    //     );
+    //     return (bounce_color + Vec3::ONE) / 6.0 * (Vec3::lerp(material_color, Vec3::ONE, 0.1));
+    // }
+    // ! //////////////////////////////////////////////////////////////
 
     let fn_diffuse_ray = |probDiffuse: f32| {
         // return Vec3::ZERO;
@@ -542,6 +563,7 @@ fn ggx_indirect(
     // }
     // return output;
     // return fn_specular_metallic_ray();
+    return fn_diffuse_ray(0.5);
 
     if rand01() < material_metallic && material_metallic > 0.001 {
         // ! metallic

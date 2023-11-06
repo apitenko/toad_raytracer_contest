@@ -11,4 +11,6 @@ pub trait AccelerationStructure {
     fn single_cast(&self, ray: Ray, inside: bool) -> CastIntersectionResult;
     fn cone_cast(&self, cone: Cone) -> ConeCastResult;
     fn inject_emittance_data(&mut self, ray: Ray);
+    fn tris_count(&self) -> usize;
+    fn memory_info(&self) -> (usize, usize); // nodes, nodes_max
 }

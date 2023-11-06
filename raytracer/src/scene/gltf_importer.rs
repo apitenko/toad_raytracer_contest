@@ -1,6 +1,7 @@
 use crate::constants::DEFAULT_IOR;
 use crate::math::quat::Quat;
 use crate::primitives::uv_set::UVSet;
+use crate::scene::acceleration_structure::acceleration_structure::AccelerationStructure;
 use crate::scene::material::IMaterialStorage;
 use crate::{
     math::{Mat44, Vec3},
@@ -47,7 +48,11 @@ impl From<GltfImport> for ImportedGltfScene {
     }
 }
 
-pub fn read_into_scene(app_scene: &mut Scene, path: &str, camera_name: &str) -> anyhow::Result<()> {
+pub fn read_into_scene(path: &str, camera_name: &str) -> anyhow::Result<Box<Scene>> {
+    
+    // TODO: calculate scene AABB to reduce octree memory footprint
+    let mut app_scene = Box::new(Scene::new()?);
+
     let imported: ImportedGltfScene = {
         if !std::path::Path::exists(&std::path::PathBuf::from(path)) {
             panic!("gltf scene not found")
@@ -126,7 +131,7 @@ pub fn read_into_scene(app_scene: &mut Scene, path: &str, camera_name: &str) -> 
 
     for node in scene.nodes() {
         import_node(
-            app_scene,
+            app_scene.as_mut(),
             &node,
             &Mat44::IDENTITY,
             &imported,
@@ -139,7 +144,10 @@ pub fn read_into_scene(app_scene: &mut Scene, path: &str, camera_name: &str) -> 
         // );
     }
 
-    Ok(())
+    println!("octree tris count (w/ copies): {}", app_scene.geometry.tris_count());
+    println!("octree memory (nodes, max_nodes): {:?}", app_scene.geometry.memory_info());
+
+    Ok(app_scene)
 }
 
 pub fn scan_for_camera<'a>(

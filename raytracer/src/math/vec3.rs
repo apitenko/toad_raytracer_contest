@@ -68,6 +68,11 @@ impl Vec3 {
     }
 
     #[inline]
+    pub fn get(&self) -> [f32;4] {
+        unsafe { self.data }
+    }
+
+    #[inline]
     fn uninit() -> Self {
         return unsafe { MaybeUninit::<Vec3>::uninit().assume_init() };
     }

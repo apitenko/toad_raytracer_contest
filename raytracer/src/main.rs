@@ -71,8 +71,7 @@ fn main() -> anyhow::Result<()> {
 
     println!("Parsing scene from {input}...");
     // Scene
-    let mut scene = Box::new(Scene::new()?);
-    read_into_scene(scene.as_mut(), input, camera_name)?;
+    let mut scene = read_into_scene(input, camera_name)?;
     add_scene_defaults(scene.as_mut())?;
     println!("Scene read! Creating window...");
 

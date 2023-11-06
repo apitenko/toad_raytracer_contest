@@ -53,4 +53,12 @@ impl AccelerationStructure for FlatArray {
     fn inject_emittance_data(&mut self, ray: crate::math::Ray) {
         // unimplementable
     }
+
+    fn tris_count(&self) -> usize {
+        return self.triangles.len();
+    }
+
+    fn memory_info(&self) -> (usize, usize) {
+        return (self.triangles.len(), 0);
+    }
 }

@@ -11,7 +11,7 @@ impl<T, const TCAPACITY: usize> FixedArray<T, TCAPACITY>
 where
     T: Sized,
 {
-    const MAX_SIZE: usize = TCAPACITY;
+    const MAX_ELEMENTS: usize = TCAPACITY;
     pub fn with_capacity() -> Self
     where
         [(); TCAPACITY]:,
@@ -25,7 +25,7 @@ where
     }
 
     pub fn push(&mut self, mut item: T) -> *mut T {
-        if self.current_index >= Self::MAX_SIZE {
+        if self.current_index >= Self::MAX_ELEMENTS {
             panic!("FixedArray is out of memory");
         }
 
@@ -40,5 +40,9 @@ where
     pub fn get_unchecked(&self, index: usize) -> *const T {
         debug_assert!(index < self.current_index);
         &self.data[index]
+    }
+
+    pub fn memory_info(&self) -> (usize, usize) {
+        return (self.current_index, Self::MAX_ELEMENTS);
     }
 }

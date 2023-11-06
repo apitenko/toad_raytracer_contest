@@ -30,15 +30,18 @@
             "args": [
                 "--in",
                 // "./res/abeautifulgame.glb",
-                "./res/sponza/sponza.glb",
+                // "./res/sponza/sponza.glb",
                 // "./res/scene2_embedded.gltf",
                 // "./res/metalrough_.glb",
+                "./res/toad/stage2.glb",
+                "--camera",
+                "Camera 1",
                 // "./res/scene2_3.glb",
                 // "./res/octree_test.glb",
                 // "./res/toad/Duck.glb",
                 // "./res/duck_embedded.gltf",
                 "--height",
-                "800",
+                "400",
                 // "--out",
                 // "duck.png"
                 "--stay-after-complete",
@@ -48,7 +51,7 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'raytracing'",
+            "name": "LLDB",
             "cargo": {
                 "args": [
                     "build",
@@ -66,7 +69,8 @@
             "args": [
                 "--in",
                 // "C:\\code\\glTF-Sample-Models\\2.0\\ABeautifulGame\\glTF\\ABeautifulGame.gltf",
-                "./res/sponza/sponza_.glb",
+                // "./res/sponza/sponza_.glb",
+                "./res/toad/stage2__.glb",
                 // "./res/scene2_embedded.gltf",
                 // "./res/scene2_3.glb",
                 // "./res/metalrough_.glb",
@@ -75,7 +79,7 @@
                 // "./res/toad/Duck.glb",
                 // "./res/duck_embedded.gltf",
                 "--height",
-                "900",
+                "400",
                 // "--out",
                 // "duck.png"
                 "--stay-after-complete",

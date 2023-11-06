@@ -26,7 +26,7 @@ impl Triangle {
         
         let edge1 = self.vertices[1] - self.vertices[0];
         let edge2 = self.vertices[2] - self.vertices[0];
-        return Vec3::cross(edge1, edge2);
+        return Vec3::cross(edge1, edge2).normalized();
     }
 }
 
@@ -85,9 +85,9 @@ impl Shape for Triangle {
 
         // At this stage we can compute t to find out where the intersection point is on the line.
         let t = f * Vec3::dot(edge2, q);
-
+        const EPSILON_OR_SOMETHING:f32 = 0.001;
         if t > f32::EPSILON {
-            let intersection_point = ray.point_at_parameter(t);
+            let intersection_point = ray.point_at_parameter(t);// - EPSILON_OR_SOMETHING * ray.direction();
             return Some(CastIntersectionResult {
                 intersection_point,
                 distance_traversed: t,//(ray.direction() * t).length(),

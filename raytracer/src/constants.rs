@@ -17,8 +17,8 @@ generate_multisample_positions!(1);
 pub(crate) const MULTISAMPLE_OFFSETS: [(f32, f32); 1] = generated_samples();
 pub(crate) const MULTISAMPLE_SIZE: usize = MULTISAMPLE_OFFSETS.len();
 
-pub(crate) const MAX_BOUNCES: i32 = 12;
-pub(crate) const MONTE_CARLO_THRESHOLD_BOUNCES: i32 = 0;
+pub(crate) const MAX_BOUNCES: i32 = 0;
+pub(crate) const MONTE_CARLO_THRESHOLD_BOUNCES: i32 = 1;
 // pub const MAX_DEPTH: f32 = 20.0;
 
 pub(crate) const THREADS: usize = 7;

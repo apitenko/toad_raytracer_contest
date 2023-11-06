@@ -10,7 +10,7 @@ raytracer_lib = { path = "../raytracer_lib" }
 anyhow = "1.0.72"
 const-random = "0.1.15"
 futures = "0.3.28"
-rand = { version = "0.8.5", features = ["simd_support", "packed_simd"] }
+rand = { version = "0.8.5" }
 softbuffer = "0.3.0"
 winit = "0.28.6"
 concurrent-queue = "2.2.0"

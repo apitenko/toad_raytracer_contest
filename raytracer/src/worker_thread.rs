@@ -84,7 +84,7 @@ impl WorkerThreadHandle {
                             let u = (x as f32 + offset.0) / surface.width() as f32;
                             let v = (y as f32 + offset.1) / surface.height() as f32;
 
-                            // if u < 0.15 || u > 0.2 || v < 0.09 || v > 0.1 {
+                            // if u < 0.81 || u > 0.91 || v < 0.39 || v > 0.69 {
                             //     continue;
                             // }
                             // Full metallic sphere

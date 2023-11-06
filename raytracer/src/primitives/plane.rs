@@ -16,9 +16,9 @@ impl Plane {
         {
             let center = self.normal * self.distance;
             let t: f32 = Vec3::dot(center - origin, self.normal) / denom;
-            // if t < 0.0 {
-            //     return f32::INFINITY;
-            // }
+            if t < 0.0 {
+                return f32::INFINITY;
+            }
             return t;
         }
         return f32::INFINITY;

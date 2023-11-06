@@ -11,7 +11,7 @@ pub struct BoundingBox {
     pub max: Vec3,
 }
 
-pub const BBOX_PAD: f32 = 0.01;
+pub const BBOX_PAD: f32 = 0.0000;
 
 impl BoundingBox {
     // True if the point lies within the bounding box
@@ -45,7 +45,6 @@ impl BoundingBox {
     }
 
     pub fn from_triangle(tri: &Triangle) -> Self {
-
         let max = Vec3::max(Vec3::max(tri.vertices[0], tri.vertices[1]), tri.vertices[2]);
         let min = Vec3::min(Vec3::min(tri.vertices[0], tri.vertices[1]), tri.vertices[2]);
 
@@ -63,65 +62,76 @@ impl BoundingBox {
     #[must_use]
     pub fn intersects_triangle(aabb: &Self, triangle: &Triangle) -> bool {
         {
-            fn Project(points: &[Vec3], axis: Vec3) -> (f32,f32)
-            {
+            fn Project(points: &[Vec3], axis: Vec3) -> (f32, f32) {
+                // let axis = axis;
                 let mut min = f32::INFINITY;
                 let mut max = f32::NEG_INFINITY;
-                for p in points
-                {
+                for p in points {
                     let val = Vec3::dot(axis, *p);
-                    if val < min {min = val}
-                    if val > max {max = val}
+                    if val < min {
+                        min = val
+                    }
+                    if val > max {
+                        max = val
+                    }
                 }
-                return (min ,max);
+                return (min, max);
             }
 
-            let aabb_vertices = [aabb.min, aabb.max];
+            let aabb_vertices = aabb.as_8_points();
 
             let triangle_normal = triangle.calculate_geometry_normal();
 
             // Test the box normals (x-, y- and z-axes)
-            let boxNormals = [
-                Vec3::X_AXIS,
-                Vec3::Y_AXIS,
-                Vec3::Z_AXIS,
-            ];
-            for i in 0..3
-            {
-                let n = boxNormals[i];
-                let (triangle_min, triangle_max) = Project(&triangle.vertices, boxNormals[i]);
-                if (triangle_max < aabb.min.get()[i] || triangle_min > aabb.max.get()[i]) {
+            const BOX_NORMALS: [Vec3;3] = [Vec3::X_AXIS, Vec3::Y_AXIS, Vec3::Z_AXIS];
+
+            for i in 0..3 {
+                let (triangle_min, triangle_max) = Project(&triangle.vertices, BOX_NORMALS[i]);
+                if triangle_max < aabb.min.get()[i] || triangle_min > aabb.max.get()[i] {
                     return false; // No intersection possible.
                 }
             }
 
             // Test the triangle normal
-            let triangleOffset = Vec3::dot(triangle_normal, triangle.vertices[0]);
+            let triangle_offset = Vec3::dot(triangle_normal, triangle.vertices[0]);
             let (box_min, box_max) = Project(&aabb_vertices, triangle_normal);
-            if (box_max < triangleOffset || box_min > triangleOffset) {
+            if box_max < triangle_offset || box_min > triangle_offset {
                 return false; // No intersection possible.
             }
             // Test the nine edge cross-products
-            let triangleEdges = [
+            let triangle_edges = [
                 triangle.vertices[0] - triangle.vertices[1],
                 triangle.vertices[1] - triangle.vertices[2],
                 triangle.vertices[2] - triangle.vertices[0],
             ];
             for i in 0..3 {
-            for j in 0..3
-            {
-                // The box normals are the same as it's edge tangents
-                let axis = Vec3::cross(triangleEdges[i], boxNormals[j]);
-                let (box_min, box_max) = Project(&aabb_vertices, axis);
-                let (triangle_min, triangle_max) = Project(&triangle.vertices, axis);
-                if (box_max < triangle_min || box_min > triangle_max) {
-                    return false; // No intersection possible
+                for j in 0..3 {
+                    // The box normals are the same as it's edge tangents
+                    // ? no need to normalize since we're comparing points projected onto the same non-normalized axis
+                    let axis = Vec3::cross(triangle_edges[i], BOX_NORMALS[j]);//.normalized();
+                    let (box_min, box_max) = Project(&aabb_vertices, axis);
+                    let (triangle_min, triangle_max) = Project(&triangle.vertices, axis);
+                    if box_max < triangle_min || box_min > triangle_max {
+                        return false; // No intersection possible
+                    }
                 }
             }
-        }
             // No separating axis found.
             return true;
         }
+    }
+
+    pub fn as_8_points(&self) -> [Vec3; 8] {
+        [
+            self.min,
+            Vec3::new([self.max.x(), self.min.y(), self.min.z()]),
+            Vec3::new([self.min.x(), self.max.y(), self.min.z()]),
+            Vec3::new([self.max.x(), self.max.y(), self.min.z()]),
+            Vec3::new([self.min.x(), self.min.y(), self.max.z()]),
+            Vec3::new([self.max.x(), self.min.y(), self.max.z()]),
+            Vec3::new([self.min.x(), self.max.y(), self.max.z()]),
+            self.max,
+        ]
     }
 
     pub fn from_gltf(aabb: gltf::mesh::BoundingBox) -> Self {

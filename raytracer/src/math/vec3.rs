@@ -380,6 +380,20 @@ impl Vec3 {
     }
 
     #[inline]
+    pub fn max_component_3(&self) -> f32 {
+        unsafe {
+            f32::max(f32::max(self.x(), self.y()),self.z())
+        }
+    }
+
+    #[inline]
+    pub fn min_component_3(&self) -> f32 {
+        unsafe {
+            f32::min(f32::min(self.x(), self.y()),self.z())
+        }
+    }
+
+    #[inline]
     #[must_use]
     pub fn clamp(&self, min: f32, max: f32) -> Self {
         return Vec3::new([

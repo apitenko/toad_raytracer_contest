@@ -125,7 +125,7 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
 
     // GGX
     const DO_DIRECT_LIGHTING: bool = true;
-    const DO_INDIRECT_LIGHTING: bool = false;
+    const DO_INDIRECT_LIGHTING: bool = true;
     // let DO_DIRECT_LIGHTING: bool = current_bounce.current_bounces > 0;
 
     // Do explicit direct lighting to a random light in the scene
@@ -345,6 +345,7 @@ fn shadow_ray_visibility(
     scene: &Scene,
     cast_result: &CastResult,
 ) -> Vec3 {
+    // return Vec3::ONE;
     let (distance_to_light, normal_into_light) =
         light_source.normal_from(cast_result.intersection_point);
 

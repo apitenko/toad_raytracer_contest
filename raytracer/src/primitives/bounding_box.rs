@@ -62,65 +62,82 @@ impl BoundingBox {
     #[must_use]
     pub fn intersects_triangle(aabb: &Self, triangle: &Triangle) -> bool {
         {
-            fn Project(points: &[Vec3], axis: Vec3) -> (f32, f32) {
-                // let axis = axis;
-                let mut min = f32::INFINITY;
-                let mut max = f32::NEG_INFINITY;
-                for p in points {
-                    let val = Vec3::dot(axis, *p);
-                    if val < min {
-                        min = val
-                    }
-                    if val > max {
-                        max = val
-                    }
+            #[inline]
+            fn AABB_CenterExtents(aabb: &BoundingBox) -> (Vec3, Vec3) {                
+                let extents = aabb.center - aabb.min;
+                (aabb.center, extents)
+            }
+            
+            #[inline]
+            fn Test(points: &[Vec3], aabb_extents: Vec3, axis: Vec3) -> bool {
+
+                let p0 = Vec3::dot(points[0], axis);
+                let p1 = Vec3::dot(points[1], axis);
+                let p2 = Vec3::dot(points[2], axis);
+                            
+                let r = aabb_extents.x() * f32::abs(Vec3::dot(Vec3::X_AXIS, axis)) +
+                aabb_extents.y() * f32::abs(Vec3::dot(Vec3::Y_AXIS, axis)) +
+                aabb_extents.z() * f32::abs(Vec3::dot(Vec3::Z_AXIS, axis));
+
+                let p = Vec3::new([p0, p1, p2]);
+                
+                if f32::max(-p.max_component_3(), p.min_component_3()) > r {
+                    // This means BOTH of the points of the projected triangle
+                    // are outside the projected half-length of the AABB
+                    // Therefore the axis is seperating and we can exit
+                    return false;
                 }
-                return (min, max);
+                return true;
             }
 
-            let aabb_vertices = aabb.as_8_points();
-
-            let triangle_normal = triangle.calculate_geometry_normal();
-
-            // Test the box normals (x-, y- and z-axes)
-            const BOX_NORMALS: [Vec3;3] = [Vec3::X_AXIS, Vec3::Y_AXIS, Vec3::Z_AXIS];
-
-            for i in 0..3 {
-                let (triangle_min, triangle_max) = Project(&triangle.vertices, BOX_NORMALS[i]);
-                if triangle_max < aabb.min.get()[i] || triangle_min > aabb.max.get()[i] {
-                    return false; // No intersection possible.
-                }
-            }
-
-            // Test the triangle normal
-            let triangle_offset = Vec3::dot(triangle_normal, triangle.vertices[0]);
-            let (box_min, box_max) = Project(&aabb_vertices, triangle_normal);
-            if box_max < triangle_offset || box_min > triangle_offset {
-                return false; // No intersection possible.
-            }
-            // Test the nine edge cross-products
             let triangle_edges = [
                 triangle.vertices[0] - triangle.vertices[1],
                 triangle.vertices[1] - triangle.vertices[2],
                 triangle.vertices[2] - triangle.vertices[0],
             ];
+            let (aabb_center, aabb_extents) = AABB_CenterExtents(aabb);
+            let triangle_vertices = [
+                triangle.vertices[0] - aabb_center,
+                triangle.vertices[1] - aabb_center,
+                triangle.vertices[2] - aabb_center,
+            ];
+
+            // ! Test 9 axes
+
             for i in 0..3 {
                 for j in 0..3 {
                     // The box normals are the same as it's edge tangents
-                    // ? no need to normalize since we're comparing points projected onto the same non-normalized axis
-                    let axis = Vec3::cross(triangle_edges[i], BOX_NORMALS[j]);//.normalized();
-                    let (box_min, box_max) = Project(&aabb_vertices, axis);
-                    let (triangle_min, triangle_max) = Project(&triangle.vertices, axis);
-                    if box_max < triangle_min || box_min > triangle_max {
-                        return false; // No intersection possible
+                    let axis = Vec3::cross(triangle_edges[i], BOX_NORMALS[j]);
+                    if !Test(&triangle_vertices, aabb_extents, axis) {
+                        return false;
                     }
                 }
             }
+
+            // ! Test 3 AABB axes
+
+            // Test the box normals (x-, y- and z-axes)
+            const BOX_NORMALS: [Vec3;3] = [Vec3::X_AXIS, Vec3::Y_AXIS, Vec3::Z_AXIS];
+
+            for i in 0..3 {
+                if !Test(&triangle_vertices, aabb_extents, BOX_NORMALS[i]) {
+                    return false;
+                }
+            }
+
+            // ! Test 1 triangle normal axis
+
+            let triangle_normal = Vec3::cross(triangle_edges[0],triangle_edges[1]);
+            if !Test(&triangle_vertices, aabb_extents, triangle_normal) {
+                return false;
+            }
+
             // No separating axis found.
             return true;
         }
     }
 
+    #[deprecated]
     pub fn as_8_points(&self) -> [Vec3; 8] {
         [
             self.min,

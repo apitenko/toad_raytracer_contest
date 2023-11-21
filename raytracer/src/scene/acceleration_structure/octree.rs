@@ -212,7 +212,7 @@ impl Octree {
                 for current_octet in 0..8usize {
                     let (child_node, child_bbox) =
                         OctreeNode::make_from_parent_bbox(&current_bbox, current_octet);
-                    if BoundingBox::intersects_triangle(&child_bbox.padded(0.01), insert_triangle) {
+                    if BoundingBox::intersects_triangle(&child_bbox, insert_triangle) {
                         let child_node_ptr = {
                             let existing_node = (*current_node).children[current_octet];
                             if existing_node.is_null() {
@@ -297,7 +297,7 @@ impl Octree {
                 })
                 .fold(CastIntersectionResult::MISS, |acc, item| {
                     if (acc.distance_traversed > item.distance_traversed)
-                        & (item.distance_traversed > 0.0001)
+                        & (item.distance_traversed > 0.001)
                         & (item.distance_traversed <= ray.max_distance())
                     {
                         return item;
@@ -320,8 +320,17 @@ impl Octree {
             debug_assert!(!node.is_null());
 
             if current_level <= Self::MIN_DEPTH {
+                for i in 0..8 {
+                    debug_assert!((*node).children[i].is_null());
+                }
                 debug_assert!((*node).children[0].is_null());
-                return Some(Self::intersect_triangles(node, original_ray));
+                let cast_result = Self::intersect_triangles(node, original_ray);
+                if !cast_result.has_missed() {
+                    return Some(cast_result);
+                }
+                else {
+                    return None;
+                }
             }
 
             // keep intersecting children by nearest, until any intersection is found

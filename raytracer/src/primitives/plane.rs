@@ -11,7 +11,7 @@ impl Plane {
     pub fn RayDistance(&self, origin: Vec3, direction: Vec3) -> f32 {
         let denom = Vec3::dot(self.normal, direction);
 
-        if f32::abs(denom) > 0.0001
+        if f32::abs(denom) > 0.00001
         // your favorite epsilon
         {
             let center = self.normal * self.distance;

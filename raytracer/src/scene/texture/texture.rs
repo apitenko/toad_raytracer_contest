@@ -21,7 +21,7 @@ impl Texture {
             width,
             height,
             width1: width as f32 - f32::EPSILON,
-            height1: height as f32 - f32::EPSILON, 
+            height1: height as f32 - f32::EPSILON,
         }
     }
 
@@ -34,7 +34,7 @@ impl Texture {
 
     pub fn get_raw_data(&self) -> &RawTextureData {
         return &self.image;
-    } 
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -47,9 +47,7 @@ unsafe impl Sync for TextureShared {}
 
 impl TextureShared {
     pub fn uninitialized() -> Self {
-        Self {
-            mat: null()
-        }
+        Self { mat: null() }
     }
     pub const fn new(mat: *const Texture) -> Self {
         Self { mat }
@@ -103,7 +101,6 @@ impl Texture {
     }
 
     pub fn new_from_base64_str(base64_str: &str) -> anyhow::Result<Self> {
-        
         let bytes = base64::engine::general_purpose::STANDARD
             .decode(base64_str)
             .unwrap();
@@ -125,7 +122,7 @@ impl Texture {
         const NORMAL_MAP_PIXEL_PNG_BASE64: &[u8] = b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAAEnQAABJ0Ad5mH3gAAAAMSURBVBhXY2ho+A8AA4MCAKp/PLUAAAAASUVORK5CYII=";
         // const BLUE_PIXEL_PNG_BASE64: &[u8] = b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAAEnQAABJ0Ad5mH3gAAAAMSURBVBhXY2Bg+A8AAQMBAKJTBdAAAAAASUVORK5CYII=";
         // const BLUE128_PIXEL_PNG_BASE64: &[u8] = b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAAEnQAABJ0Ad5mH3gAAAAMSURBVBhXY2BgaAAAAIQAgWOvKa4AAAAASUVORK5CYII=";
-        
+
         return Self::new_from_base64(NORMAL_MAP_PIXEL_PNG_BASE64);
     }
 }

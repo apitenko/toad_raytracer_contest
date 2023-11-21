@@ -485,6 +485,7 @@ impl Vec3 {
         }
     }
 
+    /// By-component abs
     #[inline]
     pub fn abs(&self) -> Self {
         unsafe { return Self::new([self.x().abs(), self.y().abs(), self.z().abs()]) }

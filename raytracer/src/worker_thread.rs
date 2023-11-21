@@ -1,6 +1,7 @@
 use std::thread::JoinHandle;
 
 use crate::constants::{MULTISAMPLE_OFFSETS, MULTISAMPLE_SIZE};
+use crate::primitives::skybox::SKYBOX_MISS_INTENSITY;
 use crate::scene::acceleration_structure::acceleration_structure::AccelerationStructure;
 use crate::{
     math::{RayBounce, Vec3},
@@ -114,11 +115,7 @@ impl WorkerThreadHandle {
                             // Hit skybox (so it doesn't affect the lighting)
                             if scene.geometry.single_cast(starting_ray, true).has_missed() {
                                 // first ray missed, get skybox color
-                                // let unit_direction = starting_ray.direction().normalized();
-                                // let skybox_color = scene.skybox.sample_from_direction(unit_direction);
-                                // pixel_color += skybox_color;
-                                // ray_color = MISS_COLOR_VEC3;
-                                // pixel_color += SKYBOX_COLOR * 10000.0;
+                                pixel_color += scene.skybox.sample_from_direction(starting_ray.direction()) * SKYBOX_MISS_INTENSITY;
                                 continue;
                             }
 
@@ -133,13 +130,13 @@ impl WorkerThreadHandle {
                         // pixel_color = pixel_color * 5.0;
                         // pixel_color = pixel_color / 400.0;
 
-                        // let lumi = pixel_color.luminosity();
-                        // if lumi > 10.0 {
-                        //     pixel_color = pixel_color / lumi;
-                        // }
+                        let lumi = pixel_color.luminosity();
+                        if lumi > 10.0 {
+                            pixel_color = pixel_color / lumi;
+                        }
 
-                        pixel_color = tone_mapping(pixel_color);
-                        pixel_color = pixel_color.gamma_correct_2();
+                        // pixel_color = tone_mapping(pixel_color);
+                        // pixel_color = pixel_color.gamma_correct_2();
 
                         surface.write((x, y), pixel_color);
                     }

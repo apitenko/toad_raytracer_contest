@@ -2,6 +2,7 @@ use std::path::Path;
 
 use crate::constants::DEFAULT_IOR;
 use crate::math::Vec3;
+use crate::primitives::skybox::Skybox;
 use crate::scene::acceleration_structure::acceleration_structure::AccelerationStructure;
 use crate::{constants::DEFAULT_ASPECT_RATIO, primitives::triangle::Triangle};
 
@@ -17,7 +18,7 @@ pub struct Scene {
     pub camera: Camera,
     pub geometry: AccelerationStructureType,
     pub lights: Vec<Box<dyn Light>>,
-    // pub skybox: Skybox,
+    pub skybox: Skybox,
     pub material_storage: MaterialStorage,
     pub aspect_ratio: f32,
     pub default_material: MaterialShared,
@@ -61,12 +62,13 @@ impl Scene {
             double_sided: true, // TODO: KHR_materials_volume .doubleSided property
         });
         // let skybox_texture =  material_storage.push_texture(Texture::new_from_file(&Path::new("./res/skybox.png"))?);
+        let skybox_texture =  material_storage.push_texture(Texture::new_from_raw_bytes(TEXTURE_EMBEDDED_SKYBOX)?);
 
         Ok(Self {
             camera: Camera::new(),
             geometry: AccelerationStructureType::empty(),
             lights: Vec::new(),
-            // skybox: Skybox::new(skybox_texture),
+            skybox: Skybox::new(skybox_texture),
             material_storage,
             aspect_ratio: DEFAULT_ASPECT_RATIO,
             default_material,
@@ -105,3 +107,5 @@ impl TotallySafeSceneWrapper {
 
 unsafe impl Send for TotallySafeSceneWrapper {}
 unsafe impl Sync for TotallySafeSceneWrapper {}
+
+static TEXTURE_EMBEDDED_SKYBOX: &[u8] = include_bytes!("skybox.png");

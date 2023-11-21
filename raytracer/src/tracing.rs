@@ -6,6 +6,7 @@ use crate::constants::{
     AMBIENT_LIGHT_COLOR, AMBIENT_LIGHT_INTENSITY, COLOR_BLUE, FILTER_GLOSSY, FLOAT_ERROR,
     MAX_BOUNCES, SKYBOX_COLOR, SKYBOX_LIGHT_INTENSITY,
 };
+use crate::primitives::skybox::SKYBOX_EMISSION_INTENSITY;
 use crate::scene::acceleration_structure::acceleration_structure::AccelerationStructure;
 use crate::scene::lights::light::attenuation_fn;
 use crate::util::prng::{rand01, rand_range};
@@ -84,11 +85,7 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
         cast_result
     } else {
         // every miss is a skybox hit
-        // miss after bounce
-        return SKYBOX_COLOR * SKYBOX_LIGHT_INTENSITY;
-        // let unit_direction = current_bounce.ray.direction().normalized();
-        // let skybox_color = scene.skybox.sample_from_direction(unit_direction);
-        // return skybox_color * current_bounce.multiplier;
+        return scene.skybox.sample_from_direction(current_bounce.ray.direction()) * SKYBOX_EMISSION_INTENSITY;
     };
 
     // let mip: f32 = current_bounce.distance / 2.0;
@@ -108,7 +105,7 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
     // if current_bounce.apply_filter_glossy {
     //     material_roughness = (material_roughness + FILTER_GLOSSY * current_bounce.current_bounces as f32).clamp(0.0, 1.0);
     // }
-    // let material_roughness = material_roughness * material_roughness;
+    let material_roughness = material_roughness * material_roughness;
     let surface_normal = 'surface_normal: {
         let material_normal = current_material.sample_normal(&cast_result.uv_normalmap, mip);
         // break 'surface_normal material_normal;
@@ -124,9 +121,9 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
     let material_ior = current_material.ior;
 
     // GGX
-    const DO_DIRECT_LIGHTING: bool = true;
+    // const DO_DIRECT_LIGHTING: bool = true;
     const DO_INDIRECT_LIGHTING: bool = true;
-    // let DO_DIRECT_LIGHTING: bool = current_bounce.current_bounces > 0;
+    let DO_DIRECT_LIGHTING: bool = current_bounce.current_bounces > 0;
 
     // Do explicit direct lighting to a random light in the scene
     let component_direct = if DO_DIRECT_LIGHTING {
@@ -564,7 +561,7 @@ fn ggx_indirect(
     // }
     // return output;
     // return fn_specular_metallic_ray();
-    return fn_diffuse_ray(0.5);
+    // return fn_diffuse_ray(0.5);
 
     if rand01() < material_metallic && material_metallic > 0.001 {
         // ! metallic

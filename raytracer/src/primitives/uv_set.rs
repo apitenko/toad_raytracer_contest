@@ -28,6 +28,7 @@ pub struct UVSet {
     pub channels_metalrough: [UVChannel; 4],
     pub channels_normalmap: [UVChannel; 4],
     pub channels_emission: [UVChannel; 4],
+    pub channels_transmission: [UVChannel; 4],
 }
 
 impl UVSet {
@@ -48,6 +49,7 @@ impl UVSet {
         let texture_transform_metalrough = &material.metallic_roughness_texture.texture_transform;
         let texture_transform_normalmap = &material.normal_texture.texture_transform;
         let texture_transform_emission = &material.emission_texture.texture_transform;
+        let texture_transform_transmission = &material.transmission_texture.texture_transform;
 
         let fn_transform = |texture_transform: &TextureTransform, uv: [f32; 2]| {
             let v = Vec3::from_f32([uv[0], uv[1], 0.0, 0.0]);
@@ -92,6 +94,12 @@ impl UVSet {
                 get_points(texture_transform_emission, 2),
                 get_points(texture_transform_emission, 3),
             ],
+            channels_transmission: [
+                get_points(texture_transform_transmission, 0),
+                get_points(texture_transform_transmission, 1),
+                get_points(texture_transform_transmission, 2),
+                get_points(texture_transform_transmission, 3),
+            ]
         }
     }
 }

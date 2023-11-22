@@ -137,6 +137,11 @@ impl Material {
     pub fn sample_normal(&self, uv: &[(f32, f32); 4], mip: f32) -> Vec3 {
         self.sample_uv_scaled(&self.normal_texture, uv, mip)
     }
+
+    #[inline]
+    pub fn sample_transmission(&self, uv: &[(f32, f32); 4], mip: f32) -> f32 {
+        self.sample_uv_scaled(&self.transmission_texture, uv, mip).x() * self.transmission_factor
+    }
 }
 
 #[derive(Clone, Debug)]

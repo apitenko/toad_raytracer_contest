@@ -41,6 +41,7 @@ pub struct CastResult {
     pub uv_metalrough: [(f32, f32); 4],
     pub uv_normalmap: [(f32, f32); 4],
     pub uv_emission: [(f32, f32); 4],
+    pub uv_transmission: [(f32, f32); 4],
     pub material: MaterialShared,
 }
 
@@ -100,6 +101,7 @@ impl CastIntersectionResult {
         let uv_metalrough = interpolate_uvs([w, u, v], &triangle.uv.channels_metalrough);
         let uv_normalmap = interpolate_uvs([w, u, v], &triangle.uv.channels_normalmap);
         let uv_emission = interpolate_uvs([w, u, v], &triangle.uv.channels_emission);
+        let uv_transmission = interpolate_uvs([w, u, v], &triangle.uv.channels_transmission);
 
         let mut normal = interpolate_normals([w, u, v], triangle.normals);
         let mut tangent = interpolate_normals([w, u, v], triangle.tangents);
@@ -121,6 +123,7 @@ impl CastIntersectionResult {
             uv_metalrough,
             uv_normalmap,
             uv_emission,
+            uv_transmission,
             material: triangle.material.clone(),
             // triangle: self.clone()
         });

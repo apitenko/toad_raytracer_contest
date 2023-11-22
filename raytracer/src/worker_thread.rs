@@ -85,33 +85,14 @@ impl WorkerThreadHandle {
                             let u = (x as f32 + offset.0) / surface.width() as f32;
                             let v = (y as f32 + offset.1) / surface.height() as f32;
 
-                            // if u < 0.81 || u > 0.91 || v < 0.39 || v > 0.69 {
+                            // if u < 0.784 || u > 0.80 || v < 0.42 || v > 0.46 {
                             //     continue;
                             // }
-                            // Full metallic sphere
-                            // if u < 0.31 || u > 0.36 || v < 0.75 || v > 0.85 {
-                            //     continue;
-                            // }
-
-                            // if u < 0.36 || u > 0.41 || v < 0.65 || v > 0.75 {
-                            //     continue;
-                            // }
-
-                            // if u < 0.3 || u > 0.7 {
-                            //     continue;
-                            // }
-                            // if u < 0.3 || u > 0.7 || v < 0.55 || v > 0.65 {
-                            //     continue;
-                            // }
-                            // if u < 0.9 || u > 0.94 || v < 0.9 || v > 0.94 {
-                            //     continue;
-                            // }
-                            // if u < 0.45 || u > 0.47 || v < 0.19 || v > 0.2 {
+                            // if u < 0.0 || u > 1.80 || v < 0.3 || v > 0.9 {
                             //     continue;
                             // }
                             let starting_ray = scene.camera.ray(u, v);
 
-                            // TODO: skybox
                             // Hit skybox (so it doesn't affect the lighting)
                             if scene.geometry.single_cast(starting_ray, true).has_missed() {
                                 // first ray missed, get skybox color
@@ -135,8 +116,9 @@ impl WorkerThreadHandle {
                             pixel_color = pixel_color / lumi;
                         }
 
-                        // pixel_color = tone_mapping(pixel_color);
-                        // pixel_color = pixel_color.gamma_correct_2();
+                        pixel_color = pixel_color / 2.0;
+                        pixel_color = pixel_color.gamma_correct_2();
+                        pixel_color = tone_mapping(pixel_color);
 
                         surface.write((x, y), pixel_color);
                     }

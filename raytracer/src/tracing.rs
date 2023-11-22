@@ -6,6 +6,7 @@ use crate::constants::{
     AMBIENT_LIGHT_COLOR, AMBIENT_LIGHT_INTENSITY, COLOR_BLUE, FILTER_GLOSSY, FLOAT_ERROR,
     MAX_BOUNCES, SKYBOX_COLOR, SKYBOX_LIGHT_INTENSITY,
 };
+use crate::math::ray::refract;
 use crate::primitives::skybox::SKYBOX_EMISSION_INTENSITY;
 use crate::scene::acceleration_structure::acceleration_structure::AccelerationStructure;
 use crate::scene::lights::light::attenuation_fn;
@@ -85,7 +86,10 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
         cast_result
     } else {
         // every miss is a skybox hit
-        return scene.skybox.sample_from_direction(current_bounce.ray.direction()) * SKYBOX_EMISSION_INTENSITY;
+        return scene
+            .skybox
+            .sample_from_direction(current_bounce.ray.direction())
+            * SKYBOX_EMISSION_INTENSITY;
     };
 
     // let mip: f32 = current_bounce.distance / 2.0;
@@ -116,14 +120,32 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
             .normalized();
         surface_normal
     };
+    let surface_normal = surface_normal * current_bounce.refraction_state.sign();
     // let surface_normal = cast_result.normal;
 
     let material_ior = current_material.ior;
 
+    let current_ior = match current_bounce.refraction_state {
+        RayRefractionState::TraversingAir => FresnelConstants::Air,
+        RayRefractionState::InsideMaterial {
+            current_ior,
+        } => current_ior,
+    };
+
+    let intersecting_ior = match current_bounce.refraction_state {
+        RayRefractionState::TraversingAir => material_ior,
+        RayRefractionState::InsideMaterial {
+            current_ior: _, // leaving the material
+        } => FresnelConstants::Air,
+    };
+
+    let material_transmission =
+        current_material.sample_transmission(&cast_result.uv_transmission, mip);
+
     // GGX
-    // const DO_DIRECT_LIGHTING: bool = true;
+    const DO_DIRECT_LIGHTING: bool = true;
     const DO_INDIRECT_LIGHTING: bool = true;
-    let DO_DIRECT_LIGHTING: bool = current_bounce.current_bounces > 0;
+    // let DO_DIRECT_LIGHTING: bool = current_bounce.current_bounces > 0;
 
     // Do explicit direct lighting to a random light in the scene
     let component_direct = if DO_DIRECT_LIGHTING {
@@ -135,7 +157,9 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
             material_color,
             material_metallic,
             material_roughness,
-            material_ior,
+            material_transmission,
+            current_ior,
+            intersecting_ior,
             &current_bounce,
         )
     } else {
@@ -152,40 +176,13 @@ pub fn ray_cast(current_bounce: RayBounce, scene: &Scene) -> Vec3 {
             material_color,
             material_metallic,
             material_roughness,
-            material_ior,
+            material_transmission,
+            current_ior,
+            intersecting_ior,
         )
     } else {
         Vec3::ZERO
     };
-
-    // TODO: Refraction
-    // Split energy between Diffuse and Refracted
-    // let diffuse_multiplier = 0.5;
-    // let refracted_multiplier = 1.0 - diffuse_multiplier;
-
-    // let refraction_new_state =
-    //     if let RayRefractionState::TraversingAir = current_bounce.refraction_state {
-    //         RayRefractionState::InsideMaterial {
-    //             current_outside_fresnel_coefficient: fresnel_outside,
-    //         }
-    //     } else {
-    //         RayRefractionState::TraversingAir
-    //     };
-
-    // let component_refract = outside_cast(
-    //     // TODO: should be inside cast
-    //     RayBounce {
-    //         ray: Ray::new(
-    //             cast_result.intersection_point,
-    //             refracted_ray_direction,
-    //             f32::MAX,
-    //         ),
-    //         bounces: current_bounce.bounces - 1,
-    //         multiplier: refracted_multiplier,
-    //         refraction_state: refraction_new_state,
-    //     },
-    //     scene,
-    // );
 
     // TODO: Subsurface Scattering
 
@@ -269,7 +266,9 @@ fn ggx_direct(
     material_color: Vec3,
     material_metallic: f32,
     material_roughness: f32,
-    material_ior: f32,
+    material_transmission: f32,
+    current_ior: f32,
+    intersecting_ior: f32,
     current_bounce: &RayBounce,
 ) -> Vec3 {
     let V = -current_ray_direction;
@@ -300,7 +299,7 @@ fn ggx_direct(
         let D = ggx_normal_distribution(NdotH, material_roughness);
         let G = ggx_schlick_masking_term(NdotL, NdotV, material_roughness);
 
-        let dielectric_f0 = schlick_fresnel_f0(FresnelConstants::Air, material_ior);
+        let dielectric_f0 = schlick_fresnel_f0(current_ior, intersecting_ior);
         let dielectric_f0 = Vec3::new([dielectric_f0, dielectric_f0, dielectric_f0]);
         let f0 = Vec3::lerp(dielectric_f0, material_color, material_metallic); // color channel as albedo for metallics
         let F: Vec3 = schlick_fresnel(f0, HdotV);
@@ -348,7 +347,7 @@ fn shadow_ray_visibility(
 
     let light_cast_result = scene.geometry.single_cast(
         Ray::new(
-            cast_result.intersection_point,// + 0.01 * cast_result.normal,
+            cast_result.intersection_point, // + 0.01 * cast_result.normal,
             normal_into_light,
             distance_to_light,
         ),
@@ -370,7 +369,9 @@ fn ggx_indirect(
     material_color: Vec3,
     material_metallic: f32,
     material_roughness: f32,
-    material_ior: f32,
+    material_transmission: f32,
+    current_ior: f32,
+    intersecting_ior: f32,
 ) -> Vec3 {
     // ugh
     let current_ray_direction = current_bounce.ray.direction();
@@ -408,11 +409,55 @@ fn ggx_indirect(
     // }
     // ! //////////////////////////////////////////////////////////////
 
+    let fn_transmitted = |H: Vec3| {
+        
+        // let H: Vec3 = getGGXMicrofacet(material_roughness, N, tangent, bitangent).normalized();
+
+        //let VdotH = (Vec3::dot(V, H)).saturate();
+        //let fresnel_split = fresnel_reflect_amount(current_ior, current_inside_ior, VdotH);
+
+        let refracted_ray = refract(
+            current_ray_direction,
+            H,
+            current_ior / intersecting_ior
+        );
+
+        let refracted_ray = match refracted_ray {
+            None => return Vec3::ZERO,
+            Some(d) => d,
+        };
+
+        // swap refraction state
+        let refraction_state = match current_bounce.refraction_state {
+            RayRefractionState::TraversingAir => RayRefractionState::InsideMaterial {
+                current_ior: intersecting_ior,
+            },
+            RayRefractionState::InsideMaterial {
+                current_ior: _, // leaving the solid body, forgetting its material properties
+            } => RayRefractionState::TraversingAir,
+        };
+
+        let bounce_color: Vec3 = ray_cast(
+            RayBounce {
+                ray: Ray::new(hit + FLOAT_ERROR * refracted_ray, refracted_ray, f32::MAX),
+                current_bounces: current_bounce.current_bounces + 1,
+                distance: current_bounce.distance + cast_result.distance_traversed,
+                refraction_state,
+                // apply_filter_glossy: false,
+            },
+            scene,
+        );
+
+        return bounce_color;// * (Vec3::ONE - material_color);
+    };
+
     let fn_diffuse_ray = |probDiffuse: f32| {
         // return Vec3::ZERO;
         // Shoot a randomly selected cosine-sampled diffuse ray.
-        let random_direction: Vec3 = (get_cos_hemisphere_sample(N, tangent, bitangent));
-        let mut bounce_color: Vec3 = ray_cast(
+        let random_direction: Vec3 = get_cos_hemisphere_sample(N, tangent, bitangent);
+
+        // ! reflected
+        let bounce_color: Vec3 = ray_cast(
             RayBounce {
                 ray: Ray::new(
                     hit + FLOAT_ERROR * random_direction,
@@ -421,24 +466,18 @@ fn ggx_indirect(
                 ),
                 current_bounces: current_bounce.current_bounces + 1,
                 distance: current_bounce.distance + cast_result.distance_traversed,
-                refraction_state: RayRefractionState::TraversingAir,
+                refraction_state: current_bounce.refraction_state,
                 // apply_filter_glossy: true
             },
             scene,
         );
-
-        // let bounce_lumi = bounce_color.luminosity();
-        // if bounce_lumi > 3.0 {
-        //     // bounce_color = bounce_color / bounce_lumi * 3.0;
-        //     bounce_color = Vec3::ZERO;
-        // }
-        // bounce_color = Vec3::ZERO;
 
         // Accumulate the color: (NdotL * incomingLight * material_albedo / pi)
         // Probability of sampling this ray:  (NdotL / pi) * probDiffuse
         let result_color = bounce_color * material_color / probDiffuse;
         return result_color;
     };
+
     let fn_specular_ray = |probDiffuse: f32| {
         // return Vec3::ZERO;
         // Randomly sample the NDF to get a microfacet in our BRDF
@@ -453,7 +492,7 @@ fn ggx_indirect(
                 ray: Ray::new(hit + FLOAT_ERROR * reflected_ray, reflected_ray, f32::MAX),
                 current_bounces: current_bounce.current_bounces + 1,
                 distance: current_bounce.distance + cast_result.distance_traversed,
-                refraction_state: RayRefractionState::TraversingAir,
+                refraction_state: current_bounce.refraction_state,
                 // apply_filter_glossy: false,
             },
             scene,
@@ -470,7 +509,7 @@ fn ggx_indirect(
         // let D: f32 = ggx_normal_distribution(NdotH, material_roughness);
         let G: f32 = ggx_schlick_masking_term(NdotL, NdotV, material_roughness);
         // let F: Vec3 = schlick_fresnel(Vec3::ONE / 2.0, LdotH);
-        let F: f32 = fresnel_reflect_amount(1.0, material_ior, LdotH);
+        let F: f32 = fresnel_reflect_amount(current_ior, intersecting_ior, LdotH);
         // let ggxTerm: f32 = D * G * F / (4.0 * NdotL * NdotV);
 
         // return Vec3::ONE * H;
@@ -508,7 +547,7 @@ fn ggx_indirect(
                 ray: Ray::new(hit + FLOAT_ERROR * reflected_ray, reflected_ray, f32::MAX),
                 current_bounces: current_bounce.current_bounces + 1,
                 distance: current_bounce.distance + cast_result.distance_traversed,
-                refraction_state: RayRefractionState::TraversingAir,
+                refraction_state: current_bounce.refraction_state,
                 // apply_filter_glossy: false,
             },
             scene,
@@ -563,22 +602,37 @@ fn ggx_indirect(
     // return fn_specular_metallic_ray();
     // return fn_diffuse_ray(0.5);
 
-    if rand01() < material_metallic && material_metallic > 0.001 {
+    if material_metallic > 0.001 && rand01() < material_metallic {
         // ! metallic
         // return Vec3::ZERO;
         return fn_specular_metallic_ray();
     } else {
         // ! dielectric
-        let calculated_specular = schlick_fresnel_f0(FresnelConstants::Air, material_ior);
-        // color is diffuse
-        let (probDiffuse, diffuseMult) =
-            probability_to_sample_diffuse(material_color, calculated_specular);
 
-        let chooseDiffuse = rand01() < probDiffuse;
-        if chooseDiffuse {
-            return fn_diffuse_ray(diffuseMult);
+        let H: Vec3 = getGGXMicrofacet(material_roughness, N, tangent, bitangent).normalized();
+        // let H = N;
+        let LdotH = Vec3::dot(V, H).saturate();
+        let amount_reflected = fresnel_reflect_amount(current_ior, intersecting_ior, LdotH);
+
+        if amount_reflected > 0.001 && rand01() < amount_reflected {
+            // ! reflected
+
+            let calculated_specular = schlick_fresnel_f0(current_ior, intersecting_ior);
+            // color is diffuse
+            let (probDiffuse, diffuseMult) =
+                probability_to_sample_diffuse(material_color, calculated_specular);
+
+            let chooseDiffuse = rand01() < probDiffuse;
+            if chooseDiffuse {
+                return fn_diffuse_ray(diffuseMult);
+            } else {
+                return fn_specular_ray(diffuseMult);
+            }
         } else {
-            return fn_specular_ray(diffuseMult);
+            // ! transmitted
+            let transmitted = fn_transmitted(H);
+
+            return transmitted * material_transmission;
         }
     }
 }

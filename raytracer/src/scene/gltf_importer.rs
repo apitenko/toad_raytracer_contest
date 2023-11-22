@@ -49,7 +49,6 @@ impl From<GltfImport> for ImportedGltfScene {
 }
 
 pub fn read_into_scene(path: &str, camera_name: &str) -> anyhow::Result<Box<Scene>> {
-    
     // TODO: calculate scene AABB to reduce octree memory footprint
     let mut app_scene = Box::new(Scene::new()?);
 
@@ -144,8 +143,14 @@ pub fn read_into_scene(path: &str, camera_name: &str) -> anyhow::Result<Box<Scen
         // );
     }
 
-    println!("octree tris count (w/ copies): {}", app_scene.geometry.tris_count());
-    println!("octree memory (nodes, max_nodes): {:?}", app_scene.geometry.memory_info());
+    println!(
+        "octree tris count (w/ copies): {}",
+        app_scene.geometry.tris_count()
+    );
+    println!(
+        "octree memory (nodes, max_nodes): {:?}",
+        app_scene.geometry.memory_info()
+    );
 
     Ok(app_scene)
 }
@@ -313,8 +318,14 @@ fn import_node(
                         fallback_geometry_normal,
                     );
 
-                    let uv = UVSet::read(&input_uv, i0 as usize, i1 as usize, i2 as usize, material.get());
-                    
+                    let uv = UVSet::read(
+                        &input_uv,
+                        i0 as usize,
+                        i1 as usize,
+                        i2 as usize,
+                        material.get(),
+                    );
+
                     let vertices = [p0, p1, p2];
                     let normals = [n0, n1, n2];
                     let (tangents, bitangents) = calculate_tangents(&vertices, &uv, &normals);
@@ -346,7 +357,7 @@ fn import_node(
                 gltf::khr_lights_punctual::Kind::Directional => {
                     app_scene.lights.push(Box::new(DirectionalLight {
                         color,
-                        intensity: intensity * 10.0,
+                        intensity: intensity * 100.0,
                         direction,
                     }))
                 }
@@ -462,6 +473,30 @@ fn import_material(
     let mut metallic_factor = pbr_info.metallic_factor();
     let mut roughness_factor = pbr_info.roughness_factor();
 
+    let (transmission_factor, transmission_texture) = match material.transmission() {
+        Some(transmission) => {
+            let transmission_factor = transmission.transmission_factor();
+            let transmission_texture = import_texture(
+                transmission.transmission_texture(),
+                &mut app_scene.material_storage,
+                gltf_folder,
+                imported,
+            )?;
+            (transmission_factor, transmission_texture)
+        }
+        None => {
+            let sampler = super::texture::sampler::Sampler::new(
+                &mut app_scene.material_storage,
+                Texture::make_default_texture()?,
+                super::texture::sampler::MinFilter::Nearest,
+                super::texture::sampler::MagFilter::Nearest,
+                0,
+                TextureTransform::default(),
+            );
+            (0.0, sampler)
+        }
+    };
+
     let color_texture = import_texture(
         pbr_info.base_color_texture(),
         &mut app_scene.material_storage,
@@ -513,6 +548,8 @@ fn import_material(
         ior,
         double_sided: material.double_sided(),
         emission_factor: Vec3::from_f32_3(emission_factor, 0.0),
+        transmission_factor,
+        transmission_texture,
         ..app_scene.default_material.get().clone()
     };
 

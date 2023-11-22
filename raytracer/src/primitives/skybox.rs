@@ -2,8 +2,8 @@ use std::f32::consts::PI;
 
 use crate::{constants::MISS_COLOR_VEC3, math::Vec3, scene::texture::texture::TextureShared};
 
-pub const SKYBOX_EMISSION_INTENSITY: f32 = 0.1;
-pub const SKYBOX_MISS_INTENSITY: f32 = 0.1;
+pub const SKYBOX_EMISSION_INTENSITY: f32 = 0.001;
+pub const SKYBOX_MISS_INTENSITY: f32 = 1.0;
 
 pub struct Skybox {
     texture: TextureShared,

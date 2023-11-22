@@ -36,7 +36,7 @@ impl AccelerationStructure for Octree {
     }
 
     fn single_cast(&self, ray: Ray, inside: bool) -> CastIntersectionResult {
-        let result = Self::recursive_intersection(&ray, self.root, &ray, Self::ROOT_DEPTH);
+        let result = Self::recursive_intersection(&ray, self.root, &ray, inside, Self::ROOT_DEPTH);
         if let Some(result) = result {
             return result;
         } else {
@@ -282,11 +282,9 @@ impl Octree {
     //     Ok(())
     // }
 
-    fn intersect_triangles(node: *mut OctreeNode, ray: &Ray) -> CastIntersectionResult {
+    fn intersect_triangles(node: *mut OctreeNode, ray: &Ray, inside: bool) -> CastIntersectionResult {
         debug_assert!(!node.is_null());
         unsafe {
-            let inside = false;
-
             // intersect with all triangles, return nearest CastResult or None
             let cast_result = (*node)
                 .triangles
@@ -314,6 +312,7 @@ impl Octree {
         original_ray: &Ray,
         node: *mut OctreeNode,
         ray: &Ray,
+        inside: bool,
         current_level: i32,
     ) -> Option<CastIntersectionResult> {
         unsafe {
@@ -324,7 +323,7 @@ impl Octree {
                     debug_assert!((*node).children[i].is_null());
                 }
                 debug_assert!((*node).children[0].is_null());
-                let cast_result = Self::intersect_triangles(node, original_ray);
+                let cast_result = Self::intersect_triangles(node, original_ray, inside);
                 if !cast_result.has_missed() {
                     return Some(cast_result);
                 }
@@ -390,6 +389,7 @@ impl Octree {
                             original_ray,
                             child_node,
                             &Ray::new(origin, direction, f32::INFINITY),
+                            inside,
                             current_level - 1,
                         );
 

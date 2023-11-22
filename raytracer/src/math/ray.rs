@@ -39,7 +39,7 @@ pub fn reflect(vector: Vec3, normal: Vec3) -> Vec3 {
     return (vector - 2.0 * Vec3::dot(vector, normal) * normal).normalized();
 }
 
-pub fn refract(incident: Vec3, surface_normal: Vec3, refractiveness_ratio: f32) -> Vec3 {
+pub fn refract(incident: Vec3, surface_normal: Vec3, refractiveness_ratio: f32) -> Option<Vec3> {
     let n = surface_normal;
     let i = incident;
     let eta = refractiveness_ratio;
@@ -48,9 +48,9 @@ pub fn refract(incident: Vec3, surface_normal: Vec3, refractiveness_ratio: f32) 
     let dot_squared = dot * dot;
     let k = 1.0 - eta * eta * (1.0 - dot_squared);
     if k < 0.0 {
-        return Vec3::ZERO;
+        return None;
     } else {
-        return eta * i - (eta * dot + k.sqrt()) * n;
+        return Some(eta * i - (eta * dot + k.sqrt()) * n);
     }
 }
 
@@ -58,10 +58,22 @@ pub fn refract(incident: Vec3, surface_normal: Vec3, refractiveness_ratio: f32) 
 pub enum RayRefractionState {
     /// Ray is currently inside a solid material.
     InsideMaterial {
-        current_outside_fresnel_coefficient: f32,
+        current_ior: f32,
     },
     /// Ray is outside, going through air.
     TraversingAir,
+}
+
+impl RayRefractionState {
+    // used for inverting normals
+    pub fn sign(&self) -> f32 {
+        if let Self::TraversingAir = self {
+            return 1.0;
+        }
+        else {
+            return -1.0;
+        }
+    }
 }
 
 pub struct RayBounce {
@@ -79,9 +91,7 @@ impl RayBounce {
             current_bounces: 0,
             distance: 0.0,
             // remaining_depth: MAX_DEPTH,
-            refraction_state: RayRefractionState::InsideMaterial {
-                current_outside_fresnel_coefficient: 9.9,
-            },
+            refraction_state: RayRefractionState::TraversingAir,
             // apply_filter_glossy: false
         }
     }
@@ -89,11 +99,5 @@ impl RayBounce {
     #[inline]
     pub fn monte_carlo_reached(&self) -> bool {
         self.current_bounces >= MONTE_CARLO_THRESHOLD_BOUNCES
-    }
-}
-
-impl Into<RayBounce> for Ray {
-    fn into(self) -> RayBounce {
-        RayBounce::default_from_ray(self)
     }
 }

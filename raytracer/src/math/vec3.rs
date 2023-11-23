@@ -509,6 +509,13 @@ impl Vec3 {
         return Self::new([self.x(), -self.y(), self.z()]);
     }
 
+    /// sum of 3 components
+    #[inline]
+    pub const fn sum_components_3(&self) -> f32 {
+        return self.x() + self.y() + self.z();
+    }
+
+    /// sum of all 4 components
     #[inline]
     pub fn sum_components(&self) -> f32 {
         #[cfg(target_feature = "sse")]
@@ -522,14 +529,16 @@ impl Vec3 {
         }
         #[cfg(not(target_feature = "sse"))]
         {
-            self.x() + self.y() + self.z()
+            self.x() + self.y() + self.z() + self.w()
         }
     }
 
+    // pub const LUMINOSITY_SPACE: Self = Self::from_f32([0.299, 0.587, 0.114, 0.0]); // newer
+    pub const LUMINOSITY_SPACE: Self = Self::from_f32([0.2126, 0.7152, 0.0722, 0.0]); // older
+
     #[inline]
     pub fn luminosity(&self) -> f32 {
-        // Self::dot(*self, Self::from_f32([0.299, 0.587, 0.114, 0.0])) // new function
-        Self::dot(*self, Self::from_f32([0.2126, 0.7152, 0.0722, 0.0])) // old function
+        Self::dot(*self, Self::LUMINOSITY_SPACE)
     }
 
     #[inline]

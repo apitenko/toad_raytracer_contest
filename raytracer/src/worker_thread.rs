@@ -57,7 +57,7 @@ fn tone_mapping(color: Vec3) -> Vec3 {
     // Perform tone-mapping
     let mapping = hable(sig) / sig;
     let color = color * mapping;
-    let color = color.clamp(0.0, 1.0);
+    // let color = color.clamp(0.0, 1.0);
     return color;
 }
 
@@ -108,18 +108,37 @@ impl WorkerThreadHandle {
 
                         pixel_color = pixel_color / MULTISAMPLE_SIZE as f32;
 
+                        // ! ---------- tone mapping --------
+
                         // pixel_color = pixel_color * 5.0;
                         // pixel_color = pixel_color / 400.0;
 
                         let lumi = pixel_color.luminosity();
-                        if lumi > 10.0 {
-                            pixel_color = pixel_color / lumi;
-                        }
 
-                        pixel_color = pixel_color / 2.0;
-                        pixel_color = pixel_color.gamma_correct_2();
+                        // ! remove firelies (where possible)
+                        const THRESHOLD: f32 = 15.0;
+                        
+                        let compressed_lumi = lumi / THRESHOLD; 
+
+                        if compressed_lumi > THRESHOLD {
+                            pixel_color = pixel_color / compressed_lumi * THRESHOLD;
+                        }
+                        pixel_color = pixel_color / THRESHOLD;
+
+                        // color is now in 0.0 .. 1.0 space
+                        // ! gamma correct the colors
+                        let compressed_lumi_gamma = f32::sqrt(compressed_lumi);
+                        pixel_color = pixel_color / compressed_lumi * compressed_lumi_gamma;
+                        // pixel_color = pixel_color.gamma_correct_2();
+                        // pixel_color = pixel_color/ 10.0;
+
+
+
+
+                        // pixel_color = pixel_color / 1.0;
                         pixel_color = tone_mapping(pixel_color);
 
+                        pixel_color = pixel_color.clamp(0.0, 1.0);
                         surface.write((x, y), pixel_color);
                     }
                 } else {

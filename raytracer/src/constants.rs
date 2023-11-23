@@ -12,12 +12,12 @@ pub(crate) const RENDER_SCALE: u32 = 1;
 // ? づ｀･ω･)づ it's compile time o'clock
 
 use raytracer_lib::generate_multisample_positions;
-generate_multisample_positions!(4);
+generate_multisample_positions!(32);
 
-pub(crate) const MULTISAMPLE_OFFSETS: [(f32, f32); 4] = generated_samples();
+pub(crate) const MULTISAMPLE_OFFSETS: [(f32, f32); 32] = generated_samples();
 pub(crate) const MULTISAMPLE_SIZE: usize = MULTISAMPLE_OFFSETS.len();
 
-pub(crate) const MAX_BOUNCES: i32 = 8;
+pub(crate) const MAX_BOUNCES: i32 = 12;
 pub(crate) const MONTE_CARLO_THRESHOLD_BOUNCES: i32 = 1;
 // pub const MAX_DEPTH: f32 = 20.0;
 

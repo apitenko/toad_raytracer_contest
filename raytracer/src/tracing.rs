@@ -410,11 +410,6 @@ fn ggx_indirect(
     // ! //////////////////////////////////////////////////////////////
 
     let fn_transmitted = |H: Vec3| {
-        
-        // let H: Vec3 = getGGXMicrofacet(material_roughness, N, tangent, bitangent).normalized();
-
-        //let VdotH = (Vec3::dot(V, H)).saturate();
-        //let fresnel_split = fresnel_reflect_amount(current_ior, current_inside_ior, VdotH);
 
         let refracted_ray = refract(
             current_ray_direction,
@@ -602,38 +597,78 @@ fn ggx_indirect(
     // return fn_specular_metallic_ray();
     // return fn_diffuse_ray(0.5);
 
-    if material_metallic > 0.001 && rand01() < material_metallic {
-        // ! metallic
-        // return Vec3::ZERO;
-        return fn_specular_metallic_ray();
-    } else {
-        // ! dielectric
-
-        let H: Vec3 = getGGXMicrofacet(material_roughness, N, tangent, bitangent).normalized();
-        // let H = N;
-        let LdotH = Vec3::dot(V, H).saturate();
-        let amount_reflected = fresnel_reflect_amount(current_ior, intersecting_ior, LdotH);
-
-        if amount_reflected > 0.001 && rand01() < amount_reflected {
-            // ! reflected
-
-            let calculated_specular = schlick_fresnel_f0(current_ior, intersecting_ior);
-            // color is diffuse
-            let (probDiffuse, diffuseMult) =
-                probability_to_sample_diffuse(material_color, calculated_specular);
-
-            let chooseDiffuse = rand01() < probDiffuse;
-            if chooseDiffuse {
-                return fn_diffuse_ray(diffuseMult);
-            } else {
-                return fn_specular_ray(diffuseMult);
-            }
+    if current_bounce.monte_carlo_reached() {
+        if material_metallic > 0.001 && rand01() < material_metallic {
+            // ! metallic
+            // return Vec3::ZERO;
+            return fn_specular_metallic_ray();
         } else {
-            // ! transmitted
-            let transmitted = fn_transmitted(H);
-
-            return transmitted * material_transmission;
+            // ! dielectric
+    
+            let H: Vec3 = getGGXMicrofacet(material_roughness, N, tangent, bitangent).normalized();
+            // let H = N;
+            let LdotH = Vec3::dot(V, H).saturate();
+            let amount_reflected = fresnel_reflect_amount(current_ior, intersecting_ior, LdotH);
+    
+            if amount_reflected > 0.001 && rand01() < amount_reflected {
+                // ! reflected
+    
+                let calculated_specular = schlick_fresnel_f0(current_ior, intersecting_ior);
+                // color is diffuse
+                let (probDiffuse, diffuseMult) =
+                    probability_to_sample_diffuse(material_color, calculated_specular);
+    
+                let chooseDiffuse = rand01() < probDiffuse;
+                if chooseDiffuse {
+                    return fn_diffuse_ray(diffuseMult);
+                } else {
+                    return fn_specular_ray(diffuseMult);
+                }
+            } else {
+                // ! transmitted
+                let transmitted = fn_transmitted(H);
+    
+                return transmitted * material_transmission;
+            }
         }
+    }
+    else {
+        let metallic_lobe = if material_metallic > 0.001 {
+            fn_specular_metallic_ray() * material_metallic
+        }
+        else {
+            Vec3::ZERO
+        };
+
+        let dielectic_lobe = if material_metallic < 0.999 {
+            let H: Vec3 = getGGXMicrofacet(material_roughness, N, tangent, bitangent).normalized();
+            // let H = N;
+            let LdotH = Vec3::dot(V, H).saturate();
+            let amount_reflected = fresnel_reflect_amount(current_ior, intersecting_ior, LdotH);
+    
+            let reflected_lobe = if amount_reflected > 0.001 {
+                let specular_lobe = fn_specular_ray(0.5);
+                let diffuse_lobe = fn_diffuse_ray(0.5);
+                (specular_lobe + diffuse_lobe) * amount_reflected // ! divide by 2.0 ?
+            }
+            else {
+                Vec3::ZERO
+            };
+    
+            let transmitted_lobe = if amount_reflected < 0.999 && material_transmission > 0.0 {
+                fn_transmitted(H) * (1.0 - amount_reflected) * material_transmission
+            }
+            else {
+                Vec3::ZERO
+            };
+
+            (reflected_lobe + transmitted_lobe) * (1.0 - material_metallic)
+        }
+        else {
+            Vec3::ZERO
+        };
+        
+        return metallic_lobe + dielectic_lobe;
     }
 }
 
